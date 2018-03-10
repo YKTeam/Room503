@@ -1,4 +1,9 @@
-
 Document/일정표(임시)_12_08.pptx
 Document/Room503_12_16.pptx
 Document/Room503_1220.pptx
+*.idb
+*.pch
+*.obj
+*.log
+*.exe
+.vs/
