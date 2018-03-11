@@ -6,7 +6,7 @@ private:
 
 public:
 	void Initialize();
-
+	void Accept_Process();
 public:
 
 	void error_display(const char *msg, int err_no);

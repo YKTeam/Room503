@@ -31,6 +31,22 @@ void ServerFrameWork::Initialize()
 
 }
 
+void ServerFrameWork::Accept_Process()
+{
+	while (1)
+	{
+		SOCKADDR_IN Client_addr;
+		ZeroMemory(&Client_addr, sizeof(SOCKADDR_IN));
+		Client_addr.sin_family = AF_INET;
+		Client_addr.sin_port = htons(MAIN_PORT);
+		Client_addr.sin_addr.s_addr = INADDR_ANY;
+
+		int addr_size = sizeof(Client_addr);
+		SOCKET login_client = WSAAccept(m_listensock, reinterpret_cast<sockaddr*>(&login_client),
+			&addr_size, NULL, NULL);
+	}
+}
+
 void ServerFrameWork::error_display(const char * msg, int err_no)
 {
 	WCHAR *lpMsgBuf;
