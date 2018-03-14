@@ -1,10 +1,8 @@
-// SQLBindCol_ref.cpp  
-// compile with: odbc32.lib  
 #include <windows.h>  
 #include <sqlext.h>  
 #include <stdio.h>  
 
-#define UNICODE  
+#pragma comment (lib,"ws2_32.lib")
 
 #define NAME_LEN 50  
 #define PHONE_LEN 20  
@@ -14,6 +12,9 @@ void show_error() {
 }
 
 int main() {
+	WSADATA wsa;
+
+
 	SQLHENV henv;
 	SQLHDBC hdbc;
 	SQLHSTMT hstmt = 0;
