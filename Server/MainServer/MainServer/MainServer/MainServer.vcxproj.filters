@@ -29,14 +29,14 @@
     <ClInclude Include="ServerFrameWork.h">
       <Filter>01.ServerFrameWork</Filter>
     </ClInclude>
-    <ClInclude Include="protocol.h">
-      <Filter>99.ETC</Filter>
-    </ClInclude>
     <ClInclude Include="stdafx.h">
       <Filter>99.ETC</Filter>
     </ClInclude>
     <ClInclude Include="IocpMgr.h">
       <Filter>02.IocpMgr</Filter>
+    </ClInclude>
+    <ClInclude Include="protocol.h">
+      <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -2,7 +2,7 @@
 #include "ServerFrameWork.h"
 
 
-void ServerFrameWork::Initialize()
+void CServerFrameWork::Initialize()
 {
 
 	// S B L A
@@ -29,9 +29,13 @@ void ServerFrameWork::Initialize()
 	if (retval == SOCKET_ERROR) error_display("listen()");
 
 
+	// IO Initi
+	m_hIocp.Initialize();
+
+
 }
 
-void ServerFrameWork::Accept_Process()
+void CServerFrameWork::Accept_Process()
 {
 	while (1)
 	{
@@ -44,10 +48,41 @@ void ServerFrameWork::Accept_Process()
 		int addr_size = sizeof(Client_addr);
 		SOCKET login_client = WSAAccept(m_listensock, reinterpret_cast<sockaddr*>(&login_client),
 			&addr_size, NULL, NULL);
+
+		int login_id = -1;
+		for (int i = 0; i < MAX_USER; ++i) {
+
+		}
+
+
+
 	}
 }
 
-void ServerFrameWork::error_display(const char * msg, int err_no)
+void CServerFrameWork::Work_Thread()
+{
+	while (1)
+	{
+		DWORD dwSize;
+		ULONGLONG cur_id;
+		WSAOVERLAPPED over;
+		int err_no;
+
+		// GetQueuedCompletionSatus
+		BOOL ret = m_hIocp.GQCS(&dwSize, &cur_id, 
+			reinterpret_cast<LPOVERLAPPED*>(&over), err_no);
+
+		if (FALSE == ret) {
+			if (64 == err_no)
+				error_display("GQCS : ", WSAGetLastError());
+		}
+
+		if (0 == dwSize)
+			continue;
+	}
+}
+
+void CServerFrameWork::error_display(const char * msg, int err_no)
 {
 	WCHAR *lpMsgBuf;
 	FormatMessage(
@@ -62,7 +97,7 @@ void ServerFrameWork::error_display(const char * msg, int err_no)
 	while (true);
 }
 
-void ServerFrameWork::error_display(const char * msg)
+void CServerFrameWork::error_display(const char * msg)
 {
 
 	LPVOID lpMsgBuf;
@@ -77,11 +112,16 @@ void ServerFrameWork::error_display(const char * msg)
 
 
 
-ServerFrameWork::ServerFrameWork()
+CServerFrameWork::CServerFrameWork()
 {
+	m_listensock = NULL;
+
 }
 
 
-ServerFrameWork::~ServerFrameWork()
+CServerFrameWork::~CServerFrameWork()
 {
+	closesocket(m_listensock);
+	m_hIocp.~CIocpMgr();
+	WSACleanup();
 }
