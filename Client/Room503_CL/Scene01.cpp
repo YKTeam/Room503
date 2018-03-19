@@ -78,7 +78,6 @@ private:
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
 
-	void BuildFlyerGeometry(CFlyer &object);
 	void BuildHelicopterGeometry(CGunshipHellicopter &object);
 	void BuildLandGeometry();
 	//void BuildFlareSpritesGeometry();
@@ -135,15 +134,9 @@ private:
 	//하이트 구하려고
 	GeometryGenerator m_geoGrid;
 
-	//적기 시작지점
-	XMFLOAT3 m_EnemyStartPos[5];
-
 	bool mIsWireframe = false;
 	bool mIsSkyBox = false;
 
-	//그림자 표현
-	GameObject* mShadoweditem = nullptr;
-	XMFLOAT3 houseUpTranslation;
 	
 	float mSunTheta = 194.3f; 
 	//float mSunPhi = XM_PIDIV4; // pi/4
@@ -159,13 +152,13 @@ private:
 	BOOL isInside = false;
 	float mx = 0, my= 0;
 
-	RECTF easy_rect[4];//간단충돌
-	RECTF room;
 
 	//Camera mCameraTmp;
 	Camera mCamera;
-	Camera mCameraMini;
+	
 	POINT mLastMousePos;
+
+	//LoadModel* modelImport;
 };
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
@@ -230,8 +223,6 @@ bool MyScene::Initialize()
 		mClientWidth, mClientHeight,
 		mBackBufferFormat);
 
-	
-
 	//BuildConstantBuffers();
 	LoadTextures();
 	BuildRootSignature();
@@ -258,7 +249,7 @@ bool MyScene::Initialize()
 
 	// Wait until initialization is complete.
 	FlushCommandQueue();
-
+	
 	return true;
 }
 
@@ -300,9 +291,6 @@ void MyScene::OnResize()
 
 	mCamera.UpdateViewMatrix();
 
-	mCameraMini.SetLens(0.25f*MathHelper::Pi, AspectRatio(), 1.0f, 10000.0f);
-	mCameraMini.UpdateViewMatrix();
-
 	BoundingFrustum::CreateFromMatrix(mCamFrustum, mCamera.GetProj());
 
 	D3DApp::OnResize();
@@ -329,10 +317,6 @@ void MyScene::Update(const GameTimer& gt)
 		CloseHandle(eventHandle);
 	}
 	
-	//위에 미니맵 카메라 처리
-	mCameraMini.SetPosition(XMFLOAT3(mPlayerInfo.World._41, mPlayerInfo.World._42 + 600, mPlayerInfo.World._43));
-	mCameraMini.SetLook(XMFLOAT3(0, -1, 0));
-	mCameraMini.UpdateViewMatrix();
 
 	AnimateMaterials(gt);
 	UpdateObjectCBs(gt);
@@ -386,22 +370,23 @@ void MyScene::Draw(const GameTimer& gt)
 	{
 		mCommandList->SetPipelineState(mPSOs["grid"].Get());
 	}
-	//DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Grid], (int)RenderLayer::Grid);
-	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::PlayerChilds], (int)RenderLayer::PlayerChilds);
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Grid], (int)RenderLayer::Grid);
+	
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Enemy], (int)RenderLayer::Enemy);
 	//
+	//플레이어..
+	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+	mCommandList->SetPipelineState(mPSOs["grid"].Get());
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Player], (int)RenderLayer::Player);
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::PlayerChilds], (int)RenderLayer::PlayerChilds);
 
-
-	// Change offscreen texture to be used as an input.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mOffscreenRT->Resource(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
-
 	mSobelFilter->Execute(mCommandList.Get(), mPostProcessSobelRootSignature.Get(),
 		mPSOs["sobel"].Get(), mOffscreenRT->Srv());
-
-	// Specify the buffers we are going to render to.
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
-
+	
 	mCommandList->SetGraphicsRootSignature(mPostProcessSobelRootSignature.Get());
 	mCommandList->SetPipelineState(mPSOs["composite"].Get());
 	mCommandList->SetGraphicsRootDescriptorTable(0, mOffscreenRT->Srv());
@@ -409,20 +394,14 @@ void MyScene::Draw(const GameTimer& gt)
 	DrawFullscreenQuad(mCommandList.Get());
 
 	//blur 
-	int blurLevel = m_BlurCount;//+ m_CameraMoveLevel;
-	//if (m_BlurCount + m_CameraMoveLevel >= 2) blurLevel = 2;
-	mBlurFilter->Execute(mCommandList.Get(), mPostProcessRootSignature.Get(),
-		mPSOs["horzBlur"].Get(), mPSOs["vertBlur"].Get(), CurrentBackBuffer(), blurLevel);
-	// Prepare to copy blurred output to the back buffer.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
-	mCommandList->CopyResource(CurrentBackBuffer(), mBlurFilter->Output());
-
-	//플레이어..
-	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
-	mCommandList->SetPipelineState(mPSOs["grid"].Get());
-	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Player], (int)RenderLayer::Player);
+	//int blurLevel = m_BlurCount;//+ m_CameraMoveLevel;
+	////if (m_BlurCount + m_CameraMoveLevel >= 2) blurLevel = 2;
+	//mBlurFilter->Execute(mCommandList.Get(), mPostProcessRootSignature.Get(),
+	//	mPSOs["horzBlur"].Get(), mPSOs["vertBlur"].Get(), CurrentBackBuffer(), blurLevel);
+	//// Prepare to copy blurred output to the back buffer.
+	//mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+	//	D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
+	//mCommandList->CopyResource(CurrentBackBuffer(), mBlurFilter->Output());
 
 	// Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -454,11 +433,7 @@ void MyScene::OnMouseDown(WPARAM btnState, int x, int y)
 	{
 		for (auto& e : mOpaqueRitems[(int)RenderLayer::Missile])
 		{
-			//하나 액티브하고 나가기
-			if (!e->m_bActive) {
-				e->m_bActive = true;
-				break;
-			}
+			
 		}
 	}
 	SetCapture(mhMainWnd);
@@ -547,32 +522,34 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 		m_PlayerSpeed = m_CplayerSpeed;
 	}
 	if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
-		auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
-		eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(XMFLOAT3(0, 1, 0), 50.0f *dt, false)));
-		mPlayerInfo.World = eplayer[0]->World;
+		//auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
+		//eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(XMFLOAT3(0, 1, 0), 50.0f *dt, false)));
+		//mPlayerInfo.World = eplayer[0]->World;
 	}
 
 	if (GetAsyncKeyState('W') & 0x8000) {
-		mPlayerInfo.World._41 += mCamera.GetLook3f().x * m_PlayerSpeed *dt;
-		mPlayerInfo.World._42 += mCamera.GetLook3f().y * m_PlayerSpeed *dt;
-		mPlayerInfo.World._43 += mCamera.GetLook3f().z * m_PlayerSpeed *dt;
+		//mPlayerInfo.World._41 += mCamera.GetLook3f().x * m_PlayerSpeed *dt;
+		//mPlayerInfo.World._42 += mCamera.GetLook3f().y * m_PlayerSpeed *dt;
+		//mPlayerInfo.World._43 += mCamera.GetLook3f().z * m_PlayerSpeed *dt;
+		mCamera.Walk(50.0f *dt);
 	}
 	if (GetAsyncKeyState('S') & 0x8000) {
-		mPlayerInfo.World._41 -= mCamera.GetLook3f().x * m_PlayerSpeed *dt;
-		mPlayerInfo.World._42 -= mCamera.GetLook3f().y * m_PlayerSpeed *dt;
-		mPlayerInfo.World._43 -= mCamera.GetLook3f().z * m_PlayerSpeed *dt;
+		//mPlayerInfo.World._41 -= mCamera.GetLook3f().x * m_PlayerSpeed *dt;
+		//mPlayerInfo.World._42 -= mCamera.GetLook3f().y * m_PlayerSpeed *dt;
+		//mPlayerInfo.World._43 -= mCamera.GetLook3f().z * m_PlayerSpeed *dt;
+		mCamera.Walk(-50.0f *dt);
 	}
 	if (GetAsyncKeyState('A') & 0x8000) {
-		mPlayerInfo.World._41 -= mCamera.GetRight3f().x * m_PlayerSpeed *dt;
-		mPlayerInfo.World._42 -= mCamera.GetRight3f().y * m_PlayerSpeed *dt;
-		mPlayerInfo.World._43 -= mCamera.GetRight3f().z * m_PlayerSpeed *dt;
-		//mCamera.Strafe(-50.0f *dt);
+		//mPlayerInfo.World._41 -= mCamera.GetRight3f().x * m_PlayerSpeed *dt;
+		//mPlayerInfo.World._42 -= mCamera.GetRight3f().y * m_PlayerSpeed *dt;
+		//mPlayerInfo.World._43 -= mCamera.GetRight3f().z * m_PlayerSpeed *dt;
+		mCamera.Strafe(-50.0f *dt);
 	}
 	if (GetAsyncKeyState('D') & 0x8000) {
-		mPlayerInfo.World._41 += mCamera.GetRight3f().x * m_PlayerSpeed *dt;
-		mPlayerInfo.World._42 += mCamera.GetRight3f().y * m_PlayerSpeed *dt;
-		mPlayerInfo.World._43 += mCamera.GetRight3f().z * m_PlayerSpeed *dt;
-		//mCamera.Strafe(50.0f *dt);
+		//mPlayerInfo.World._41 += mCamera.GetRight3f().x * m_PlayerSpeed *dt;
+		//mPlayerInfo.World._42 += mCamera.GetRight3f().y * m_PlayerSpeed *dt;
+		//mPlayerInfo.World._43 += mCamera.GetRight3f().z * m_PlayerSpeed *dt;
+		mCamera.Strafe(50.0f *dt);
 	}
 
 	//mCamera.SetPosition(mPlayerInfo.World._41 + sin(mx) * 7, mPlayerInfo.World._42 + 3, mPlayerInfo.World._43 - cos(mx) * 7 - 5);
@@ -601,17 +578,17 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		//mCamera = mCameraTmp;
 		mCamera.Pitch(my);
 		mCamera.RotateY(mx);
-		e->Pitch(my);
-		e->RotateY(mx);
+		//e->Pitch(my);
+		//e->RotateY(mx);
 
 		//카메라 공전
 		//카메라세팅
-		mCamera.SetPosition(XMFLOAT3(e->GetPosition().x, e->GetPosition().y, e->GetPosition().z));
+		//mCamera.SetPosition(XMFLOAT3(e->GetPosition().x, e->GetPosition().y, e->GetPosition().z));
 		float offset = 50.f;
 		//회전
 		XMFLOAT3 offsetVector = Vector3::ScalarProduct(Vector3::Normalize(e->GetLook3f()), -1.0f * offset, false);
 		XMFLOAT3 newCameraPos = Vector3::Add(offsetVector, e->GetPosition());	
-		mCamera.SetPosition(XMFLOAT3(newCameraPos.x + 6, newCameraPos.y + 5, newCameraPos.z));
+		//mCamera.SetPosition(XMFLOAT3(newCameraPos.x + 6, newCameraPos.y + 5, newCameraPos.z));
 
 		//XMFLOAT3 offsetVector = Vector3::ScalarProduct(mCamera.GetLook3f(), -1.0f * offset, false);
 		//XMFLOAT3 newCameraPos = Vector3::Add(offsetVector, e->GetPosition());	
@@ -620,13 +597,13 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		mx = 0;
 		my = 0;
 
-		XMFLOAT3 xmf3Scale(4, 2, 4);
-		if (m_geoGrid.GetHeight(e->GetPosition().x, e->GetPosition().z, false) * xmf3Scale.y > e->GetPosition().y)
-		{
-			//플레이어 초기화 - 예시
-			e->SetPosition(XMFLOAT3(150.0f, 350.0f, 200.0f));
-			printf("지형과 충돌 - 플레이어 초기화\n");
-		}
+		//XMFLOAT3 xmf3Scale(4, 2, 4);
+		//if (m_geoGrid.GetHeight(e->GetPosition().x, e->GetPosition().z, false) * xmf3Scale.y > e->GetPosition().y)
+		//{
+		//	//플레이어 초기화 - 예시
+		//	e->SetPosition(XMFLOAT3(150.0f, 350.0f, 200.0f));
+		//	printf("지형과 충돌 - 플레이어 초기화\n");
+		//}
 
 		mPlayerInfo.World = e->World;
 		mPlayerInfo.TexTransform = e->TexTransform;
@@ -655,56 +632,13 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 	
 	for (auto& e : mOpaqueRitems[(int)RenderLayer::Enemy])
 	{
-		if (e->m_bActive) 
-		{
-			//플레이어와 일정거리 가까워지면 플레이어를 바라본다
-			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
-			XMFLOAT3 distVector = Vector3::Subtract(e->GetPosition(), eplayer[0]->GetPosition());
-			if (Vector3::Length(distVector) < 350.f )
-			{
-				XMFLOAT3 xmf3missileScale(6, 6, 6);
-				//x,z축은 내비두고 플레이어를 바라봄
-				distVector.y = 0.0f;
-				XMFLOAT3 look = Vector3::ScalarProduct( distVector,-1, true );
-				XMFLOAT3 up = XMFLOAT3(0, 1, 0);
-				XMFLOAT3 right = Vector3::CrossProduct(up, look, true);
-				e->SetLook3f(look);
-				e->SetUp3f(up);
-				e->SetRight3f(right);
-
-				
-			}
-			else {
-				//보정
-				//충돌검사시 방향을 돌린다.
-				XMFLOAT3 colDir = Vector3::Add(e->GetPosition(), Vector3::ScalarProduct(e->GetLook3f(), 15, false));
-				if (m_geoGrid.GetHeight(colDir.x, colDir.z, false) * xmf3Scale.y > colDir.y)
-				{
-					e->SetPosition(Vector3::Add(e->GetPosition(), Vector3::ScalarProduct(e->GetLook3f(), -10.0f*gt.DeltaTime(), false)));
-					e->RotateY(1);
-				}
-				//일정 시간마다 특정방향으로 돌린다
-				//y축으로 랜덤 지정~90도 항상 up벡터
-				if (e->m_MoveStartTime + e->m_MoveTime < gt.TotalTime())
-				{
-					e->RotateY(MathHelper::RandF());
-					e->m_MoveStartTime = gt.TotalTime();
-				}
-				//특정 속도로 이동한다
-				e->SetPosition(Vector3::Add(e->GetPosition(), Vector3::ScalarProduct(e->GetLook3f(), 10.0f*gt.DeltaTime(), false)));
-				e->m_shootStartTime = gt.TotalTime();
-			}
-		}
-		//죽었을 시 리스폰
-		else {
-			if (e->m_respawnStartTime + e->m_respawnTime < gt.TotalTime())
-			{
-				e->m_hp = 7;
-				e->m_bActive = true;
-			}
-		}
-
-		e->NumFramesDirty = gNumFrameResources;
+		/*XMMATRIX world = XMLoadFloat4x4(&e->World);
+		XMMATRIX texTransform = XMLoadFloat4x4(&e->TexTransform);
+		ObjectConstants objConstants;
+		XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
+		XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
+		currObjectCB->CopyData(e->ObjCBIndex, objConstants);
+		e->NumFramesDirty = gNumFrameResources;*/
 	}
 	
 	
@@ -719,7 +653,6 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
 			XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
 			
-			objConstants.TextureAniIndex = e->m_texAniIndex;
 			currObjectCB->CopyData(e->ObjCBIndex, objConstants);
 			e->NumFramesDirty--;
 
@@ -759,16 +692,16 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	XMMATRIX view = mCamera.GetView();
 	XMMATRIX proj = mCamera.GetProj();
 	
-	XMMATRIX viewMini = mCameraMini.GetView();
-	XMMATRIX projMini = mCameraMini.GetProj();
+	//XMMATRIX viewMini = mCameraMini.GetView();
+	//XMMATRIX projMini = mCameraMini.GetProj();
 	
 	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
 	XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
 	XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
 
-	XMMATRIX viewProjMini = XMMatrixMultiply(viewMini, projMini);
-	XMMATRIX invProjMini = XMMatrixInverse(&XMMatrixDeterminant(projMini), projMini);
+	//XMMATRIX viewProjMini = XMMatrixMultiply(viewMini, projMini);
+	//XMMATRIX invProjMini = XMMatrixInverse(&XMMatrixDeterminant(projMini), projMini);
 
 	XMStoreFloat4x4(&mMainPassCB.View, XMMatrixTranspose(view));
 	XMStoreFloat4x4(&mMainPassCB.InvView, XMMatrixTranspose(invView));
@@ -777,12 +710,12 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	XMStoreFloat4x4(&mMainPassCB.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mMainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
 
-	XMStoreFloat4x4(&mMainPassCB.ViewMini, XMMatrixTranspose(viewMini));
-	XMStoreFloat4x4(&mMainPassCB.ProjMini, XMMatrixTranspose(projMini));
-	XMStoreFloat4x4(&mMainPassCB.ViewProjMini, XMMatrixTranspose(viewProjMini));
+	//XMStoreFloat4x4(&mMainPassCB.ViewMini, XMMatrixTranspose(viewMini));
+	//XMStoreFloat4x4(&mMainPassCB.ProjMini, XMMatrixTranspose(projMini));
+	//XMStoreFloat4x4(&mMainPassCB.ViewProjMini, XMMatrixTranspose(viewProjMini));
 
 	mMainPassCB.EyePosW = mCamera.GetPosition3f();
-	mMainPassCB.EyePosWMini = mCameraMini.GetPosition3f();
+	//mMainPassCB.EyePosWMini = mCameraMini.GetPosition3f();
 
 	mMainPassCB.RenderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
 	mMainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / mClientWidth, 1.0f / mClientHeight);
@@ -796,8 +729,8 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 
 	int lightCount = 0;
 	
-	mMainPassCB.Lights[lightCount].Position = { -1000,2000,1000 };
-	mMainPassCB.Lights[lightCount].Strength = { 1.0f, 0.35f, 0.0f };
+	mMainPassCB.Lights[lightCount].Position = { 0,100,0 };
+	mMainPassCB.Lights[lightCount].Strength = { 1.0f, 1.0f, 1.0f };
 	//mMainPassCB.Lights[lightCount].FalloffStart = 1000;
 	//mMainPassCB.Lights[lightCount].FalloffEnd = 5000;
 
@@ -842,26 +775,6 @@ void MyScene::LoadTextures()
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), grassTex->Filename.c_str(),
 		grassTex->Resource, grassTex->UploadHeap));
-
-	auto skyboxTex = std::make_unique<Texture[]>(6);
-	skyboxTex[0].Name = "skyboxTex01";
-	skyboxTex[0].Filename = L"Textures/SkyBox_Front_0.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(), mCommandList.Get(), skyboxTex[0].Filename.c_str(), skyboxTex[0].Resource, skyboxTex[0].UploadHeap));
-	skyboxTex[1].Name = "skyboxTex02";
-	skyboxTex[1].Filename = L"Textures/SkyBox_Back_0.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(), mCommandList.Get(), skyboxTex[1].Filename.c_str(), skyboxTex[1].Resource, skyboxTex[1].UploadHeap));
-	skyboxTex[2].Name = "skyboxTex03";
-	skyboxTex[2].Filename = L"Textures/SkyBox_Left_0.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(), mCommandList.Get(), skyboxTex[2].Filename.c_str(), skyboxTex[2].Resource, skyboxTex[2].UploadHeap));
-	skyboxTex[3].Name = "skyboxTex04";
-	skyboxTex[3].Filename = L"Textures/SkyBox_Right_0.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(), mCommandList.Get(), skyboxTex[3].Filename.c_str(), skyboxTex[3].Resource, skyboxTex[3].UploadHeap));
-	skyboxTex[4].Name = "skyboxTex05";
-	skyboxTex[4].Filename = L"Textures/SkyBox_Top_0.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(), mCommandList.Get(), skyboxTex[4].Filename.c_str(), skyboxTex[4].Resource, skyboxTex[4].UploadHeap));
-	skyboxTex[5].Name = "skyboxTex06";
-	skyboxTex[5].Filename = L"Textures/SkyBox_Bottom_0.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(), mCommandList.Get(), skyboxTex[5].Filename.c_str(), skyboxTex[5].Resource, skyboxTex[5].UploadHeap));
 
 	auto treeArrayTex = std::make_unique<Texture>();
 	treeArrayTex->Name = "treeArrayTex";
@@ -923,11 +836,6 @@ void MyScene::LoadTextures()
 	mTextures[gridTex->Name] = std::move(gridTex);
 	mTextures[detailTex->Name] = std::move(detailTex);
 	mTextures[grassTex->Name] = std::move(grassTex);
-	for (int i = 0; i < 6; ++i) {
-		auto tmp = std::make_unique<Texture>();
-		*tmp = skyboxTex[i];
-		mTextures[tmp->Name] = std::move(tmp);
-	}
 	mTextures[treeArrayTex->Name] = std::move(treeArrayTex);
 	mTextures[gunshipTex->Name] = std::move(gunshipTex);
 	mTextures[missileTex->Name] = std::move(missileTex);
@@ -1070,7 +978,7 @@ void MyScene::BuildDescriptorHeaps()
 {
 	int rtvOffset = SwapChainBufferCount;
 
-	const int textureDescriptorCount = 17;
+	const int textureDescriptorCount = 13;
 	const int blurDescriptorCount = 4;
 
 	int srvOffset = textureDescriptorCount;
@@ -1089,13 +997,6 @@ void MyScene::BuildDescriptorHeaps()
 	auto gridTex = mTextures["gridTex"]->Resource;
 	auto detailTex = mTextures["detailTex"]->Resource;
 	auto grassTex = mTextures["grassTex"]->Resource;
-
-	auto skyboxTexFront = mTextures["skyboxTex01"]->Resource;
-	auto skyboxTexBack = mTextures["skyboxTex02"]->Resource;
-	auto skyboxTexLeft = mTextures["skyboxTex03"]->Resource;
-	auto skyboxTexRight = mTextures["skyboxTex04"]->Resource;
-	auto skyboxTexTop = mTextures["skyboxTex05"]->Resource;
-	auto skyboxTexBottom = mTextures["skyboxTex06"]->Resource;
 
 	auto treeArrayTex = mTextures["treeArrayTex"]->Resource;
 
@@ -1132,37 +1033,6 @@ void MyScene::BuildDescriptorHeaps()
 	srvDesc.Format = grassTex->GetDesc().Format;
 	srvDesc.Texture2D.MipLevels = grassTex->GetDesc().MipLevels;
 	md3dDevice->CreateShaderResourceView(grassTex.Get(), &srvDesc, hDescriptor);
-
-	// next descriptor
-	hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
-	srvDesc.Format = skyboxTexFront->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = skyboxTexFront->GetDesc().MipLevels;
-	md3dDevice->CreateShaderResourceView(skyboxTexFront.Get(), &srvDesc, hDescriptor);
-
-	hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
-	srvDesc.Format = skyboxTexBack->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = skyboxTexBack->GetDesc().MipLevels;
-	md3dDevice->CreateShaderResourceView(skyboxTexBack.Get(), &srvDesc, hDescriptor);
-
-	hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
-	srvDesc.Format = skyboxTexLeft->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = skyboxTexLeft->GetDesc().MipLevels;
-	md3dDevice->CreateShaderResourceView(skyboxTexLeft.Get(), &srvDesc, hDescriptor);
-
-	hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
-	srvDesc.Format = skyboxTexRight->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = skyboxTexRight->GetDesc().MipLevels;
-	md3dDevice->CreateShaderResourceView(skyboxTexRight.Get(), &srvDesc, hDescriptor);
-
-	hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
-	srvDesc.Format = skyboxTexTop->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = skyboxTexTop->GetDesc().MipLevels;
-	md3dDevice->CreateShaderResourceView(skyboxTexTop.Get(), &srvDesc, hDescriptor);
-
-	hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
-	srvDesc.Format = skyboxTexBottom->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = skyboxTexBottom->GetDesc().MipLevels;
-	md3dDevice->CreateShaderResourceView(skyboxTexBottom.Get(), &srvDesc, hDescriptor);
 
 	// next descriptor
 	hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
@@ -1253,8 +1123,8 @@ void MyScene::BuildShadersAndInputLayout()
 	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", defines, "PS", "ps_5_1");
 
-	mShaders["MiniVS"] = d3dUtil::CompileShader(L"Shaders\\minimap.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["MiniPS"] = d3dUtil::CompileShader(L"Shaders\\minimap.hlsl", defines, "PS", "ps_5_1");
+	/*mShaders["MiniVS"] = d3dUtil::CompileShader(L"Shaders\\minimap.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["MiniPS"] = d3dUtil::CompileShader(L"Shaders\\minimap.hlsl", defines, "PS", "ps_5_1");*/
 
 	mShaders["treeSpriteVS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "VS", "vs_5_0");
 	mShaders["treeSpriteGS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "GS", "gs_5_0");
@@ -1288,63 +1158,6 @@ void MyScene::BuildShadersAndInputLayout()
 		{ "SIZE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
-}
-
-void MyScene::BuildFlyerGeometry(CFlyer &object)
-{
-	GeometryGenerator::MeshData flyer = object.meshData;
-	//object.UpdateTransform(NULL);
-
-	UINT flyerVertexOffset = 0;
-	UINT flyerIndexOffset = 0;
-
-	SubmeshGeometry flyerSubmesh;
-	flyerSubmesh.IndexCount = (UINT)flyer.Indices32.size();
-	flyerSubmesh.StartIndexLocation = flyerIndexOffset;
-	flyerSubmesh.BaseVertexLocation = flyerVertexOffset;
-
-	auto totalVertexCount =
-		flyer.Vertices.size();
-
-	UINT k = 0;
-	std::vector<Vertex> vertices(totalVertexCount);
-	for (size_t i = 0; i < flyer.Vertices.size(); ++i, ++k)
-	{
-		auto& p = flyer.Vertices[i].Position;
-		vertices[k].Pos = p;
-		vertices[k].Normal = flyer.Vertices[i].Normal;
-		vertices[k].TexC0 = flyer.Vertices[i].TexC;
-		vertices[k].TexC1 = flyer.Vertices[i].TexC1;
-	}
-	std::vector<std::uint32_t> indices;
-	indices.insert(indices.end(), std::begin(flyer.Indices32), std::end(flyer.Indices32));
-
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
-	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint32_t);
-
-	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "flyerGeo";
-
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
-	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
-
-	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
-	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-
-	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
-
-	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
-
-	geo->VertexByteStride = sizeof(Vertex);
-	geo->VertexBufferByteSize = vbByteSize;
-	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
-	geo->IndexBufferByteSize = ibByteSize;
-
-	geo->DrawArgs["flyer"] = flyerSubmesh;
-
-	mGeometries[geo->Name] = std::move(geo);
 }
 
 void MyScene::BuildHelicopterGeometry(CGunshipHellicopter &object)
@@ -1464,39 +1277,33 @@ void MyScene::BuildHelicopterGeometry(CGunshipHellicopter &object)
 
 void MyScene::BuildLandGeometry()
 {
-	LPCTSTR  mapName = _T("Textures/HeightMap.raw");
-	XMFLOAT3 xmf3Scale(4.0f, 2.0f, 4.0f);
-	XMFLOAT4 xmf4Color(0.0f, 0.5f, 0.0f, 0.0f);
+	//LPCTSTR  mapName = _T("Textures/HeightMap.raw");
+	//XMFLOAT3 xmf3Scale(4.0f, 2.0f, 4.0f);
+	//XMFLOAT4 xmf4Color(0.0f, 0.5f, 0.0f, 0.0f);
 
 	GeometryGenerator geoGen;
-	geoGen.CHeightMapImage(mapName, 257, 257,xmf3Scale);
-	GeometryGenerator::MeshData grid = geoGen.CHeightMapGridMesh(0,0,257,257,xmf3Scale,xmf4Color);// geoGen.CreateGrid(640.0f, 640.0f, 120, 120);
-	//플레이어
-	GeometryGenerator::MeshData player = geoGen.CreateBox(1, 1, 1, 0);
-
+	//geoGen.CHeightMapImage(mapName, 257, 257,xmf3Scale);
+	
+	//GeometryGenerator::MeshData grid = geoGen.CHeightMapGridMesh(0,0,257,257,xmf3Scale,xmf4Color);// geoGen.CreateGrid(640.0f, 640.0f, 120, 120);
+	//GeometryGenerator::MeshData grid = geoGen.CreateQuad(0, 0, 100, 1, 100);
+	GeometryGenerator::MeshData grid = geoGen.CreateBox(200,50,200, 0);
 	//1
 	// 필요한 정점 성분들을 추출한뒤 각 정점에 높이 함수 적용. 
 	// 그 높이에 기초해 정점의 색상도 설정한다
 	//	
 	
 	UINT gridVertexOffset = 0;
-	UINT playerVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
 
 	UINT gridIndexOffset = 0;
-	UINT playerIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
 
 	SubmeshGeometry gridSubmesh;
 	gridSubmesh.IndexCount = (UINT)grid.Indices32.size();
 	gridSubmesh.StartIndexLocation = gridIndexOffset;
 	gridSubmesh.BaseVertexLocation = gridVertexOffset;
 
-	SubmeshGeometry playerSubmesh;
-	playerSubmesh.IndexCount = (UINT)player.Indices32.size();
-	playerSubmesh.StartIndexLocation = playerIndexOffset;
-	playerSubmesh.BaseVertexLocation = playerVertexOffset;
 
 	auto totalVertexCount =
-		grid.Vertices.size() + player.Vertices.size();
+		grid.Vertices.size() ;
 
 	UINT k = 0;
 	std::vector<Vertex> vertices(totalVertexCount);
@@ -1504,24 +1311,15 @@ void MyScene::BuildLandGeometry()
 	{
 		auto& p = grid.Vertices[i].Position;
 		vertices[k].Pos = p;
-		vertices[k].Pos.y = geoGen.GetHeight(p.x, p.z,false) * xmf3Scale.y;
-		vertices[k].Normal = geoGen.GetHeightMapNormal(p.x / xmf3Scale.x, p.z / xmf3Scale.z);
+		//vertices[k].Pos.y = grid.Vertices[i].Position.y;//geoGen.GetHeight(p.x, p.z, false); //* xmf3Scale.y;
+		vertices[k].Normal = grid.Vertices[i].Normal;//geoGen.GetHeightMapNormal(p.x / xmf3Scale.x, p.z / xmf3Scale.z);
 		vertices[k].TexC0 = grid.Vertices[i].TexC;
 		vertices[k].TexC1 = grid.Vertices[i].TexC1;
-	}
-	//플레이어
-	for (size_t i = 0; i < player.Vertices.size(); ++i, ++k)
-	{
-		vertices[k].Pos = player.Vertices[i].Position;
-		vertices[k].Normal = player.Vertices[i].Normal;
-		vertices[k].TexC0 = player.Vertices[i].TexC;
-		vertices[k].TexC1 = vertices[k].TexC0;
 	}
 
 
 	std::vector<std::uint32_t> indices;
 	indices.insert(indices.end(), std::begin(grid.Indices32) , std::end(grid.Indices32));
-	indices.insert(indices.end(), std::begin(player.Indices32), std::end(player.Indices32));
 	//indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
 	//indices.insert(indices.end(), std::begin(player.GetIndices16()), std::end(player.GetIndices16()));
 
@@ -1549,7 +1347,6 @@ void MyScene::BuildLandGeometry()
 	geo->IndexBufferByteSize = ibByteSize;
 
 	geo->DrawArgs["grid"] = gridSubmesh; 
-	geo->DrawArgs["player"] = playerSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 
@@ -1751,113 +1548,83 @@ void MyScene::BuildFrameResources()
 
 void MyScene::BuildMaterials()
 {
+	int matIndex = 0;
 	auto rand = std::make_unique<Material>();
 	rand->Name = "rand";
-	rand->MatCBIndex = 0;
-	rand->DiffuseSrvHeapIndex = 0;
+	rand->MatCBIndex = matIndex;
+	rand->DiffuseSrvHeapIndex = matIndex++;
 	rand->DiffuseAlbedo = XMFLOAT4(1, 1.0f, 1, 1.0f);
 	rand->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
 	rand->Roughness = 0.3f;
 
 	auto gu = std::make_unique<Material>();
 	gu->Name = "gu";
-	gu->MatCBIndex = 1;
-	gu->DiffuseSrvHeapIndex = 1;
+	gu->MatCBIndex = matIndex;
+	gu->DiffuseSrvHeapIndex = matIndex++;
 	gu->DiffuseAlbedo = XMFLOAT4(1, 1, 1, 1);
 	gu->FresnelR0 = XMFLOAT3(0.85f, 0.85f, 0.85f);
 	gu->Roughness = 0.6f;
 
 	auto grass = std::make_unique<Material>();
 	grass->Name = "grass";
-	grass->MatCBIndex = 2;
-	grass->DiffuseSrvHeapIndex = 2;
+	grass->MatCBIndex = matIndex;
+	grass->DiffuseSrvHeapIndex = matIndex++;
 	grass->DiffuseAlbedo = XMFLOAT4(1, 1, 1, 1);
 	grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
 	grass->Roughness = 0.125f;
 
-	auto skyboxFront = std::make_unique<Material>();
-	skyboxFront->Name = "skybox01";
-	skyboxFront->MatCBIndex = 3;
-	skyboxFront->DiffuseSrvHeapIndex = 3;
-	auto skyboxBack = std::make_unique<Material>();
-	skyboxBack->Name = "skybox02";
-	skyboxBack->MatCBIndex = 4;
-	skyboxBack->DiffuseSrvHeapIndex = 4;
-	auto skyboxLeft = std::make_unique<Material>();
-	skyboxLeft->Name = "skybox03";
-	skyboxLeft->MatCBIndex = 5;
-	skyboxLeft->DiffuseSrvHeapIndex = 5;
-	auto skyboxRight = std::make_unique<Material>();
-	skyboxRight->Name = "skybox04";
-	skyboxRight->MatCBIndex = 6;
-	skyboxRight->DiffuseSrvHeapIndex = 6;
-	auto skyboxUp = std::make_unique<Material>();
-	skyboxUp->Name = "skybox05";
-	skyboxUp->MatCBIndex = 7;
-	skyboxUp->DiffuseSrvHeapIndex = 7;
-	auto skyboxBottom = std::make_unique<Material>();
-	skyboxBottom->Name = "skybox06";
-	skyboxBottom->MatCBIndex = 8;
-	skyboxBottom->DiffuseSrvHeapIndex = 8;
-
 	auto treeSprites = std::make_unique<Material>();
 	treeSprites->Name = "treeSprites";
-	treeSprites->MatCBIndex = 9;
-	treeSprites->DiffuseSrvHeapIndex = 9;
+	treeSprites->MatCBIndex = matIndex;
+	treeSprites->DiffuseSrvHeapIndex = matIndex++;
 	treeSprites->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	treeSprites->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
 	treeSprites->Roughness = 0.125f;
 
 	auto gunship = std::make_unique<Material>();
 	gunship->Name = "gunship";
-	gunship->MatCBIndex = 10;
-	gunship->DiffuseSrvHeapIndex = 10;
+	gunship->MatCBIndex = matIndex;
+	gunship->DiffuseSrvHeapIndex = matIndex++;
 
 	auto missile = std::make_unique<Material>();
 	missile->Name = "missile";
-	missile->MatCBIndex = 11;
-	missile->DiffuseSrvHeapIndex = 11;
+	missile->MatCBIndex = matIndex;
+	missile->DiffuseSrvHeapIndex = matIndex++;
 	missile->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	missile->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
 	missile->Roughness = 0.125f;
 
 	auto flareSprites = std::make_unique<Material>();
 	flareSprites->Name = "flareSprites";
-	flareSprites->MatCBIndex = 12;
-	flareSprites->DiffuseSrvHeapIndex = 12;
+	flareSprites->MatCBIndex = matIndex;
+	flareSprites->DiffuseSrvHeapIndex = matIndex++;
 	flareSprites->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	flareSprites->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
 	flareSprites->Roughness = 0.125f;
 
 	auto enemy = std::make_unique<Material>();
 	enemy->Name = "enemy";
-	enemy->MatCBIndex = 13;
-	enemy->DiffuseSrvHeapIndex = 13;
+	enemy->MatCBIndex = matIndex;
+	enemy->DiffuseSrvHeapIndex = matIndex++;
 
 	auto enemyDetail = std::make_unique<Material>();
 	enemyDetail->Name = "enemyDetail";
-	enemyDetail->MatCBIndex = 14;
-	enemyDetail->DiffuseSrvHeapIndex = 14;
+	enemyDetail->MatCBIndex = matIndex;
+	enemyDetail->DiffuseSrvHeapIndex = matIndex++;
 
 	auto red = std::make_unique<Material>();
 	red->Name = "red";
-	red->MatCBIndex = 15;
-	red->DiffuseSrvHeapIndex = 15;
+	red->MatCBIndex = matIndex;
+	red->DiffuseSrvHeapIndex = matIndex++;
 
 	auto blue = std::make_unique<Material>();
 	blue->Name = "blue";
-	blue->MatCBIndex = 16;
-	blue->DiffuseSrvHeapIndex = 16;
+	blue->MatCBIndex = matIndex;
+	blue->DiffuseSrvHeapIndex = matIndex++;
 
 	mMaterials["rand"] = std::move(rand);
 	mMaterials["gu"] = std::move(gu);
 	mMaterials["grass"] = std::move(grass);
-	mMaterials["skybox01"] = std::move(skyboxFront);
-	mMaterials["skybox02"] = std::move(skyboxBack);
-	mMaterials["skybox03"] = std::move(skyboxLeft);
-	mMaterials["skybox04"] = std::move(skyboxRight);
-	mMaterials["skybox05"] = std::move(skyboxUp);
-	mMaterials["skybox06"] = std::move(skyboxBottom);
 	mMaterials["treeSprites"] = std::move(treeSprites);
 	mMaterials["gunship"] = std::move(gunship);
 	mMaterials["missile"] = std::move(missile);
@@ -1878,12 +1645,12 @@ void MyScene::BuildGameObjects()
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////
 	auto gridRitem = std::make_unique<GameObject>();
 
-	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, -10.0f, 0.0f));
+	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, -50.0f, 0.0f));
 	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	gridRitem->ObjCBIndex = objIndex++;
 	gridRitem->Mat = mMaterials["rand"].get();
 	gridRitem->Geo = mGeometries["landGeo"].get();
-	gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+	gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
 	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
@@ -1893,11 +1660,9 @@ void MyScene::BuildGameObjects()
 
 	///////////////////////////플레이어////////////////////////////////
 	BuildHelicopterGeometry(*m_gunShip.get());
-	auto flyer = std::make_unique<CFlyer>();
-	BuildFlyerGeometry( *flyer.get());
 
 	auto player = std::make_unique<GameObject>();
-	XMStoreFloat4x4(&player->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(150.0f, 350.0f, 200.0f));
+	XMStoreFloat4x4(&player->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
 	mPlayerInfo.World = player->World;
 	mPlayerInfo.TexTransform = player->TexTransform;
 
@@ -1940,30 +1705,21 @@ void MyScene::BuildGameObjects()
 
 	mOpaqueRitems[(int)RenderLayer::PlayerChilds].push_back(rotor.get());
 	mAllRitems.push_back(std::move(rotor));
+	
+	//new LoadModel("Model/Robot Kyle.fbx");
+	auto dummy = std::make_unique<GameObject>();
+	dummy->LoadGameModel("Model/Robot Kyle.fbx");
+	XMStoreFloat4x4(&dummy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 50.0f));
+	dummy->ObjCBIndex = objIndex++;
+	dummy->Mat = mMaterials["gunship"].get();
+	dummy->Geo = mGeometries["gunshipGeo"].get();
+	dummy->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	dummy->IndexCount = dummy->Geo->DrawArgs["gunShip"].IndexCount;
+	dummy->StartIndexLocation = dummy->Geo->DrawArgs["gunShip"].StartIndexLocation;
+	dummy->BaseVertexLocation = dummy->Geo->DrawArgs["gunShip"].BaseVertexLocation;
 
-	
-	
-	m_EnemyStartPos[0] = XMFLOAT3(600.0f, 250.0f, 150.0f);
-	m_EnemyStartPos[1] = XMFLOAT3(800.0f, 270.0f, 200.0f);
-	m_EnemyStartPos[2] = XMFLOAT3(130.0f, 310.0f, 800.0f);
-	m_EnemyStartPos[3] = XMFLOAT3(524.0f, 300.0f, 510.0f);
-	m_EnemyStartPos[4] = XMFLOAT3(800.0f, 320.0f, 800.0f);
-	//적 헬기와 적 미사일
-	for (int i = 0; i < 5; ++i) {
-		auto enemy = std::make_unique<GameObject>();
-		XMStoreFloat4x4(&enemy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(m_EnemyStartPos[i].x, m_EnemyStartPos[i].y, m_EnemyStartPos[i].z));
-		enemy->ObjCBIndex = objIndex++;
-		enemy->Mat = mMaterials["enemy"].get();
-		enemy->Geo = mGeometries["flyerGeo"].get();
-		enemy->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		enemy->IndexCount = enemy->Geo->DrawArgs["flyer"].IndexCount;
-		enemy->StartIndexLocation = enemy->Geo->DrawArgs["flyer"].StartIndexLocation;
-		enemy->BaseVertexLocation = enemy->Geo->DrawArgs["flyer"].BaseVertexLocation;
-		enemy->m_bActive = true;
-		mOpaqueRitems[(int)RenderLayer::Enemy].push_back(enemy.get());
-		mAllRitems.push_back(std::move(enemy));
-	}
-	
+	mOpaqueRitems[(int)RenderLayer::Enemy].push_back(dummy.get());
+	mAllRitems.push_back(std::move(dummy));
 
 	m_ObjIndex = objIndex;
 
@@ -1982,7 +1738,7 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
     for(size_t i = 0; i < ritems.size(); ++i)
     {
 		auto ri = ritems[i];
-		if (!ri->m_bActive) continue;
+		//if (!ri->m_bActive) continue;
 		//if (ri->m_pChild) DrawGameObjects(cmdList, ri->m_pChild, (int)RenderLayer::Player);
 
         cmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());

@@ -33,13 +33,13 @@ cbuffer cbPass : register(b1)
     float4x4 gInvProj;
     float4x4 gViewProj;
     float4x4 gInvViewProj;
-	float4x4 gViewMini;
+	/*float4x4 gViewMini;
 	float4x4 gProjMini;
-	float4x4 gViewProjMini;
+	float4x4 gViewProjMini;*/
     float3 gEyePosW;
     float cbPerObjectPad1;
-	float3 gEyePosWMini;
-	float cbPerObjectPad2;
+	//float3 gEyePosWMini;
+	//float cbPerObjectPad2;
     float2 gRenderTargetSize;
     float2 gInvRenderTargetSize;
     float gNearZ;
@@ -141,8 +141,8 @@ float4 PS(VertexOut pin) : SV_Target
 
     float4 litColor = ambient + directLight;
 #ifdef FOG
-	float fogAmount = saturate((distToEye - gFogStart) / gFogRange);
-	litColor = lerp(litColor, gFogColor, fogAmount);
+	/*float fogAmount = saturate((distToEye - gFogStart) / gFogRange);
+	litColor = lerp(litColor, gFogColor, fogAmount);*/
 #endif
 	
     // Common convention to take alpha from diffuse albedo.

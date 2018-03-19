@@ -36,6 +36,6 @@ void SobelCS(int3 dispatchThreadID : SV_DispatchThreadID)
 
 	// À±°û¼± ÇÈ¼¿Àº °Ë°Ô, ¾Æ´Ï¸é Èñ°Ô ¸¸µç´Ù.
 	mag = 1.0f - saturate(CalcLuminance(mag.rgb));
-	if (mag.r <= 0.5f || mag.g <= 0.5f || mag.b <= 0.5f) mag = float4(1, 0, 0, 1);
+	if (mag.r <= 0.5f || mag.g <= 0.5f || mag.b <= 0.5f) mag = float4(0, 0, 0, 1);
 	gOutput[dispatchThreadID.xy] = mag;
 }

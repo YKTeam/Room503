@@ -124,7 +124,7 @@ protected:
 
 	//파생 클래스는 자신의 생성자에서 이 멤버 변수들을
 	//자신의 목적에 맞는 초기 값들로 설정해야 한다.
-	std::wstring mMainWndCaption = L"홧팅";
+	std::wstring mMainWndCaption = L":D";
 	D3D_DRIVER_TYPE md3dDriverType = D3D_DRIVER_TYPE_HARDWARE;
     DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;

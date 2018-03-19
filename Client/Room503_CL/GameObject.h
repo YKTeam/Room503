@@ -8,6 +8,12 @@
 #include <tchar.h>
 #include <iosfwd>
 
+#include "include\assimp\Importer.hpp"
+#include "include\assimp\cimport.h"
+#include "include\assimp\postprocess.h"
+#include "include\assimp\scene.h"
+#pragma comment(lib, "assimp.lib")
+
 using Microsoft::WRL::ComPtr;
 using namespace std;
 using namespace DirectX;
@@ -75,24 +81,16 @@ public:
 public:
 	TCHAR	m_pstrFrameName[256];
 	bool	m_bActive = true;
-	UINT    m_texAniIndex = 0;
-	float   m_texAniStartTime = 0.0f;
-	float   m_texAniTime = 0.05f;
-
-	float   m_MoveStartTime = 0.0f;
-	float   m_MoveTime = 3.55f;
-	float   m_shootStartTime = 0.0f;
-	float   m_shootReloadTime = 2.55f;
-
-	float   m_respawnStartTime = 0.0f;
-	float   m_respawnTime = 15.0f;
-	int m_hp = 7;
 
 	GameObject 	*m_pParent = NULL;
 	GameObject 	*m_pChild = NULL;
 	GameObject 	*m_pSibling = NULL;
 
 	GeometryGenerator::MeshData meshData;
+	const aiScene*                m_pScene;        //모델 정보
+	//GeometryGenerator::MeshData   meshData;        //매쉬 정보
+	//UINT                            m_numVertices;
+	//UINT                            m_numMaterial;
 
 	void Rotate(float fPitch = 10.0f, float fYaw = 10.0f, float fRoll = 10.0f);
 	void Rotate(XMFLOAT3 *pxmf3Axis, float fAngle);
@@ -102,14 +100,16 @@ public:
 	GameObject *GetParent() { return(m_pParent); }
 	GameObject *FindFrame(_TCHAR *pstrFrameName);
 
+	//로드 모델
+	void LoadGameModel(const string& fileName);
 	//계층변환
 	void UpdateTransform(XMFLOAT4X4 *pxmf4x4Parent = NULL);
-
 	//계층을 파일로부터 읽기
 	void LoadFrameHierarchyFromFile(wifstream& InFile, UINT nFrame);
 	//지오메트리 정보를 읽기
 	void LoadGeometryFromFile(TCHAR *pstrFileName);
 	void PrintFrameInfo(GameObject *pGameObject, GameObject *pParent);
+
 };
 
 class PlayerObject : public GameObject
@@ -139,14 +139,26 @@ public:
 	GameObject					*m_pBackRotorFrame = NULL;
 	GameObject					*m_pHellfileMissileFrame = NULL;
 };
-///////////////////////////////////////////////
-class CFlyer : public GameObject
+///////////////////////////////////////////////////
+
+class LoadModel
 {
+private:
+
+	const aiScene*                m_pScene;        //모델 정보
+	GeometryGenerator::MeshData   meshData;        //매쉬 정보
+	//vector<pair<string, Bone>>  m_Bones;        //뼈 정보
+	UINT                            m_numVertices;
+	UINT                            m_numMaterial;
+
 public:
-	CFlyer();
-	virtual ~CFlyer();
+	LoadModel();
+	LoadModel(const string& fileName);
+	~LoadModel();
+	void InitScene();
+	void InitMesh(UINT index, const aiMesh* pMesh);
+	void SetMeshes(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
+	//ModelMesh**    getMeshes() { return m_ModelMeshes.data(); }
+	UINT getNumMesh() const { return (UINT)meshData.Indices32.size(); }
 
-	virtual void Animate(float fTimeElapsed);
-
-	
 };

@@ -51,10 +51,10 @@
     <ClCompile Include="RenderTarget.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="SobelFilter.cpp">
+    <ClCompile Include="Scene01.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="MyScene.cpp">
+    <ClCompile Include="SobelFilter.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

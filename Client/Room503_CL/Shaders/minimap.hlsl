@@ -26,33 +26,33 @@ cbuffer cbPerObject : register(b0)
 // Constant data that varies per material.
 cbuffer cbPass : register(b1)
 {
-	float4x4 gView;
-	float4x4 gInvView;
-	float4x4 gProj;
-	float4x4 gInvProj;
-	float4x4 gViewProj;
-	float4x4 gInvViewProj;
-	float4x4 gViewMini;
+    float4x4 gView;
+    float4x4 gInvView;
+    float4x4 gProj;
+    float4x4 gInvProj;
+    float4x4 gViewProj;
+    float4x4 gInvViewProj;
+	/*float4x4 gViewMini;
 	float4x4 gProjMini;
-	float4x4 gViewProjMini;
-	float3 gEyePosW;
-	float cbPerObjectPad1;
-	float3 gEyePosWMini;
-	float cbPerObjectPad2;
-	float2 gRenderTargetSize;
-	float2 gInvRenderTargetSize;
-	float gNearZ;
-	float gFarZ;
-	float gTotalTime;
-	float gDeltaTime;
-	float4 gAmbientLight;
+	float4x4 gViewProjMini;*/
+    float3 gEyePosW;
+    float cbPerObjectPad1;
+	//float3 gEyePosWMini;
+	//float cbPerObjectPad2;
+    float2 gRenderTargetSize;
+    float2 gInvRenderTargetSize;
+    float gNearZ;
+    float gFarZ;
+    float gTotalTime;
+    float gDeltaTime;
+    float4 gAmbientLight;
 
 	float4 gFogColor;
 	float gFogStart;
 	float gFogRange;
 	float2 cbPerObjectPad3;
 
-	Light gLights[MaxLights];
+    Light gLights[MaxLights];
 };
 
 cbuffer cbMaterial : register(b2)
@@ -93,7 +93,7 @@ VertexOut VS(VertexIn vin)
     vout.NormalW = mul(vin.NormalL, (float3x3)gWorld);
 
     // Transform to homogeneous clip space.
-    vout.PosH = mul(posW, gViewProjMini);
+    vout.PosH = mul(posW, gViewProj);
 	
 	// Output vertex attributes for interpolation across triangle.
 	float4 texC = mul(float4(vin.TexC0, 0.0f, 1.0f), gTexTransform);

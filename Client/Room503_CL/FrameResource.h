@@ -23,14 +23,14 @@ struct PassConstants
     DirectX::XMFLOAT4X4 ViewProj = MathHelper::Identity4x4();
     DirectX::XMFLOAT4X4 InvViewProj = MathHelper::Identity4x4();
 
-	DirectX::XMFLOAT4X4 ViewMini = MathHelper::Identity4x4();
+	/*DirectX::XMFLOAT4X4 ViewMini = MathHelper::Identity4x4();
 	DirectX::XMFLOAT4X4 ProjMini = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 ViewProjMini = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 ViewProjMini = MathHelper::Identity4x4();*/
 
     DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
     float cbPerObjectPad1 = 0.0f;
-	DirectX::XMFLOAT3 EyePosWMini = { 0.0f, 0.0f, 0.0f };
-	float cbPerObjectPad2 = 0.0f;
+	//DirectX::XMFLOAT3 EyePosWMini = { 0.0f, 0.0f, 0.0f };
+	//float cbPerObjectPad2 = 0.0f;
     DirectX::XMFLOAT2 RenderTargetSize = { 0.0f, 0.0f };
     DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
     float NearZ = 0.0f;
