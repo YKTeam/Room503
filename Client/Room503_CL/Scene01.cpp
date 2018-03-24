@@ -80,6 +80,7 @@ private:
 
 	void BuildHelicopterGeometry(CGunshipHellicopter &object);
 	void BuildLandGeometry();
+	void BuildFbxGeometry(const std::string fileName, const std::string geoName, const std::string meshName);
 	//void BuildFlareSpritesGeometry();
 	//void BuildTreeSpritesGeometry();
 	//void BuildSkyBoxGeometry();
@@ -138,7 +139,7 @@ private:
 	bool mIsSkyBox = false;
 
 	
-	float mSunTheta = 194.3f; 
+	float mSunTheta = 205.917; 
 	//float mSunPhi = XM_PIDIV4; // pi/4
 	
 	//구조가 생성자로 생성되는구조임
@@ -231,6 +232,7 @@ bool MyScene::Initialize()
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
 	BuildLandGeometry();
+	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot");
 
 	BuildMaterials();
 	BuildGameObjects();
@@ -511,7 +513,8 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 	}
 	if (GetAsyncKeyState('Q') & 0x8000) {
 		mSunTheta += gt.DeltaTime();
-		//printf("%.3f\n", (mSunTheta));
+
+		printf("%.3f\n", (mSunTheta));
 	}
 	if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
 		m_BlurCount = 1;
@@ -725,7 +728,7 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 
 	//간접광 흉내
-	mMainPassCB.AmbientLight = { 0.1f, 0.1f, 0.1f, 1.0f };
+	mMainPassCB.AmbientLight = { 0.5f, 0.5f, 0.5f, 1.0f };
 
 	int lightCount = 0;
 	
@@ -734,7 +737,7 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	//mMainPassCB.Lights[lightCount].FalloffStart = 1000;
 	//mMainPassCB.Lights[lightCount].FalloffEnd = 5000;
 
-	XMVECTOR lightDir = XMVectorSet(cos(mSunTheta), sinf(mSunTheta), 0, 0); // -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
+	XMVECTOR lightDir = XMVectorSet(0.05f, sinf(mSunTheta), 0, 0); // -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
 	XMStoreFloat3(&mMainPassCB.Lights[lightCount++].Direction, lightDir);
 
 	if (mIsSkyBox)
@@ -1275,6 +1278,66 @@ void MyScene::BuildHelicopterGeometry(CGunshipHellicopter &object)
 	mGeometries[geo->Name] = std::move(geo);
 }
 
+void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geoName , const std::string meshName)
+{
+	GeometryGenerator geoGen;
+	auto dummy = std::make_unique<GameObject>();
+	dummy->LoadGameModel(fileName);
+	GeometryGenerator::MeshData robot = dummy->GetMeshData();
+
+	UINT robotVertexOffset = 0;
+	UINT robotIndexOffset = 0;
+
+	SubmeshGeometry robotSubmesh;
+	robotSubmesh.IndexCount = (UINT)robot.Indices32.size();
+	robotSubmesh.StartIndexLocation = robotIndexOffset;
+	robotSubmesh.BaseVertexLocation = robotVertexOffset;
+
+	auto totalVertexCount =
+		robot.Vertices.size();
+
+	UINT k = 0;
+	std::vector<Vertex> vertices(totalVertexCount);
+	for (size_t i = 0; i < robot.Vertices.size(); ++i, ++k)
+	{
+		auto& p = robot.Vertices[i].Position;
+		vertices[k].Pos = p;
+		vertices[k].Normal = robot.Vertices[i].Normal;
+		vertices[k].TexC0 = robot.Vertices[i].TexC;
+		vertices[k].TexC1 = robot.Vertices[i].TexC;
+	}
+
+	std::vector<std::uint32_t> indices;
+	indices.insert(indices.end(), std::begin(robot.Indices32), std::end(robot.Indices32));
+
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint32_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = geoName;
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStride = sizeof(Vertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	geo->DrawArgs[meshName] = robotSubmesh;
+
+	mGeometries[geo->Name] = std::move(geo);
+}
+
 void MyScene::BuildLandGeometry()
 {
 	//LPCTSTR  mapName = _T("Textures/HeightMap.raw");
@@ -1352,6 +1415,8 @@ void MyScene::BuildLandGeometry()
 
 	m_geoGrid = geoGen;
 }
+
+
 
 void MyScene::BuildPSOs()
 {
@@ -1708,15 +1773,14 @@ void MyScene::BuildGameObjects()
 	
 	//new LoadModel("Model/Robot Kyle.fbx");
 	auto dummy = std::make_unique<GameObject>();
-	dummy->LoadGameModel("Model/Robot Kyle.fbx");
 	XMStoreFloat4x4(&dummy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 50.0f));
 	dummy->ObjCBIndex = objIndex++;
 	dummy->Mat = mMaterials["gunship"].get();
-	dummy->Geo = mGeometries["gunshipGeo"].get();
+	dummy->Geo = mGeometries["robotGeo"].get();
 	dummy->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	dummy->IndexCount = dummy->Geo->DrawArgs["gunShip"].IndexCount;
-	dummy->StartIndexLocation = dummy->Geo->DrawArgs["gunShip"].StartIndexLocation;
-	dummy->BaseVertexLocation = dummy->Geo->DrawArgs["gunShip"].BaseVertexLocation;
+	dummy->IndexCount = dummy->Geo->DrawArgs["robot"].IndexCount;
+	dummy->StartIndexLocation = dummy->Geo->DrawArgs["robot"].StartIndexLocation;
+	dummy->BaseVertexLocation = dummy->Geo->DrawArgs["robot"].BaseVertexLocation;
 
 	mOpaqueRitems[(int)RenderLayer::Enemy].push_back(dummy.get());
 	mAllRitems.push_back(std::move(dummy));

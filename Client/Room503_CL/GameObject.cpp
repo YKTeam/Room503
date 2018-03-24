@@ -324,11 +324,57 @@ void GameObject::LoadGameModel(const string& fileName)
 		aiProcess_SortByPType);                    // 단일타입의 프리미티브로 구성된 '깨끗한' 매쉬를 만듬
 
 	if (m_pScene) {
-		//meshData.Indices32.resize(m_pScene->mNumMeshes);
+		meshSize = m_pScene->mNumMeshes;
 		//m_numMaterial = m_pScene->mNumMaterials;
 		//m_numBones = 0;
 		//initScene();
+
+		for (UINT i = 0; i < meshSize; ++i) {
+
+			const aiMesh* pMesh = m_pScene->mMeshes[i];
+
+			InitMesh(i, pMesh);
+
+			//meshData += meshSize
+			//m_numVertices += (UINT)m_meshes[i].m_vertices.size();
+		}
+
 		//m_ModelMeshes.resize(m_meshes.size());
+	}
+}
+
+void GameObject::InitMesh(UINT index, const aiMesh * pMesh)
+{
+	meshData.Vertices.resize(pMesh->mNumVertices);
+	meshData.Indices32.resize(pMesh->mNumFaces * 3);
+
+	//삼각형이므로 면을 이루는 꼭지점 3개
+
+	for (UINT i = 0; i < pMesh->mNumVertices; ++i) {
+		XMFLOAT3 pos(&pMesh->mVertices[i].x);
+		XMFLOAT3 normal(&pMesh->mNormals[i].x);
+		XMFLOAT2 tex;
+		if (pMesh->HasTextureCoords(0))
+			tex = XMFLOAT2(&pMesh->mTextureCoords[0][i].x);
+		else
+			tex = XMFLOAT2(0.0f, 0.0f);
+
+		Vertex data;  
+		data.Pos = pos;
+		data.Normal = normal;
+		data.TexC0 = tex;
+
+		meshData.Vertices[i].Position = data.Pos;
+		meshData.Vertices[i].Normal = data.Normal;
+		meshData.Vertices[i].TexC = data.TexC0;
+		}
+
+	for (UINT i = 0; i < pMesh->mNumFaces; ++i) {
+		const aiFace& face = pMesh->mFaces[i];
+		meshData.Indices32[i*3] = (face.mIndices[0]);
+		meshData.Indices32[i*3+1] = (face.mIndices[1]);
+		meshData.Indices32[i*3+2] = (face.mIndices[2]);
+		//m_meshes[index].m_indices.push_back(face.mIndices[0]);
 	}
 }
 
@@ -384,6 +430,7 @@ LoadModel::LoadModel(const string& fileName)
 		aiProcess_SortByPType);                    // 단일타입의 프리미티브로 구성된 '깨끗한' 매쉬를 만듬
 
 	if (m_pScene) {
+		
 		//meshData.Indices32.resize(m_pScene->mNumMeshes);
 		//m_numMaterial = m_pScene->mNumMaterials;
 		//m_numBones = 0;
