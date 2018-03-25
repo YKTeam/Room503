@@ -64,6 +64,7 @@ public:
 	bool isInstance = false;
 
 	virtual void Update(const GameTimer& gt);
+	void GravityUpdate(const GameTimer& gt);
 	void Pitch(float angle);
 	void RotateY(float angle);
 	void SetPosition(float x, float y, float z);
@@ -103,8 +104,8 @@ public:
 	GeometryGenerator::MeshData GetMeshData() { return meshData; }
 
 	//로드 모델
-	void LoadGameModel(const string& fileName);
-	void InitMesh(UINT index, const aiMesh * pMesh);
+	void LoadGameModel(const string& fileName, float loadScale);
+	void InitMesh(UINT index, const aiMesh * pMesh, float loadScale);
 	//계층변환
 	void UpdateTransform(XMFLOAT4X4 *pxmf4x4Parent = NULL);
 	//계층을 파일로부터 읽기
@@ -127,41 +128,4 @@ class SphereObject : public GameObject
 class SkyBoxObject : public GameObject
 {
 	void Update(const GameTimer& gt);
-};
-
-///////////////////////////////////////////////
-class CGunshipHellicopter : public GameObject
-{
-public:
-	CGunshipHellicopter();
-	virtual ~CGunshipHellicopter();
-
-	virtual void Animate(float fTimeElapsed);
-
-	GameObject					*m_pRotorFrame = NULL;
-	GameObject					*m_pBackRotorFrame = NULL;
-	GameObject					*m_pHellfileMissileFrame = NULL;
-};
-///////////////////////////////////////////////////
-
-class LoadModel
-{
-private:
-
-	const aiScene*                m_pScene;        //모델 정보
-	GeometryGenerator::MeshData   meshData;        //매쉬 정보
-	//vector<pair<string, Bone>>  m_Bones;        //뼈 정보
-	UINT                            m_numVertices;
-	UINT                            m_numMaterial;
-
-public:
-	LoadModel();
-	LoadModel(const string& fileName);
-	~LoadModel();
-	void InitScene();
-	void InitMesh(UINT index, const aiMesh* pMesh);
-	void SetMeshes(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
-	//ModelMesh**    getMeshes() { return m_ModelMeshes.data(); }
-	UINT getNumMesh() const { return (UINT)meshData.Indices32.size(); }
-
 };

@@ -77,10 +77,9 @@ private:
 	void BuildPostProcessSobelRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-
-	void BuildHelicopterGeometry(CGunshipHellicopter &object);
+	\
 	void BuildLandGeometry();
-	void BuildFbxGeometry(const std::string fileName, const std::string geoName, const std::string meshName);
+	void BuildFbxGeometry(const std::string fileName, const std::string geoName, const std::string meshName, float loadScale);
 	//void BuildFlareSpritesGeometry();
 	//void BuildTreeSpritesGeometry();
 	//void BuildSkyBoxGeometry();
@@ -143,7 +142,6 @@ private:
 	//float mSunPhi = XM_PIDIV4; // pi/4
 	
 	//구조가 생성자로 생성되는구조임
-	std::unique_ptr<CGunshipHellicopter> m_gunShip = std::make_unique<CGunshipHellicopter>();
 	ObjectConstants mPlayerInfo;
 	int m_ObjIndex = 0;
 	int m_BlurCount = 0;
@@ -232,7 +230,10 @@ bool MyScene::Initialize()
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
 	BuildLandGeometry();
-	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot");
+	BuildFbxGeometry("Model/robotFree.fbx", "robot_freeGeo", "robot_free", 2.5f);
+	BuildFbxGeometry("Model/Robots_Prowler.fbx", "robot_prowlerGeo", "robot_prowler", 0.05f);
+	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 0.1f);
+	
 
 	BuildMaterials();
 	BuildGameObjects();
@@ -379,7 +380,7 @@ void MyScene::Draw(const GameTimer& gt)
 	//플레이어..
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
-	mCommandList->SetPipelineState(mPSOs["grid"].Get());
+	
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Player], (int)RenderLayer::Player);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::PlayerChilds], (int)RenderLayer::PlayerChilds);
 
@@ -506,11 +507,7 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 	if (GetAsyncKeyState('2') & 0x8000) mIsSkyBox = true;
 	else mIsSkyBox = false;
 
-	if (GetAsyncKeyState('W') & 0x8000 ){
-		//씬 변경
-		//새로운 데이터 ( 맵 데이터 로드, 캐릭터 이동 )
-		//데이터 삭제?
-	}
+	
 	if (GetAsyncKeyState('Q') & 0x8000) {
 		mSunTheta += gt.DeltaTime();
 
@@ -534,6 +531,11 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 		//mPlayerInfo.World._41 += mCamera.GetLook3f().x * m_PlayerSpeed *dt;
 		//mPlayerInfo.World._42 += mCamera.GetLook3f().y * m_PlayerSpeed *dt;
 		//mPlayerInfo.World._43 += mCamera.GetLook3f().z * m_PlayerSpeed *dt;
+		for (auto& e : mOpaqueRitems[(int)RenderLayer::Player])
+		{
+			XMFLOAT3 move = Vector3::ScalarProduct(e->GetLook3f(), gt.DeltaTime() * 5, false);
+			e->SetPosition(Vector3::Add(e->GetPosition() , move));
+		}
 		mCamera.Walk(50.0f *dt);
 	}
 	if (GetAsyncKeyState('S') & 0x8000) {
@@ -576,72 +578,54 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		XMMATRIX world = XMLoadFloat4x4(&e->World);
 		XMMATRIX texTransform = XMLoadFloat4x4(&e->TexTransform);
 
-		e->World = mPlayerInfo.World;
-		e->TexTransform = mPlayerInfo.TexTransform;
-		//mCamera = mCameraTmp;
+		//e->World = mPlayerInfo.World;
+		//e->TexTransform = mPlayerInfo.TexTransform;
+
 		mCamera.Pitch(my);
 		mCamera.RotateY(mx);
+
 		//e->Pitch(my);
-		//e->RotateY(mx);
+		e->RotateY(mx);
+
+		auto rand = mOpaqueRitems[(int)RenderLayer::Grid];
+		printf("%.2f\n", e->GetPosition().y);
+		if (e->GetPosition().y > rand[0]->GetPosition().y + 25)//모델키는 로드시 스케일로 맞춰서 일단 상수로
+			e->GravityUpdate(gt);
+		else
+			e->SetPosition(XMFLOAT3(e->GetPosition().x, -25, e->GetPosition().z));
 
 		//카메라 공전
 		//카메라세팅
 		//mCamera.SetPosition(XMFLOAT3(e->GetPosition().x, e->GetPosition().y, e->GetPosition().z));
+
 		float offset = 50.f;
 		//회전
-		XMFLOAT3 offsetVector = Vector3::ScalarProduct(Vector3::Normalize(e->GetLook3f()), -1.0f * offset, false);
-		XMFLOAT3 newCameraPos = Vector3::Add(offsetVector, e->GetPosition());	
-		//mCamera.SetPosition(XMFLOAT3(newCameraPos.x + 6, newCameraPos.y + 5, newCameraPos.z));
-
-		//XMFLOAT3 offsetVector = Vector3::ScalarProduct(mCamera.GetLook3f(), -1.0f * offset, false);
-		//XMFLOAT3 newCameraPos = Vector3::Add(offsetVector, e->GetPosition());	
+		//XMFLOAT3 offsetVector = Vector3::ScalarProduct(Vector3::Normalize(e->GetLook3f()), -1.0f * offset, false);
+		//XMFLOAT3 newCameraPos = Vector3::Add(offsetVector, e->GetPosition());
 
 		//회전초기화
 		mx = 0;
 		my = 0;
 
-		//XMFLOAT3 xmf3Scale(4, 2, 4);
-		//if (m_geoGrid.GetHeight(e->GetPosition().x, e->GetPosition().z, false) * xmf3Scale.y > e->GetPosition().y)
-		//{
-		//	//플레이어 초기화 - 예시
-		//	e->SetPosition(XMFLOAT3(150.0f, 350.0f, 200.0f));
-		//	printf("지형과 충돌 - 플레이어 초기화\n");
-		//}
-
-		mPlayerInfo.World = e->World;
-		mPlayerInfo.TexTransform = e->TexTransform;
+		//mPlayerInfo.World = e->World;
+		//mPlayerInfo.TexTransform = e->TexTransform;
 
 		e->NumFramesDirty = gNumFrameResources;
 		
 		mCamera.UpdateViewMatrix();
 		//mCameraTmp = mCamera;
 	}
-	for (auto& e : mOpaqueRitems[(int)RenderLayer::PlayerChilds])
-	{
-		e->World = Matrix4x4::Multiply(e->m_xmf4x4ToParentTransform, mPlayerInfo.World);
-		if (_tcscmp(e->m_pstrFrameName, L"Rotor") == 0)
-		{
-			XMMATRIX xmmtxRotate = XMMatrixRotationY(XMConvertToRadians(360.0f * 3.0f) * gt.DeltaTime());
-			e->m_xmf4x4ToParentTransform = Matrix4x4::Multiply(xmmtxRotate, e->m_xmf4x4ToParentTransform);
-		}
-		else if (_tcscmp(e->m_pstrFrameName, L"Back_Rotor") == 0)
-		{
-			XMMATRIX xmmtxRotate = XMMatrixRotationX(XMConvertToRadians(360.0f * 3.0f) * gt.DeltaTime());
-			e->m_xmf4x4ToParentTransform = Matrix4x4::Multiply(xmmtxRotate, e->m_xmf4x4ToParentTransform);
-		}
-		e->NumFramesDirty = gNumFrameResources;
-	}
-	XMFLOAT3 xmf3Scale(4, 2, 4);
 	
 	for (auto& e : mOpaqueRitems[(int)RenderLayer::Enemy])
 	{
-		/*XMMATRIX world = XMLoadFloat4x4(&e->World);
-		XMMATRIX texTransform = XMLoadFloat4x4(&e->TexTransform);
-		ObjectConstants objConstants;
-		XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
-		XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
-		currObjectCB->CopyData(e->ObjCBIndex, objConstants);
-		e->NumFramesDirty = gNumFrameResources;*/
+
+		auto rand = mOpaqueRitems[(int)RenderLayer::Grid];
+		if (e->GetPosition().y > rand[0]->GetPosition().y + 25)//모델키는 로드시 스케일로 맞춰서 일단 상수로
+			e->GravityUpdate(gt);
+		else
+			e->SetPosition(XMFLOAT3(e->GetPosition().x, -25, e->GetPosition().z));
+
+		e->NumFramesDirty = gNumFrameResources;
 	}
 	
 	
@@ -821,20 +805,19 @@ void MyScene::LoadTextures()
 		mCommandList.Get(), ememyDetailTex->Filename.c_str(),
 		ememyDetailTex->Resource, ememyDetailTex->UploadHeap));
 
-	auto redTex = std::make_unique<Texture>();
-	redTex->Name = "redTex";
-	redTex->Filename = L"Textures/gu.dds";
+	auto robotTex = std::make_unique<Texture>();
+	robotTex->Name = "robotTex";
+	robotTex->Filename = L"Textures/robot_king.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-		mCommandList.Get(), redTex->Filename.c_str(),
-		redTex->Resource, redTex->UploadHeap));
-
-	auto blueTex = std::make_unique<Texture>();
-	blueTex->Name = "blueTex";
-	blueTex->Filename = L"Textures/grid.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-		mCommandList.Get(), blueTex->Filename.c_str(),
-		blueTex->Resource, blueTex->UploadHeap));
+		mCommandList.Get(), robotTex->Filename.c_str(),
+		robotTex->Resource, robotTex->UploadHeap));
 	
+	auto robot_prowlerTex = std::make_unique<Texture>();
+	robot_prowlerTex->Name = "robot_prowlerTex";
+	robot_prowlerTex->Filename = L"Textures/robot_prowler.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), robot_prowlerTex->Filename.c_str(),
+		robot_prowlerTex->Resource, robot_prowlerTex->UploadHeap));
 
 	mTextures[gridTex->Name] = std::move(gridTex);
 	mTextures[detailTex->Name] = std::move(detailTex);
@@ -845,8 +828,8 @@ void MyScene::LoadTextures()
 	mTextures[flareArrayTex->Name] = std::move(flareArrayTex);
 	mTextures[enemyTex->Name] = std::move(enemyTex);
 	mTextures[ememyDetailTex->Name] = std::move(ememyDetailTex);
-	mTextures[redTex->Name] = std::move(redTex);
-	mTextures[blueTex->Name] = std::move(blueTex);
+	mTextures[robotTex->Name] = std::move(robotTex);
+	mTextures[robot_prowlerTex->Name] = std::move(robot_prowlerTex);
 }
 
 void MyScene::BuildRootSignature()
@@ -1010,9 +993,9 @@ void MyScene::BuildDescriptorHeaps()
 
 	auto enemyTex = mTextures["enemyTex"]->Resource;
 	auto enemyDetailTex = mTextures["enemyDetailTex"]->Resource;
-
-	auto redTex = mTextures["redTex"]->Resource;
-	auto blueTex = mTextures["blueTex"]->Resource;
+	
+	auto robotTex = mTextures["robotTex"]->Resource;
+	auto robot_prowlerTex = mTextures["robot_prowlerTex"]->Resource;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -1076,15 +1059,14 @@ void MyScene::BuildDescriptorHeaps()
 	md3dDevice->CreateShaderResourceView(enemyDetailTex.Get(), &srvDesc, hDescriptor);
 
 	hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
-	srvDesc.Format = redTex->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = redTex->GetDesc().MipLevels;
-	md3dDevice->CreateShaderResourceView(redTex.Get(), &srvDesc, hDescriptor);
+	srvDesc.Format = robotTex->GetDesc().Format;
+	srvDesc.Texture2D.MipLevels = robotTex->GetDesc().MipLevels;
+	md3dDevice->CreateShaderResourceView(robotTex.Get(), &srvDesc, hDescriptor);
 
 	hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
-	srvDesc.Format = blueTex->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = blueTex->GetDesc().MipLevels;
-	md3dDevice->CreateShaderResourceView(blueTex.Get(), &srvDesc, hDescriptor);
-
+	srvDesc.Format = robot_prowlerTex->GetDesc().Format;
+	srvDesc.Texture2D.MipLevels = robot_prowlerTex->GetDesc().MipLevels;
+	md3dDevice->CreateShaderResourceView(robot_prowlerTex.Get(), &srvDesc, hDescriptor);
 	
 	// Fill out the heap with the descriptors to the BlurFilter resources.
 	
@@ -1163,126 +1145,11 @@ void MyScene::BuildShadersAndInputLayout()
 
 }
 
-void MyScene::BuildHelicopterGeometry(CGunshipHellicopter &object)
-{
-	GeometryGenerator geoGen;
-	
-	GeometryGenerator::MeshData gunship = object.m_pChild->meshData;
-	GeometryGenerator::MeshData backrotor = object.m_pChild->m_pChild->meshData;
-	GeometryGenerator::MeshData rotor = object.m_pChild->m_pChild->m_pSibling->meshData;
-	GeometryGenerator::MeshData missile = object.m_pChild->m_pSibling->meshData;
-	//object.UpdateTransform(NULL);
-
-	UINT gunshipVertexOffset = 0;
-	UINT backrotorVertexOffset = gunshipVertexOffset + (UINT)gunship.Vertices.size();
-	UINT rotorVertexOffset = backrotorVertexOffset + (UINT)backrotor.Vertices.size();
-	UINT missileVertexOffset = rotorVertexOffset + (UINT)rotor.Vertices.size();
-
-	UINT gunshipIndexOffset = 0;
-	UINT backrotorIndexOffset = gunshipIndexOffset + (UINT)gunship.Indices32.size();
-	UINT rotorIndexOffset = backrotorIndexOffset + (UINT)backrotor.Indices32.size();
-	UINT missileIndexOffset = rotorIndexOffset + (UINT)rotor.Indices32.size();
-
-	SubmeshGeometry gunshipSubmesh;
-	gunshipSubmesh.IndexCount = (UINT)gunship.Indices32.size();
-	gunshipSubmesh.StartIndexLocation = gunshipIndexOffset;
-	gunshipSubmesh.BaseVertexLocation = gunshipVertexOffset;
-
-	SubmeshGeometry backrotorSubmesh;
-	backrotorSubmesh.IndexCount = (UINT)backrotor.Indices32.size();
-	backrotorSubmesh.StartIndexLocation = backrotorIndexOffset;
-	backrotorSubmesh.BaseVertexLocation =  backrotorVertexOffset;
-
-	SubmeshGeometry rotorSubmesh;
-	rotorSubmesh.IndexCount =(UINT)rotor.Indices32.size();
-	rotorSubmesh.StartIndexLocation = rotorIndexOffset;
-	rotorSubmesh.BaseVertexLocation =  rotorVertexOffset;
-
-	SubmeshGeometry missileSubmesh;
-	missileSubmesh.IndexCount = (UINT)missile.Indices32.size();
-	missileSubmesh.StartIndexLocation = missileIndexOffset;
-	missileSubmesh.BaseVertexLocation = missileVertexOffset;
-
-	auto totalVertexCount =
-		gunship.Vertices.size()+ backrotor.Vertices.size()+ rotor.Vertices.size()+ missile.Vertices.size();
-
-	UINT k = 0;
-	std::vector<Vertex> vertices(totalVertexCount);
-	for (size_t i = 0; i < gunship.Vertices.size(); ++i, ++k)
-	{
-		auto& p = gunship.Vertices[i].Position;
-		vertices[k].Pos = p;
-		vertices[k].Normal = gunship.Vertices[i].Normal;
-		vertices[k].TexC0 = gunship.Vertices[i].TexC;
-		vertices[k].TexC1 = gunship.Vertices[i].TexC1;
-	}
-	for (size_t i = 0; i < backrotor.Vertices.size(); ++i, ++k)
-	{
-		auto& p = backrotor.Vertices[i].Position;
-		vertices[k].Pos = p;
-		vertices[k].Normal = backrotor.Vertices[i].Normal;
-		vertices[k].TexC0 = backrotor.Vertices[i].TexC;
-		vertices[k].TexC1 = backrotor.Vertices[i].TexC1;
-	}
-	for (size_t i = 0; i < rotor.Vertices.size(); ++i, ++k)
-	{
-		auto& p = rotor.Vertices[i].Position;
-		vertices[k].Pos = p;
-		vertices[k].Normal = rotor.Vertices[i].Normal;
-		vertices[k].TexC0 = rotor.Vertices[i].TexC;
-		vertices[k].TexC1 = rotor.Vertices[i].TexC1;
-	}
-	for (size_t i = 0; i < missile.Vertices.size(); ++i, ++k)
-	{
-		auto& p = missile.Vertices[i].Position;
-		vertices[k].Pos = p;
-		vertices[k].Normal = missile.Vertices[i].Normal;
-		vertices[k].TexC0 = missile.Vertices[i].TexC;
-		vertices[k].TexC1 = missile.Vertices[i].TexC1;
-	}
-
-	std::vector<std::uint32_t> indices;
-	indices.insert(indices.end(), std::begin(gunship.Indices32), std::end(gunship.Indices32));
-	indices.insert(indices.end(), std::begin(backrotor.Indices32), std::end(backrotor.Indices32));
-	indices.insert(indices.end(), std::begin(rotor.Indices32), std::end(rotor.Indices32));
-	indices.insert(indices.end(), std::begin(missile.Indices32), std::end(missile.Indices32));
-
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
-	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint32_t);
-
-	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "gunshipGeo";
-
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
-	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
-
-	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
-	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-
-	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
-
-	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
-
-	geo->VertexByteStride = sizeof(Vertex);
-	geo->VertexBufferByteSize = vbByteSize;
-	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
-	geo->IndexBufferByteSize = ibByteSize;
-
-	geo->DrawArgs["gunShip"] = gunshipSubmesh;
-	geo->DrawArgs["backRotor"] = backrotorSubmesh;
-	geo->DrawArgs["rotor"] = rotorSubmesh;
-	geo->DrawArgs["missile"] = missileSubmesh;
-
-	mGeometries[geo->Name] = std::move(geo);
-}
-
-void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geoName , const std::string meshName)
+void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geoName , const std::string meshName, float loadScale)
 {
 	GeometryGenerator geoGen;
 	auto dummy = std::make_unique<GameObject>();
-	dummy->LoadGameModel(fileName);
+	dummy->LoadGameModel(fileName, loadScale);
 	GeometryGenerator::MeshData robot = dummy->GetMeshData();
 
 	UINT robotVertexOffset = 0;
@@ -1677,15 +1544,15 @@ void MyScene::BuildMaterials()
 	enemyDetail->MatCBIndex = matIndex;
 	enemyDetail->DiffuseSrvHeapIndex = matIndex++;
 
-	auto red = std::make_unique<Material>();
-	red->Name = "red";
-	red->MatCBIndex = matIndex;
-	red->DiffuseSrvHeapIndex = matIndex++;
+	auto robot = std::make_unique<Material>();
+	robot->Name = "robot";
+	robot->MatCBIndex = matIndex;
+	robot->DiffuseSrvHeapIndex = matIndex++;
 
-	auto blue = std::make_unique<Material>();
-	blue->Name = "blue";
-	blue->MatCBIndex = matIndex;
-	blue->DiffuseSrvHeapIndex = matIndex++;
+	auto robot_prowler = std::make_unique<Material>();
+	robot_prowler->Name = "robot_prowler";
+	robot_prowler->MatCBIndex = matIndex;
+	robot_prowler->DiffuseSrvHeapIndex = matIndex++;
 
 	mMaterials["rand"] = std::move(rand);
 	mMaterials["gu"] = std::move(gu);
@@ -1696,9 +1563,8 @@ void MyScene::BuildMaterials()
 	mMaterials["flareSprites"] = std::move(flareSprites);
 	mMaterials["enemy"] = std::move(enemy);
 	mMaterials["enemyDetail"] = std::move(enemyDetail);
-
-	mMaterials["red"] = std::move(red);
-	mMaterials["blue"] = std::move(blue);
+	mMaterials["robot"] = std::move(robot);
+	mMaterials["robot_prowler"] = std::move(robot_prowler);
 }
 
 void MyScene::BuildGameObjects()
@@ -1724,7 +1590,7 @@ void MyScene::BuildGameObjects()
 	mAllRitems.push_back(std::move(gridRitem));
 
 	///////////////////////////플레이어////////////////////////////////
-	BuildHelicopterGeometry(*m_gunShip.get());
+	//BuildHelicopterGeometry(*m_gunShip.get());
 
 	auto player = std::make_unique<GameObject>();
 	XMStoreFloat4x4(&player->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
@@ -1733,17 +1599,17 @@ void MyScene::BuildGameObjects()
 
 	player->World = Matrix4x4::Multiply(player->m_xmf4x4ToParentTransform, mPlayerInfo.World);
 	player->ObjCBIndex = objIndex++;
-	player->Mat = mMaterials["gunship"].get();
-	player->Geo = mGeometries["gunshipGeo"].get();
+	player->Mat = mMaterials["rand"].get();
+	player->Geo = mGeometries["robot_freeGeo"].get();
 	player->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	player->IndexCount = player->Geo->DrawArgs["gunShip"].IndexCount;
-	player->StartIndexLocation = player->Geo->DrawArgs["gunShip"].StartIndexLocation;
-	player->BaseVertexLocation = player->Geo->DrawArgs["gunShip"].BaseVertexLocation;
+	player->IndexCount = player->Geo->DrawArgs["robot_free"].IndexCount;
+	player->StartIndexLocation = player->Geo->DrawArgs["robot_free"].StartIndexLocation;
+	player->BaseVertexLocation = player->Geo->DrawArgs["robot_free"].BaseVertexLocation;
 
 	mOpaqueRitems[(int)RenderLayer::Player].push_back(player.get());
 	mAllRitems.push_back(std::move(player));
 
-	auto backRotor = std::make_unique<GameObject>();
+	/*auto backRotor = std::make_unique<GameObject>();
 	backRotor->m_xmf4x4ToParentTransform = m_gunShip->m_pBackRotorFrame->m_xmf4x4ToParentTransform;
 	wcscpy(backRotor->m_pstrFrameName, m_gunShip->m_pBackRotorFrame->m_pstrFrameName);
 	backRotor->ObjCBIndex = objIndex++;
@@ -1769,13 +1635,13 @@ void MyScene::BuildGameObjects()
 	rotor->BaseVertexLocation = rotor->Geo->DrawArgs["rotor"].BaseVertexLocation;
 
 	mOpaqueRitems[(int)RenderLayer::PlayerChilds].push_back(rotor.get());
-	mAllRitems.push_back(std::move(rotor));
+	mAllRitems.push_back(std::move(rotor));*/
 	
 	//new LoadModel("Model/Robot Kyle.fbx");
 	auto dummy = std::make_unique<GameObject>();
-	XMStoreFloat4x4(&dummy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 50.0f));
+	XMStoreFloat4x4(&dummy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, -50.0f));
 	dummy->ObjCBIndex = objIndex++;
-	dummy->Mat = mMaterials["gunship"].get();
+	dummy->Mat = mMaterials["robot"].get();
 	dummy->Geo = mGeometries["robotGeo"].get();
 	dummy->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	dummy->IndexCount = dummy->Geo->DrawArgs["robot"].IndexCount;
@@ -1838,24 +1704,6 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
 
 			tex2.Offset(14, mCbvSrvUavDescriptorSize);
 			cmdList->SetGraphicsRootDescriptorTable(0, tex);
-			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
-			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
-			cmdList->SetGraphicsRootDescriptorTable(4, tex2);
-		}
-		else if ((int)RenderLayer::Red == itemState) {
-			CD3DX12_GPU_DESCRIPTOR_HANDLE tex2(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
-			tex2.Offset(15, mCbvSrvUavDescriptorSize);
-			cmdList->SetGraphicsRootDescriptorTable(0, tex2);
-			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
-			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
-			cmdList->SetGraphicsRootDescriptorTable(4, tex2);
-		}
-		else if ((int)RenderLayer::Blue == itemState) {
-			CD3DX12_GPU_DESCRIPTOR_HANDLE tex2(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
-			tex2.Offset(16, mCbvSrvUavDescriptorSize);
-			cmdList->SetGraphicsRootDescriptorTable(0, tex2);
 			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
 			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
 			cmdList->SetGraphicsRootDescriptorTable(4, tex2);

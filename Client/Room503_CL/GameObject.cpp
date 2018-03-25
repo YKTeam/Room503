@@ -306,7 +306,7 @@ void GameObject::LoadFrameHierarchyFromFile(wifstream& InFile, UINT nFrame)
 	}
 }
 
-void GameObject::LoadGameModel(const string& fileName)
+void GameObject::LoadGameModel(const string& fileName, float loadScale)
 {
 	m_pScene = aiImportFile(fileName.c_str(), aiProcess_JoinIdenticalVertices |        // 동일한 꼭지점 결합, 인덱싱 최적화
 		aiProcess_ValidateDataStructure |        // 로더의 출력을 검증
@@ -333,7 +333,7 @@ void GameObject::LoadGameModel(const string& fileName)
 
 			const aiMesh* pMesh = m_pScene->mMeshes[i];
 
-			InitMesh(i, pMesh);
+			InitMesh(i, pMesh , loadScale);
 
 			//meshData += meshSize
 			//m_numVertices += (UINT)m_meshes[i].m_vertices.size();
@@ -343,12 +343,10 @@ void GameObject::LoadGameModel(const string& fileName)
 	}
 }
 
-void GameObject::InitMesh(UINT index, const aiMesh * pMesh)
+void GameObject::InitMesh(UINT index, const aiMesh * pMesh, float loadScale)
 {
 	meshData.Vertices.resize(pMesh->mNumVertices);
 	meshData.Indices32.resize(pMesh->mNumFaces * 3);
-
-	//삼각형이므로 면을 이루는 꼭지점 3개
 
 	for (UINT i = 0; i < pMesh->mNumVertices; ++i) {
 		XMFLOAT3 pos(&pMesh->mVertices[i].x);
@@ -360,9 +358,17 @@ void GameObject::InitMesh(UINT index, const aiMesh * pMesh)
 			tex = XMFLOAT2(0.0f, 0.0f);
 
 		Vertex data;  
-		data.Pos = pos;
-		data.Normal = normal;
-		data.TexC0 = tex;
+		data.Pos.x = pos.x *loadScale;
+		data.Pos.y = pos.y *loadScale;
+		data.Pos.z = pos.z *loadScale;
+		data.Normal.x = normal.x *loadScale;
+		data.Normal.y = normal.y *loadScale;
+		data.Normal.z = normal.z *loadScale;
+		
+		data.TexC1.x = tex.x;
+		data.TexC1.y = tex.y;
+		data.TexC0.x = tex.x;
+		data.TexC0.y = tex.y;
 
 		meshData.Vertices[i].Position = data.Pos;
 		meshData.Vertices[i].Normal = data.Normal;
@@ -378,111 +384,14 @@ void GameObject::InitMesh(UINT index, const aiMesh * pMesh)
 	}
 }
 
+void GameObject::GravityUpdate(const GameTimer& gt)
+{
+	SetPosition(World._41, World._42 - gt.DeltaTime() * 10, World._43);
+}
+
 //////////////////////////////////////////////////////////////////////
 void SphereObject::Update(const GameTimer& gt)
 {
 	SetPosition(World._41, World._42 - gt.DeltaTime() * 1, World._43);
 }
 //////////////////////////////////////////////////////////////////////
-
-
-CGunshipHellicopter::CGunshipHellicopter()
-{
-	LoadGeometryFromFile(L"Model/Gunship.txt");
-
-	m_pRotorFrame = FindFrame(_T("Rotor"));
-	m_pBackRotorFrame = FindFrame(_T("Back_Rotor"));
-
-	m_pHellfileMissileFrame = FindFrame(_T("Hellfire_Missile"));
-	if (m_pHellfileMissileFrame) m_pHellfileMissileFrame->m_bActive = false;
-
-}
-
-CGunshipHellicopter::~CGunshipHellicopter()
-{
-}
-
-void CGunshipHellicopter::Animate(float fTimeElapsed)
-{
-
-}
-
-//////////////////////////////////////////////////////////////////////
-
-LoadModel::LoadModel() {
-
-}
-LoadModel::LoadModel(const string& fileName)
-{
-	m_pScene = aiImportFile(fileName.c_str(), aiProcess_JoinIdenticalVertices |        // 동일한 꼭지점 결합, 인덱싱 최적화
-		aiProcess_ValidateDataStructure |        // 로더의 출력을 검증
-		aiProcess_ImproveCacheLocality |        // 출력 정점의 캐쉬위치를 개선
-		aiProcess_RemoveRedundantMaterials |    // 중복된 매터리얼 제거
-		aiProcess_GenUVCoords |                    // 구형, 원통형, 상자 및 평면 매핑을 적절한 UV로 변환
-		aiProcess_TransformUVCoords |            // UV 변환 처리기 (스케일링, 변환...)
-		aiProcess_FindInstances |                // 인스턴스된 매쉬를 검색하여 하나의 마스터에 대한 참조로 제거
-		aiProcess_LimitBoneWeights |            // 정점당 뼈의 가중치를 최대 4개로 제한
-		aiProcess_OptimizeMeshes |                // 가능한 경우 작은 매쉬를 조인
-		aiProcess_GenSmoothNormals |            // 부드러운 노말벡터(법선벡터) 생성
-		aiProcess_SplitLargeMeshes |            // 거대한 하나의 매쉬를 하위매쉬들로 분활(나눔)
-		aiProcess_Triangulate |                    // 3개 이상의 모서리를 가진 다각형 면을 삼각형으로 만듬(나눔)
-		aiProcess_ConvertToLeftHanded |            // D3D의 왼손좌표계로 변환
-		aiProcess_SortByPType);                    // 단일타입의 프리미티브로 구성된 '깨끗한' 매쉬를 만듬
-
-	if (m_pScene) {
-		
-		//meshData.Indices32.resize(m_pScene->mNumMeshes);
-		//m_numMaterial = m_pScene->mNumMaterials;
-		//m_numBones = 0;
-		//initScene();
-		//m_ModelMeshes.resize(m_meshes.size());
-	}
-
-}
-/*
-void LoadModel::InitScene()
-
-{
-
-	for (UINT i = 0; i < m_meshes.size(); ++i) {
-
-		const aiMesh* pMesh = m_pScene->mMeshes[i];
-
-		InitMesh(i, pMesh);
-
-		m_numVertices += (UINT)m_meshes[i].m_vertices.size();
-
-	}
-
-}
-void LoadModel::InitMesh(UINT index, const aiMesh * pMesh)
-{
-	//meshData.Vertices.m_vertices.reserve(pMesh->mNumVertices);
-
-	//meshData.Indices32.m_indices.reserve(pMesh->mNumFaces * 3);
-
-	////삼각형이므로 면을 이루는 꼭지점 3개
-
-
-	//for (UINT i = 0; i < pMesh->mNumVertices; ++i) {
-	//	XMFLOAT3 pos(&pMesh->mVertices[i].x);
-	//	XMFLOAT3 normal(&pMesh->mNormals[i].x);
-	//	XMFLOAT2 tex;
-	//	if (pMesh->HasTextureCoords(0))
-	//		tex = XMFLOAT2(&pMesh->mTextureCoords[0][i].x);
-	//	else
-	//		tex = XMFLOAT2(0.0f, 0.0f);
-
-	//	const vertexDatas data(pos, normal, tex);
-	//	m_meshes[index].m_vertices.push_back(data);
-	//}
-
-	//for (UINT i = 0; i < pMesh->mNumFaces; ++i) {
-	//	const aiFace& face = pMesh->mFaces[i];
-	//	m_meshes[index].m_indices.push_back(face.mIndices[0]);
-	//	m_meshes[index].m_indices.push_back(face.mIndices[1]);
-	//	m_meshes[index].m_indices.push_back(face.mIndices[2]);
-	//}
-}
-
-*/
