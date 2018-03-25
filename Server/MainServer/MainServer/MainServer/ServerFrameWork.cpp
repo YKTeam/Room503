@@ -51,10 +51,30 @@ void CServerFrameWork::Accept_Process()
 
 		int login_id = -1;
 		for (int i = 0; i < MAX_USER; ++i) {
-
+			if (!m_clients[i].connect)
+				break;
 		}
 
+		if (-1 == login_id) {
+			cout << "ALL CLIENTS LOIN" << endl;
+			closesocket(login_client);
+			continue;
+		}
 
+		m_clients[login_id].connect = true;
+		m_clients[login_id].x = 0, m_clients[login_id].y = 0;
+		m_clients[login_id].e_Type = e_Recv;
+		m_clients[login_id].m_IoEx.m_wsabuf.buf
+			= reinterpret_cast<CHAR*>(m_clients[login_id].m_IoEx.m_Iobuf);
+		m_clients[login_id].m_IoEx.m_wsabuf.len
+			= sizeof(m_clients[login_id].m_IoEx.m_Iobuf);
+
+		DWORD flag = 0;
+		// CreateIoCP
+		m_hIocp.CreateIOCP(login_client, login_id);
+
+		WSARecv(login_client, &(m_clients[login_id].m_IoEx.m_wsabuf), 1,
+			NULL, &flag, &(m_clients[login_id].m_IoEx.over), NULL);
 
 	}
 }
@@ -69,7 +89,7 @@ void CServerFrameWork::Work_Thread()
 		int err_no;
 
 		// GetQueuedCompletionSatus
-		BOOL ret = m_hIocp.GQCS(&dwSize, &cur_id, 
+		BOOL ret = m_hIocp.GQCS(&dwSize, &cur_id,
 			reinterpret_cast<LPOVERLAPPED*>(&over), err_no);
 
 		if (FALSE == ret) {
@@ -115,7 +135,10 @@ void CServerFrameWork::error_display(const char * msg)
 CServerFrameWork::CServerFrameWork()
 {
 	m_listensock = NULL;
+	m_clients = new USER{ MAX_USER };
 
+	for (int i = 0; i < MAX_USER; ++i)
+		m_clients[i].connect = false;
 }
 
 
@@ -124,4 +147,6 @@ CServerFrameWork::~CServerFrameWork()
 	closesocket(m_listensock);
 	m_hIocp.~CIocpMgr();
 	WSACleanup();
+
+	delete[] m_clients;
 }

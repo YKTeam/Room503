@@ -5,8 +5,9 @@
 class CServerFrameWork
 {
 private:
-	SOCKET m_listensock;
-	CIocpMgr m_hIocp;
+	SOCKET		m_listensock;
+	CIocpMgr	m_hIocp;
+	USER*		m_clients;
 public:
 	void Initialize();
 	void Accept_Process();
