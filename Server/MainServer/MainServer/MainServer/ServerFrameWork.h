@@ -13,6 +13,7 @@ public:
 	void Accept_Process();
 
 	void Work_Thread();
+	void SendPositionPacket(int, int);
 
 public:
 

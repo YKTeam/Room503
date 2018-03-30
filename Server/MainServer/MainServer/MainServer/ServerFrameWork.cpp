@@ -97,9 +97,22 @@ void CServerFrameWork::Work_Thread()
 				error_display("GQCS : ", WSAGetLastError());
 		}
 
+		
+
 		if (0 == dwSize)
 			continue;
 	}
+}
+
+void CServerFrameWork::SendPositionPacket(int client, int object)
+{
+	sc_position_packet packet;
+	packet.id = object;
+	packet.size = sizeof(packet);
+	packet.type=SC_POS;
+	packet.x = m_clients[client].x;
+	packet.y = m_clients[client].y;
+
 }
 
 void CServerFrameWork::error_display(const char * msg, int err_no)

@@ -6,6 +6,11 @@
 #define SERVER_IP	127.0.0.1
 #define MAX_BUF		4000
 
+#define SC_POS	1
+#define SC_MOVE 2
+
+
+
 enum clients_state {
 	e_Recv,
 	e_Send,
@@ -28,7 +33,16 @@ typedef struct USER {
 	int				x;
 	int				y;
 	clients_state	e_Type;
-	IoEx			m_IoEx
+	IoEx			m_IoEx;
 };
+
+struct sc_position_packet {
+	int x;
+	int y;
+	WORD id;
+	BYTE type;
+	BYTE size;
+};
+
 
 #pragma pack (pop)
