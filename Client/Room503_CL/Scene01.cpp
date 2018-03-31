@@ -77,9 +77,9 @@ private:
 	void BuildPostProcessSobelRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	\
+	
 	void BuildLandGeometry();
-	void BuildFbxGeometry(const std::string fileName, const std::string geoName, const std::string meshName, float loadScale);
+	void BuildFbxGeometry(const std::string fileName, const std::string geoName, const std::string meshName, float loadScale , bool isMap);
 	//void BuildFlareSpritesGeometry();
 	//void BuildTreeSpritesGeometry();
 	//void BuildSkyBoxGeometry();
@@ -230,9 +230,10 @@ bool MyScene::Initialize()
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
 	BuildLandGeometry();
-	BuildFbxGeometry("Model/robotFree.fbx", "robot_freeGeo", "robot_free", 2.5f);
-	BuildFbxGeometry("Model/Robots_Prowler.fbx", "robot_prowlerGeo", "robot_prowler", 0.05f);
-	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 0.1f);
+	BuildFbxGeometry("Model/robotFree.fbx", "robot_freeGeo", "robot_free", 2.5f, false);
+	BuildFbxGeometry("Model/Robots_Prowler.fbx", "robot_prowlerGeo", "robot_prowler", 0.05f, false);
+	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 0.1f, false);
+	BuildFbxGeometry("Model/testmap.obj", "map00Geo", "map00", 1, true);
 	
 
 	BuildMaterials();
@@ -1145,37 +1146,49 @@ void MyScene::BuildShadersAndInputLayout()
 
 }
 
-void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geoName , const std::string meshName, float loadScale)
+void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geoName , const std::string meshName, float loadScale , bool isMap)
 {
 	GeometryGenerator geoGen;
 	auto dummy = std::make_unique<GameObject>();
-	dummy->LoadGameModel(fileName, loadScale);
-	GeometryGenerator::MeshData robot = dummy->GetMeshData();
+	dummy->LoadGameModel(fileName, loadScale, isMap);
+	GeometryGenerator::MeshData *robot = dummy->GetMeshData();
+	int meshSize = dummy->meshSize;
 
 	UINT robotVertexOffset = 0;
 	UINT robotIndexOffset = 0;
 
 	SubmeshGeometry robotSubmesh;
-	robotSubmesh.IndexCount = (UINT)robot.Indices32.size();
+	for (int i = 0; i < meshSize; ++i) {
+		robotSubmesh.IndexCount += (UINT)robot[i].Indices32.size();
+	}
 	robotSubmesh.StartIndexLocation = robotIndexOffset;
 	robotSubmesh.BaseVertexLocation = robotVertexOffset;
 
-	auto totalVertexCount =
-		robot.Vertices.size();
+	size_t totalVertexCount = 0;
+	for (int i = 0; i < meshSize; ++i) {
+		totalVertexCount += robot[i].Vertices.size();
+	}
 
 	UINT k = 0;
 	std::vector<Vertex> vertices(totalVertexCount);
-	for (size_t i = 0; i < robot.Vertices.size(); ++i, ++k)
-	{
-		auto& p = robot.Vertices[i].Position;
-		vertices[k].Pos = p;
-		vertices[k].Normal = robot.Vertices[i].Normal;
-		vertices[k].TexC0 = robot.Vertices[i].TexC;
-		vertices[k].TexC1 = robot.Vertices[i].TexC;
+
+	for (int z = 0; z < meshSize; ++z) {
+
+		for (size_t i = 0; i < robot[z].Vertices.size(); ++i, ++k)
+		{
+			auto& p = robot[z].Vertices[i].Position;
+			vertices[k].Pos = p;
+			vertices[k].Normal = robot[z].Vertices[i].Normal;
+			vertices[k].TexC0 = robot[z].Vertices[i].TexC;
+			vertices[k].TexC1 = robot[z].Vertices[i].TexC;
+		}
+
 	}
 
 	std::vector<std::uint32_t> indices;
-	indices.insert(indices.end(), std::begin(robot.Indices32), std::end(robot.Indices32));
+	for (int i = 0; i < meshSize; ++i) {
+		indices.insert(indices.end(), std::begin(robot[i].Indices32), std::end(robot[i].Indices32));
+	}
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint32_t);
@@ -1576,15 +1589,15 @@ void MyScene::BuildGameObjects()
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////
 	auto gridRitem = std::make_unique<GameObject>();
 
-	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, -50.0f, 0.0f));
+	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
 	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	gridRitem->ObjCBIndex = objIndex++;
 	gridRitem->Mat = mMaterials["rand"].get();
-	gridRitem->Geo = mGeometries["landGeo"].get();
+	gridRitem->Geo = mGeometries["map00Geo"].get();
 	gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
-	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
-	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
+	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["map00"].IndexCount;
+	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["map00"].StartIndexLocation;
+	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["map00"].BaseVertexLocation;
 
 	mOpaqueRitems[(int)RenderLayer::Grid].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));

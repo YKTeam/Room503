@@ -181,133 +181,11 @@ void GameObject::UpdateTransform(XMFLOAT4X4 *pxmf4x4Parent)
 
 void GameObject::LoadFrameHierarchyFromFile(wifstream& InFile, UINT nFrame)
 {
-	UINT *pnIndices = NULL;
-
-	TCHAR pstrMeshName[64] = { '\0' };
-	TCHAR pstrAlbedoTextureName[64] = { '\0' };
-	TCHAR pstrToken[64] = { '\0' };
-	TCHAR pstrDebug[128] = { '\0' };
-
-	XMFLOAT3 xmf3FrameLocalPosition, xmf3FrameLocalRotation, xmf3FrameLocalScale, xmf3FrameScale;
-	XMFLOAT4 xmf4FrameLocalQuaternion, xmf4MaterialAlbedo;
-	int nVertices = 0, nNormals = 0, nTextureCoords = 0, nIndices = 0;
-
-	for (; ; )
-	{
-		InFile >> pstrToken;
-		if (!InFile) break;
-
-		if (!_tcscmp(pstrToken, _T("FrameName:")))
-		{
-			InFile >> m_pstrFrameName;
-
-			nVertices = nNormals = nTextureCoords = nIndices = 0;
-			xmf4MaterialAlbedo = XMFLOAT4(-1.0f, -1.0f, -1.0f, -1.0f);
-			pstrAlbedoTextureName[0] = '\0';
-			pnIndices = NULL;
-		}
-		else if (!_tcscmp(pstrToken, _T("Transform:")))
-		{
-			InFile >> xmf3FrameLocalPosition.x >> xmf3FrameLocalPosition.y >> xmf3FrameLocalPosition.z;
-			InFile >> xmf3FrameLocalRotation.x >> xmf3FrameLocalRotation.y >> xmf3FrameLocalRotation.z;
-			InFile >> xmf4FrameLocalQuaternion.x >> xmf4FrameLocalQuaternion.y >> xmf4FrameLocalQuaternion.z >> xmf4FrameLocalQuaternion.w;
-			InFile >> xmf3FrameLocalScale.x >> xmf3FrameLocalScale.y >> xmf3FrameLocalScale.z;
-			InFile >> xmf3FrameScale.x >> xmf3FrameScale.y >> xmf3FrameScale.z;
-		}
-		else if (!_tcscmp(pstrToken, _T("TransformMatrix:")))
-		{
-			InFile >> m_xmf4x4ToRootTransform._11 >> m_xmf4x4ToRootTransform._12 >> m_xmf4x4ToRootTransform._13 >> m_xmf4x4ToRootTransform._14;
-			InFile >> m_xmf4x4ToRootTransform._21 >> m_xmf4x4ToRootTransform._22 >> m_xmf4x4ToRootTransform._23 >> m_xmf4x4ToRootTransform._24;
-			InFile >> m_xmf4x4ToRootTransform._31 >> m_xmf4x4ToRootTransform._32 >> m_xmf4x4ToRootTransform._33 >> m_xmf4x4ToRootTransform._34;
-			InFile >> m_xmf4x4ToRootTransform._41 >> m_xmf4x4ToRootTransform._42 >> m_xmf4x4ToRootTransform._43 >> m_xmf4x4ToRootTransform._44;
-
-			InFile >> m_xmf4x4ToParentTransform._11 >> m_xmf4x4ToParentTransform._12 >> m_xmf4x4ToParentTransform._13 >> m_xmf4x4ToParentTransform._14;
-			InFile >> m_xmf4x4ToParentTransform._21 >> m_xmf4x4ToParentTransform._22 >> m_xmf4x4ToParentTransform._23 >> m_xmf4x4ToParentTransform._24;
-			InFile >> m_xmf4x4ToParentTransform._31 >> m_xmf4x4ToParentTransform._32 >> m_xmf4x4ToParentTransform._33 >> m_xmf4x4ToParentTransform._34;
-			InFile >> m_xmf4x4ToParentTransform._41 >> m_xmf4x4ToParentTransform._42 >> m_xmf4x4ToParentTransform._43 >> m_xmf4x4ToParentTransform._44;
-		}
-		else if (!_tcscmp(pstrToken, _T("MeshName:")))
-		{
-			InFile >> pstrMeshName;
-		}
-		else if (!_tcscmp(pstrToken, _T("Vertices:")))
-		{
-			InFile >> nVertices;
-			meshData.Vertices.resize(nVertices);
-			for (int i = 0; i < nVertices; i++)
-			{
-				InFile >> meshData.Vertices[i].Position.x >> meshData.Vertices[i].Position.y >> meshData.Vertices[i].Position.z;
-			}
-		}
-		else if (!_tcscmp(pstrToken, _T("Normals:")))
-		{
-			InFile >> nNormals;
-			for (int i = 0; i < nNormals; i++)
-			{
-				InFile >> meshData.Vertices[i].Normal.x >> meshData.Vertices[i].Normal.y >> meshData.Vertices[i].Normal.z;
-			}
-		}
-		else if (!_tcscmp(pstrToken, _T("TextureCoordinates0:")))
-		{
-			InFile >> nTextureCoords;
-			for (int i = 0; i < nTextureCoords; i++)
-			{
-				InFile >> meshData.Vertices[i].TexC.x >> meshData.Vertices[i].TexC.y;
-			}
-		}
-		else if (!_tcscmp(pstrToken, _T("TextureCoordinates1:")))
-		{
-			InFile >> nTextureCoords;
-			for (int i = 0; i < nTextureCoords; i++)
-			{
-				InFile >> meshData.Vertices[i].TexC1.x >> meshData.Vertices[i].TexC1.y;
-			}
-		}
-		else if (!_tcscmp(pstrToken, _T("Indices:")))
-		{
-			InFile >> nIndices;
-			meshData.Indices32.resize(nIndices);
-			for (int i = 0; i < nIndices; i++)
-			{
-				InFile >> meshData.Indices32[i];
-			}
-		}
-		else if (!_tcscmp(pstrToken, _T("AlbedoColor:")))
-		{
-			InFile >> xmf4MaterialAlbedo.x >> xmf4MaterialAlbedo.y >> xmf4MaterialAlbedo.z >> xmf4MaterialAlbedo.w;
-		}
-		else if (!_tcscmp(pstrToken, _T("AlbedoTextureName:")))
-		{
-			InFile >> pstrAlbedoTextureName;
-		}
-		else if (!_tcscmp(pstrToken, _T("Children:")))
-		{
-			int nChilds = 0;
-			InFile >> nChilds;
-			if (nChilds > 0)
-			{
-				for (int i = 0; i < nChilds; i++)
-				{
-					GameObject *pChild = new GameObject();
-					pChild->LoadFrameHierarchyFromFile(InFile, nFrame + 1);
-					SetChild(pChild);
-#ifdef _WITH_DEBUG_FRAME_HIERARCHY
-					_stprintf_s(pstrDebug, 128, _T("(Frame: %p) (Parent: %p)\n"), pChild, this);
-					OutputDebugString(pstrDebug);
-#endif
-				}
-			}
-		}
-		else if (!_tcscmp(pstrToken, _T("EndOfFrame")))
-		{
-			//하나의 계층 끝
-			break;
-		}
-	}
 }
 
-void GameObject::LoadGameModel(const string& fileName, float loadScale)
+void GameObject::LoadGameModel(const string& fileName, float loadScale,bool isMap)
 {
+	if(isMap)
 	m_pScene = aiImportFile(fileName.c_str(), aiProcess_JoinIdenticalVertices |        // 동일한 꼭지점 결합, 인덱싱 최적화
 		aiProcess_ValidateDataStructure |        // 로더의 출력을 검증
 		aiProcess_ImproveCacheLocality |        // 출력 정점의 캐쉬위치를 개선
@@ -321,10 +199,26 @@ void GameObject::LoadGameModel(const string& fileName, float loadScale)
 		aiProcess_SplitLargeMeshes |            // 거대한 하나의 매쉬를 하위매쉬들로 분활(나눔)
 		aiProcess_Triangulate |                    // 3개 이상의 모서리를 가진 다각형 면을 삼각형으로 만듬(나눔)
 		aiProcess_ConvertToLeftHanded |            // D3D의 왼손좌표계로 변환
+		aiProcess_PreTransformVertices |       //버텍스미리계산?
 		aiProcess_SortByPType);                    // 단일타입의 프리미티브로 구성된 '깨끗한' 매쉬를 만듬
-
+	else
+		m_pScene = aiImportFile(fileName.c_str(), aiProcess_JoinIdenticalVertices |        // 동일한 꼭지점 결합, 인덱싱 최적화
+			aiProcess_ValidateDataStructure |        // 로더의 출력을 검증
+			aiProcess_ImproveCacheLocality |        // 출력 정점의 캐쉬위치를 개선
+			aiProcess_RemoveRedundantMaterials |    // 중복된 매터리얼 제거
+			aiProcess_GenUVCoords |                    // 구형, 원통형, 상자 및 평면 매핑을 적절한 UV로 변환
+			aiProcess_TransformUVCoords |            // UV 변환 처리기 (스케일링, 변환...)
+			aiProcess_FindInstances |                // 인스턴스된 매쉬를 검색하여 하나의 마스터에 대한 참조로 제거
+			aiProcess_LimitBoneWeights |            // 정점당 뼈의 가중치를 최대 4개로 제한
+			aiProcess_OptimizeMeshes |                // 가능한 경우 작은 매쉬를 조인
+			aiProcess_GenSmoothNormals |            // 부드러운 노말벡터(법선벡터) 생성
+			aiProcess_SplitLargeMeshes |            // 거대한 하나의 매쉬를 하위매쉬들로 분활(나눔)
+			aiProcess_Triangulate |                    // 3개 이상의 모서리를 가진 다각형 면을 삼각형으로 만듬(나눔)
+			aiProcess_ConvertToLeftHanded |            // D3D의 왼손좌표계로 변환
+			aiProcess_SortByPType);
 	if (m_pScene) {
 		meshSize = m_pScene->mNumMeshes;
+		meshData = new GeometryGenerator::MeshData[meshSize];
 		//m_numMaterial = m_pScene->mNumMaterials;
 		//m_numBones = 0;
 		//initScene();
@@ -335,8 +229,6 @@ void GameObject::LoadGameModel(const string& fileName, float loadScale)
 
 			InitMesh(i, pMesh , loadScale);
 
-			//meshData += meshSize
-			//m_numVertices += (UINT)m_meshes[i].m_vertices.size();
 		}
 
 		//m_ModelMeshes.resize(m_meshes.size());
@@ -345,8 +237,8 @@ void GameObject::LoadGameModel(const string& fileName, float loadScale)
 
 void GameObject::InitMesh(UINT index, const aiMesh * pMesh, float loadScale)
 {
-	meshData.Vertices.resize(pMesh->mNumVertices);
-	meshData.Indices32.resize(pMesh->mNumFaces * 3);
+	meshData[index].Vertices.resize(pMesh->mNumVertices);
+	meshData[index].Indices32.resize(pMesh->mNumFaces * 3);
 
 	for (UINT i = 0; i < pMesh->mNumVertices; ++i) {
 		XMFLOAT3 pos(&pMesh->mVertices[i].x);
@@ -370,16 +262,16 @@ void GameObject::InitMesh(UINT index, const aiMesh * pMesh, float loadScale)
 		data.TexC0.x = tex.x;
 		data.TexC0.y = tex.y;
 
-		meshData.Vertices[i].Position = data.Pos;
-		meshData.Vertices[i].Normal = data.Normal;
-		meshData.Vertices[i].TexC = data.TexC0;
+		meshData[index].Vertices[i].Position = data.Pos;
+		meshData[index].Vertices[i].Normal = data.Normal;
+		meshData[index].Vertices[i].TexC = data.TexC0;
 		}
 
 	for (UINT i = 0; i < pMesh->mNumFaces; ++i) {
 		const aiFace& face = pMesh->mFaces[i];
-		meshData.Indices32[i*3] = (face.mIndices[0]);
-		meshData.Indices32[i*3+1] = (face.mIndices[1]);
-		meshData.Indices32[i*3+2] = (face.mIndices[2]);
+		meshData[index].Indices32[i*3] = (face.mIndices[0]);
+		meshData[index].Indices32[i*3+1] = (face.mIndices[1]);
+		meshData[index].Indices32[i*3+2] = (face.mIndices[2]);
 		//m_meshes[index].m_indices.push_back(face.mIndices[0]);
 	}
 }

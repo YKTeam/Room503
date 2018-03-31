@@ -87,7 +87,7 @@ public:
 	GameObject 	*m_pChild = NULL;
 	GameObject 	*m_pSibling = NULL;
 
-	GeometryGenerator::MeshData meshData;
+	GeometryGenerator::MeshData *meshData;
 	int meshSize = 0;
 	const aiScene*                m_pScene;        //모델 정보
 	//GeometryGenerator::MeshData   meshData;        //매쉬 정보
@@ -101,10 +101,10 @@ public:
 	void SetChild(GameObject *pChild);
 	GameObject *GetParent() { return(m_pParent); }
 	GameObject *FindFrame(_TCHAR *pstrFrameName);
-	GeometryGenerator::MeshData GetMeshData() { return meshData; }
+	GeometryGenerator::MeshData *GetMeshData() { return meshData; }
 
 	//로드 모델
-	void LoadGameModel(const string& fileName, float loadScale);
+	void LoadGameModel(const string& fileName, float loadScale, bool isMap);
 	void InitMesh(UINT index, const aiMesh * pMesh, float loadScale);
 	//계층변환
 	void UpdateTransform(XMFLOAT4X4 *pxmf4x4Parent = NULL);
