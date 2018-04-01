@@ -117,71 +117,6 @@ void GameObject::Rotate(XMFLOAT4 *pxmf4Quaternion)
 	m_xmf4x4ToParentTransform = Matrix4x4::Multiply(mtxRotate, m_xmf4x4ToParentTransform);
 }
 
-//계속늘린다
-void GameObject::SetChild(GameObject *pChild)
-{
-	if (m_pChild)
-	{
-		if (pChild) pChild->m_pSibling = m_pChild->m_pSibling;
-		m_pChild->m_pSibling = pChild;
-	}
-	else
-	{
-		m_pChild = pChild;
-	}
-	if (pChild) pChild->m_pParent = this;
-}
-
-//계층구조에서 찾아낸다
-GameObject *GameObject::FindFrame(_TCHAR *pstrFrameName)
-{
-	GameObject *pFrameObject = NULL;
-	if (!_tcsncmp(m_pstrFrameName, pstrFrameName, _tcslen(pstrFrameName))) return(this);
-
-	if (m_pSibling) if (pFrameObject = m_pSibling->FindFrame(pstrFrameName)) return(pFrameObject);
-	if (m_pChild) if (pFrameObject = m_pChild->FindFrame(pstrFrameName)) return(pFrameObject);
-
-	return(NULL);
-}
-
-//계층을 프린트한다
-void GameObject::PrintFrameInfo(GameObject *pGameObject, GameObject *pParent)
-{
-	TCHAR pstrDebug[128] = { 0 };
-
-	_stprintf_s(pstrDebug, 128, _T("(Frame: %p) (Parent: %p)\n"), pGameObject, pParent);
-	OutputDebugString(pstrDebug);
-
-	if (pGameObject->m_pSibling) PrintFrameInfo(pGameObject->m_pSibling, pParent);
-	if (pGameObject->m_pChild) PrintFrameInfo(pGameObject->m_pChild, pGameObject);
-}
-
-
-void GameObject::LoadGeometryFromFile(TCHAR *pstrFileName)
-{
-	wifstream InFile(pstrFileName);
-	LoadFrameHierarchyFromFile(InFile, 0);
-
-#ifdef _WITH_DEBUG_FRAME_HIERARCHY
-	TCHAR pstrDebug[128] = { 0 };
-	_stprintf_s(pstrDebug, 128, _T("Frame Hierarchy\n"));
-	OutputDebugString(pstrDebug);
-
-	PrintFrameInfo(this, NULL);
-#endif
-}
-
-void GameObject::UpdateTransform(XMFLOAT4X4 *pxmf4x4Parent)
-{
-	World = (pxmf4x4Parent) ? Matrix4x4::Multiply(m_xmf4x4ToParentTransform, *pxmf4x4Parent) : m_xmf4x4ToParentTransform;
-
-	if (m_pSibling) m_pSibling->UpdateTransform(pxmf4x4Parent);
-	if (m_pChild) m_pChild->UpdateTransform(&World);
-}
-
-void GameObject::LoadFrameHierarchyFromFile(wifstream& InFile, UINT nFrame)
-{
-}
 
 void GameObject::LoadGameModel(const string& fileName, float loadScale,bool isMap)
 {
@@ -220,15 +155,12 @@ void GameObject::LoadGameModel(const string& fileName, float loadScale,bool isMa
 		meshSize = m_pScene->mNumMeshes;
 		meshData = new GeometryGenerator::MeshData[meshSize];
 		//m_numMaterial = m_pScene->mNumMaterials;
-		//m_numBones = 0;
-		//initScene();
-
+		numBones = 0;
+		numAnimationClips = m_pScene->mNumAnimations;
 		for (UINT i = 0; i < meshSize; ++i) {
-
 			const aiMesh* pMesh = m_pScene->mMeshes[i];
-
-			InitMesh(i, pMesh , loadScale);
-
+			numBones = pMesh->mNumBones;
+			InitMesh(i, pMesh, loadScale);
 		}
 
 		//m_ModelMeshes.resize(m_meshes.size());
@@ -274,6 +206,147 @@ void GameObject::InitMesh(UINT index, const aiMesh * pMesh, float loadScale)
 		meshData[index].Indices32[i*3+2] = (face.mIndices[2]);
 		//m_meshes[index].m_indices.push_back(face.mIndices[0]);
 	}
+}
+
+void GameObject::LoadAnimation(SkinnedData& skinInfo , string clipName)
+{
+	if (m_pScene) {
+		std::vector<XMFLOAT4X4> boneOffsets;
+		std::vector<int> boneIndexToParentIndex;
+		std::unordered_map<std::string, AnimationClip> animations;
+
+		//애니메이션 정보 받아오기
+		if (m_pScene->HasAnimations())
+		{
+			ReadBoneOffsets(numBones, boneOffsets);
+			ReadBoneHierarchy(numBones, boneIndexToParentIndex);
+			ReadAnimationClips(numBones, numAnimationClips, animations, clipName);
+			skinInfo.Set(boneIndexToParentIndex, boneOffsets, animations);
+		}
+	}
+}
+
+void GameObject::ReadBoneOffsets(UINT numBones, std::vector<DirectX::XMFLOAT4X4>& boneOffsets)
+{
+	boneOffsets.resize(numBones);
+
+	for (UINT i = 0; i < meshSize; ++i) {
+		const aiMesh* pMesh = m_pScene->mMeshes[i];
+
+		//본 정보 받기
+		if (pMesh->HasBones())
+		{
+			for (UINT j = 0; j < numBones; ++j) {
+				const aiBone* pBone = pMesh->mBones[j];
+
+				boneOffsets[j](0,0) = pBone->mOffsetMatrix.a1;
+				boneOffsets[j](0, 1) = pBone->mOffsetMatrix.a2;
+				boneOffsets[j](0, 2) = pBone->mOffsetMatrix.a3;
+				boneOffsets[j](0, 3) = pBone->mOffsetMatrix.a4;
+
+				boneOffsets[j](1, 0) = pBone->mOffsetMatrix.c1;
+				boneOffsets[j](1, 1) = pBone->mOffsetMatrix.c2;
+				boneOffsets[j](1, 2) = pBone->mOffsetMatrix.c3;
+				boneOffsets[j](1, 3) = pBone->mOffsetMatrix.c4;
+
+				boneOffsets[j](2, 0) = pBone->mOffsetMatrix.b1;
+				boneOffsets[j](2, 1) = pBone->mOffsetMatrix.b2;
+				boneOffsets[j](2, 2) = pBone->mOffsetMatrix.b3;
+				boneOffsets[j](2, 3) = pBone->mOffsetMatrix.b4;
+
+				boneOffsets[j](3, 0) = pBone->mOffsetMatrix.d1;
+				boneOffsets[j](3, 1) = pBone->mOffsetMatrix.d2;
+				boneOffsets[j](3, 2) = pBone->mOffsetMatrix.d3;
+				boneOffsets[j](3, 3) = pBone->mOffsetMatrix.d4;
+			}
+		}
+	}
+}
+void GameObject::ReadBoneHierarchy(UINT numBones, std::vector<int>& boneIndexToParentIndex)
+{
+	boneIndexToParentIndex.resize(numBones);
+
+	for (UINT i = 0; i < meshSize; ++i) {
+		const aiMesh* pMesh = m_pScene->mMeshes[i];
+
+		//본 정보 받기
+		if (pMesh->HasBones())
+		{
+			for (UINT j = 0; j < numBones; ++j) {
+				const aiBone* pBone = pMesh->mBones[j];
+
+				//본 갯수만큼 리사이즈 한 뒤, 루트부터 돌아가면서 번호를?매겨? 시발?모라
+			}
+		}
+	}
+}
+void GameObject::ReadAnimationClips(UINT numBones, UINT numAnimationClips, std::unordered_map<std::string, AnimationClip>& animations, string clipName)
+{
+	for (UINT i = 0; i < meshSize; ++i) {
+		const aiMesh* pMesh = m_pScene->mMeshes[i];
+
+		//본 정보 받기
+		if (pMesh->HasBones())
+		{
+			for (UINT j = 0; j < numBones; ++j) {
+				const aiBone* pBone = pMesh->mBones[j];
+
+				for (UINT clipIndex = 0; clipIndex < numAnimationClips; ++clipIndex)
+				{
+					AnimationClip clip;
+					clip.BoneAnimations.resize(numBones);
+
+					for (UINT boneIndex = 0; boneIndex < numBones; ++boneIndex)
+					{
+						ReadBoneKeyframes( numBones, clip.BoneAnimations[boneIndex]);
+					}
+
+					animations[clipName] = clip;
+				}
+
+
+			}
+		}
+	}
+}
+
+void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation)
+{
+	std::string ignore;
+	UINT numKeyframes = 0;
+
+	const aiAnimation* pAni = m_pScene->mAnimations[0];
+
+	numKeyframes = pAni->mNumChannels;
+
+	boneAnimation.Keyframes.resize(numKeyframes);
+
+	for (UINT i = 0; i < numKeyframes; ++i)
+	{
+		float t = 0.0f;
+		XMFLOAT3 p(0.0f, 0.0f, 0.0f);
+		XMFLOAT3 s(1.0f, 1.0f, 1.0f);
+		XMFLOAT4 q(0.0f, 0.0f, 0.0f, 1.0f);
+		
+		t = pAni->mChannels[i]->mPositionKeys->mTime;
+		p.x = pAni->mChannels[i]->mPositionKeys->mValue.x;
+		p.y = pAni->mChannels[i]->mPositionKeys->mValue.y;
+		p.z = pAni->mChannels[i]->mPositionKeys->mValue.z;
+
+		s.x = pAni->mChannels[i]->mScalingKeys->mValue.x;
+		s.y = pAni->mChannels[i]->mScalingKeys->mValue.y;
+		s.z = pAni->mChannels[i]->mScalingKeys->mValue.z;
+
+		q.x = pAni->mChannels[i]->mRotationKeys->mValue.x;
+		q.y = pAni->mChannels[i]->mRotationKeys->mValue.y;
+		q.z = pAni->mChannels[i]->mRotationKeys->mValue.z;
+
+		boneAnimation.Keyframes[i].TimePos = t;
+		boneAnimation.Keyframes[i].Translation = p;
+		boneAnimation.Keyframes[i].Scale = s;
+		boneAnimation.Keyframes[i].RotationQuat = q;
+	}
+
 }
 
 void GameObject::GravityUpdate(const GameTimer& gt)

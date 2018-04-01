@@ -57,6 +57,9 @@
     <ClCompile Include="SobelFilter.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="SkinnedData.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BlurFilter.h">
@@ -104,6 +107,9 @@
     <ClInclude Include="XMHelper12.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="SkinnedData.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Blur.hlsl">
@@ -131,6 +137,9 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\TreeSprite.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Common.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

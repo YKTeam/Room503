@@ -2,75 +2,22 @@
 
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
+#include "Common.hlsl"
 
 Texture2D    gDiffuseMap : register(t0);
 Texture2D    gDetailMap : register(t1);
 
-SamplerState gsamPointWrap        : register(s0);
-SamplerState gsamPointClamp       : register(s1);
-SamplerState gsamLinearWrap       : register(s2);
-SamplerState gsamLinearClamp      : register(s3);
-SamplerState gsamAnisotropicWrap  : register(s4);
-SamplerState gsamAnisotropicClamp : register(s5);
-
-// Constant data that varies per frame.
-cbuffer cbPerObject : register(b0)
-{
-    float4x4 gWorld;
-	float4x4 gTexTransform;
-	uint gTextureAniIndex;
-	uint Pad0;
-	uint Pad1;
-	uint Pad2;
-};
-
-// Constant data that varies per material.
-cbuffer cbPass : register(b1)
-{
-    float4x4 gView;
-    float4x4 gInvView;
-    float4x4 gProj;
-    float4x4 gInvProj;
-    float4x4 gViewProj;
-    float4x4 gInvViewProj;
-	/*float4x4 gViewMini;
-	float4x4 gProjMini;
-	float4x4 gViewProjMini;*/
-    float3 gEyePosW;
-    float cbPerObjectPad1;
-	//float3 gEyePosWMini;
-	//float cbPerObjectPad2;
-    float2 gRenderTargetSize;
-    float2 gInvRenderTargetSize;
-    float gNearZ;
-    float gFarZ;
-    float gTotalTime;
-    float gDeltaTime;
-    float4 gAmbientLight;
-
-	float4 gFogColor;
-	float gFogStart;
-	float gFogRange;
-	float2 cbPerObjectPad3;
-
-    Light gLights[MaxLights];
-};
-
-cbuffer cbMaterial : register(b2)
-{
-	float4   gDiffuseAlbedo;
-	float3   gFresnelR0;
-	float    gRoughness;
-	float4x4 gMatTransform;
-	uint     DiffuseMapIndex;
-};
-
 struct VertexIn
 {
-	float3 PosL    : POSITION;
+	float3 PosL    : POSITION;  
     float3 NormalL : NORMAL;
 	float2 TexC0 : TEXCOORD0;
 	float2 TexC1 : TEXCOORD1;
+
+#ifdef SKINNED
+	float3 BoneWeights : WEIGHTS;
+	uint4 BoneIndices  : BONEINDICES;
+#endif
 };
 
 struct VertexOut
@@ -86,6 +33,25 @@ VertexOut VS(VertexIn vin)
 {
 	VertexOut vout = (VertexOut)0.0f;
 	
+#ifdef SKINNED
+	float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	weights[0] = vin.BoneWeights.x;
+	weights[1] = vin.BoneWeights.y;
+	weights[2] = vin.BoneWeights.z;
+	weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
+
+	float3 posL = float3(0.0f, 0.0f, 0.0f);
+	float3 normalL = float3(0.0f, 0.0f, 0.0f);
+	for (int i = 0; i < 4; ++i)
+	{
+		posL += weights[i] * mul(float4(vin.PosL, 1.0f), gBoneTransforms[vin.BoneIndices[i]]).xyz;
+		normalL += weights[i] * mul(vin.NormalL, (float3x3)gBoneTransforms[vin.BoneIndices[i]]);
+	}
+
+	vin.PosL = posL;
+	vin.NormalL = normalL;
+#endif
+
     // Transform to world space.
     float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
     vout.PosW = posW.xyz;

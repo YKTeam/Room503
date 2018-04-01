@@ -154,6 +154,7 @@
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="RenderTarget.cpp" />
     <ClCompile Include="Scene01.cpp" />
+    <ClCompile Include="SkinnedData.cpp" />
     <ClCompile Include="SobelFilter.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -169,6 +170,7 @@
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="RenderTarget.h" />
+    <ClInclude Include="SkinnedData.h" />
     <ClInclude Include="SobelFilter.h" />
     <ClInclude Include="UploadBuffer.h" />
     <ClInclude Include="XMHelper12.h" />
@@ -177,6 +179,10 @@
     <FxCompile Include="Shaders\Blur.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Shaders\Common.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>

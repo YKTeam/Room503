@@ -2,6 +2,7 @@
 
 #include "d3dApp.h"
 #include "MathHelper.h"
+#include "SkinnedData.h"
 #include "FrameResource.h"
 #include "GeometryGenerator.h"
 #include "XMHelper12.h"
@@ -18,6 +19,30 @@ using Microsoft::WRL::ComPtr;
 using namespace std;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
+
+struct SkinnedModelInstance
+{
+	SkinnedData* SkinnedInfo = nullptr;
+	std::vector<DirectX::XMFLOAT4X4> FinalTransforms;
+	std::string ClipName;
+	float TimePos = 0.0f;
+
+	// Called every frame and increments the time position, interpolates the 
+	// animations for each bone based on the current animation clip, and 
+	// generates the final transforms which are ultimately set to the effect
+	// for processing in the vertex shader.
+	void UpdateSkinnedAnimation(float dt)
+	{
+		TimePos += dt;
+
+		// Loop animation
+		if (TimePos > SkinnedInfo->GetClipEndTime(ClipName))
+			TimePos = 0.0f;
+
+		// Compute the final transforms for this time position.
+		SkinnedInfo->GetFinalTransforms(ClipName, TimePos, FinalTransforms);
+	}
+};
 
 // 하나의 물체를 그리는 데 필요한 매개변수들을 담는 가벼운 구조체
 // 이런 구조체의 구체적인 구성은 응용 프로그램마다 다름
@@ -44,10 +69,12 @@ public:
 
 	// 이 렌더 항목의 물체 상수 버퍼에 해당하는 GPU 상수 버퍼의 색인
 	UINT ObjCBIndex = -1;
+	UINT SkinnedCBIndex = -1;
 
 	// 이 렌더 항목에 연관된 기하구조. 여러 항목이 같은 기하구조를 참조할 수 있음에 주의
 	Material* Mat = nullptr;
 	MeshGeometry* Geo = nullptr;
+	SkinnedModelInstance* SkinnedModelInst = nullptr;
 
 	// Primitive topology.
 	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -88,6 +115,8 @@ public:
 	GameObject 	*m_pSibling = NULL;
 
 	GeometryGenerator::MeshData *meshData;
+	UINT numBones = 0;
+	UINT numAnimationClips = 0;
 	int meshSize = 0;
 	const aiScene*                m_pScene;        //모델 정보
 	//GeometryGenerator::MeshData   meshData;        //매쉬 정보
@@ -98,22 +127,18 @@ public:
 	void Rotate(XMFLOAT3 *pxmf3Axis, float fAngle);
 	void Rotate(XMFLOAT4 *pxmf4Quaternion);
 
-	void SetChild(GameObject *pChild);
-	GameObject *GetParent() { return(m_pParent); }
-	GameObject *FindFrame(_TCHAR *pstrFrameName);
+
 	GeometryGenerator::MeshData *GetMeshData() { return meshData; }
 
 	//로드 모델
 	void LoadGameModel(const string& fileName, float loadScale, bool isMap);
 	void InitMesh(UINT index, const aiMesh * pMesh, float loadScale);
-	//계층변환
-	void UpdateTransform(XMFLOAT4X4 *pxmf4x4Parent = NULL);
-	//계층을 파일로부터 읽기
-	void LoadFrameHierarchyFromFile(wifstream& InFile, UINT nFrame);
-	//지오메트리 정보를 읽기
-	void LoadGeometryFromFile(TCHAR *pstrFileName);
-	void PrintFrameInfo(GameObject *pGameObject, GameObject *pParent);
-
+	//로드 애니메이션 정보
+	void LoadAnimation(SkinnedData& skinInfo, string clipName);
+	void ReadBoneOffsets( UINT numBones, std::vector<DirectX::XMFLOAT4X4>& boneOffsets);
+	void ReadBoneHierarchy( UINT numBones, std::vector<int>& boneIndexToParentIndex);
+	void ReadAnimationClips( UINT numBones, UINT numAnimationClips, std::unordered_map<std::string, AnimationClip>& animations, string clipName);
+	void ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation);
 };
 
 class PlayerObject : public GameObject

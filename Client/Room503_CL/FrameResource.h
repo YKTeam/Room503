@@ -14,6 +14,11 @@ struct ObjectConstants
 	UINT Pad2;
 };
 
+struct SkinnedConstants
+{
+	DirectX::XMFLOAT4X4 BoneTransforms[96];
+};
+
 struct PassConstants
 {
     DirectX::XMFLOAT4X4 View = MathHelper::Identity4x4();
@@ -61,11 +66,15 @@ struct Vertex
 	DirectX::XMFLOAT2 TexC1;
 };
 
-struct RECTF {
-	float left;
-	float right;
-	float top;
-	float bottom;
+struct SkinnedVertex
+{
+	DirectX::XMFLOAT3 Pos;
+	DirectX::XMFLOAT3 Normal;
+	DirectX::XMFLOAT2 TexC;
+	DirectX::XMFLOAT2 TexC1;
+
+	DirectX::XMFLOAT3 BoneWeights;
+	BYTE BoneIndices[4];
 };
 
 // CPU가 한 프레임의 명령 목록들을 구축하는 데 필요한 자원들을 대표하는 클래스
@@ -75,7 +84,7 @@ struct FrameResource
 {
 public:
     
-	FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT materialCount);//, UINT waveVertCount);
+	FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT skinnedObjectCount, UINT materialCount);//, UINT waveVertCount);
     FrameResource(const FrameResource& rhs) = delete;
     FrameResource& operator=(const FrameResource& rhs) = delete;
     ~FrameResource();
@@ -89,6 +98,7 @@ public:
     std::unique_ptr<UploadBuffer<PassConstants>> PassCB = nullptr;  //이 버퍼는 하나의 렌더링 패스 전체에서 변하지 않는 상수 자료 저장( 시점위치, 시야행렬,투영행렬, 화면크기)
     std::unique_ptr<UploadBuffer<MaterialConstants>> MaterialCB = nullptr;
 	std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectCB = nullptr;
+	std::unique_ptr<UploadBuffer<SkinnedConstants>> SkinnedCB = nullptr;
     // 펜스는 현재 울타리 지점까지의 명령들을 표시하는 값이다.
 	// 이 값은 GPU가 아직 이프레임 자원들을 사용하고 있는지
 	// 판정하는 용도로 쓰인다.

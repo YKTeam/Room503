@@ -66,6 +66,7 @@ private:
 	void OnKeyboardInput(const GameTimer& gt);
 	void AnimateMaterials(const GameTimer& gt);
 	//void UpdateInstanceData(const GameTimer& gt);
+	void UpdateSkinnedCBs(const GameTimer& gt);
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialBuffer(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
@@ -115,6 +116,7 @@ private:
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mTreeSpriteInputLayout;
+	std::vector<D3D12_INPUT_ELEMENT_DESC> mSkinnedInputLayout;
 	//std::vector<D3D12_INPUT_ELEMENT_DESC> mFlareSpriteInputLayout;
 	//std::vector<D3D12_INPUT_ELEMENT_DESC> mSkyBoxInputLayout;
 	//std::vector<D3D12_INPUT_ELEMENT_DESC> mMinimapInputLayout;
@@ -131,12 +133,12 @@ private:
 
 	PassConstants mMainPassCB;
 
-	//하이트 구하려고
-	GeometryGenerator m_geoGrid;
+	//스키닝 애니메이션데이터 
+	std::unique_ptr<SkinnedModelInstance> mSkinnedModelInst;
+	SkinnedData mSkinnedInfo;
+	Subset mSkinnedSubsets;
 
 	bool mIsWireframe = false;
-	bool mIsSkyBox = false;
-
 	
 	float mSunTheta = 205.917; 
 	//float mSunPhi = XM_PIDIV4; // pi/4
@@ -231,7 +233,6 @@ bool MyScene::Initialize()
 	BuildShadersAndInputLayout();
 	BuildLandGeometry();
 	BuildFbxGeometry("Model/robotFree.fbx", "robot_freeGeo", "robot_free", 2.5f, false);
-	BuildFbxGeometry("Model/Robots_Prowler.fbx", "robot_prowlerGeo", "robot_prowler", 0.05f, false);
 	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 0.1f, false);
 	BuildFbxGeometry("Model/testmap.obj", "map00Geo", "map00", 1, true);
 	
@@ -323,6 +324,7 @@ void MyScene::Update(const GameTimer& gt)
 	
 
 	AnimateMaterials(gt);
+	UpdateSkinnedCBs(gt);
 	UpdateObjectCBs(gt);
 	UpdateMaterialBuffer(gt);
 	UpdateMainPassCB(gt);
@@ -505,8 +507,6 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 	if (GetAsyncKeyState('1') & 0x8000) mIsWireframe = true;
 	else mIsWireframe = false;
 
-	if (GetAsyncKeyState('2') & 0x8000) mIsSkyBox = true;
-	else mIsSkyBox = false;
 
 	
 	if (GetAsyncKeyState('Q') & 0x8000) {
@@ -567,6 +567,25 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 void MyScene::AnimateMaterials(const GameTimer& gt)
 {
 
+}
+
+void MyScene::UpdateSkinnedCBs(const GameTimer& gt)
+{
+	
+	auto currSkinnedCB = mCurrFrameResource->SkinnedCB.get();
+
+	if (currSkinnedCB != nullptr) {
+		mSkinnedModelInst->UpdateSkinnedAnimation(gt.DeltaTime());
+
+
+		SkinnedConstants skinnedConstants;
+		std::copy(
+			std::begin(mSkinnedModelInst->FinalTransforms),
+			std::end(mSkinnedModelInst->FinalTransforms),
+			&skinnedConstants.BoneTransforms[0]);
+
+		currSkinnedCB->CopyData(0, skinnedConstants);
+	}
 }
 
 void MyScene::UpdateObjectCBs(const GameTimer& gt)
@@ -725,16 +744,8 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	XMVECTOR lightDir = XMVectorSet(0.05f, sinf(mSunTheta), 0, 0); // -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
 	XMStoreFloat3(&mMainPassCB.Lights[lightCount++].Direction, lightDir);
 
-	if (mIsSkyBox)
-	{
-		mMainPassCB.gFogStart = 500;
-		mMainPassCB.gFogRange = 1000;
-	}
-	else {
-
 		mMainPassCB.gFogStart = 100.0f;
 		mMainPassCB.gFogRange = 700.0f;
-	}
 	
 	
 	auto currPassCB = mCurrFrameResource->PassCB.get();
@@ -835,18 +846,21 @@ void MyScene::LoadTextures()
 
 void MyScene::BuildRootSignature()
 {
-	CD3DX12_DESCRIPTOR_RANGE texTable[3];
+	CD3DX12_DESCRIPTOR_RANGE texTable[4];
 	texTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 	texTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); //detail texture
 	texTable[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); //skybox textures
+	texTable[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 48, 3, 3); //본 데이터
 
 	// Root parameter can be a table, root descriptor or root constants.
-	CD3DX12_ROOT_PARAMETER slotRootParameter[6];
+	CD3DX12_ROOT_PARAMETER slotRootParameter[7];
 
 	// Perfomance TIP: Order from most frequent to least frequent.
 	slotRootParameter[0].InitAsDescriptorTable(1, &texTable[0], D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[4].InitAsDescriptorTable(1, &texTable[1], D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[5].InitAsDescriptorTable(1, &texTable[2], D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[6].InitAsDescriptorTable(1, &texTable[3], D3D12_SHADER_VISIBILITY_PIXEL);
+
 	slotRootParameter[1].InitAsConstantBufferView(0);
 	slotRootParameter[2].InitAsConstantBufferView(1);
 	slotRootParameter[3].InitAsConstantBufferView(2);
@@ -854,7 +868,7 @@ void MyScene::BuildRootSignature()
 	auto staticSamplers = GetStaticSamplers();
 
 	  // 루트 서명은 루트 매개변수들의 배열이다
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(6, slotRootParameter, //루트파라메터 사이즈
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(7, slotRootParameter, //루트파라메터 사이즈
 		(UINT)staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	//상수 버퍼 하나로 구성된 서술자 구간을 카리키는 슬롯 하나로 이루어진 루트 서명을 생성한다.
@@ -1106,7 +1120,14 @@ void MyScene::BuildShadersAndInputLayout()
 		NULL, NULL
 	};
 
+	const D3D_SHADER_MACRO skinnedDefines[] =
+	{
+		"SKINNED", "1",
+		NULL, NULL
+	};
+
 	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["skinnedVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", skinnedDefines, "VS", "vs_5_1");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", defines, "PS", "ps_5_1");
 
 	/*mShaders["MiniVS"] = d3dUtil::CompileShader(L"Shaders\\minimap.hlsl", nullptr, "VS", "vs_5_1");
@@ -1144,6 +1165,16 @@ void MyScene::BuildShadersAndInputLayout()
 		{ "SIZE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
+	mSkinnedInputLayout =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 1, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "WEIGHTS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 40, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "BONEINDICES", 0, DXGI_FORMAT_R8G8B8A8_UINT, 0, 52, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
 }
 
 void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geoName , const std::string meshName, float loadScale , bool isMap)
@@ -1153,6 +1184,14 @@ void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geo
 	dummy->LoadGameModel(fileName, loadScale, isMap);
 	GeometryGenerator::MeshData *robot = dummy->GetMeshData();
 	int meshSize = dummy->meshSize;
+
+	dummy->LoadAnimation(mSkinnedInfo, "AnimStack::Take 001");
+
+	mSkinnedModelInst = std::make_unique<SkinnedModelInstance>();
+	mSkinnedModelInst->SkinnedInfo = &mSkinnedInfo;
+	mSkinnedModelInst->FinalTransforms.resize(mSkinnedInfo.BoneCount());
+	mSkinnedModelInst->ClipName = "AnimStack::Take 001";
+	mSkinnedModelInst->TimePos = 0.0f;
 
 	UINT robotVertexOffset = 0;
 	UINT robotIndexOffset = 0;
@@ -1293,7 +1332,7 @@ void MyScene::BuildLandGeometry()
 
 	mGeometries[geo->Name] = std::move(geo);
 
-	m_geoGrid = geoGen;
+	//m_geoGrid = geoGen;
 }
 
 
@@ -1486,7 +1525,7 @@ void MyScene::BuildFrameResources()
 	for (int i = 0; i < gNumFrameResources; ++i)
 	{
 		mFrameResources.push_back(std::make_unique<FrameResource>(md3dDevice.Get(),
-			1,  (UINT)mAllRitems.size(), (UINT)mMaterials.size()));
+			1, (UINT)mAllRitems.size(), 1, (UINT)mMaterials.size()));
 	
 	}
 }
@@ -1619,38 +1658,13 @@ void MyScene::BuildGameObjects()
 	player->StartIndexLocation = player->Geo->DrawArgs["robot_free"].StartIndexLocation;
 	player->BaseVertexLocation = player->Geo->DrawArgs["robot_free"].BaseVertexLocation;
 
+	player->SkinnedCBIndex = 0;
+	player->SkinnedModelInst = mSkinnedModelInst.get();
+
 	mOpaqueRitems[(int)RenderLayer::Player].push_back(player.get());
 	mAllRitems.push_back(std::move(player));
 
-	/*auto backRotor = std::make_unique<GameObject>();
-	backRotor->m_xmf4x4ToParentTransform = m_gunShip->m_pBackRotorFrame->m_xmf4x4ToParentTransform;
-	wcscpy(backRotor->m_pstrFrameName, m_gunShip->m_pBackRotorFrame->m_pstrFrameName);
-	backRotor->ObjCBIndex = objIndex++;
-	backRotor->Mat = mMaterials["gunship"].get();
-	backRotor->Geo = mGeometries["gunshipGeo"].get();
-	backRotor->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	backRotor->IndexCount = backRotor->Geo->DrawArgs["backRotor"].IndexCount;
-	backRotor->StartIndexLocation = backRotor->Geo->DrawArgs["backRotor"].StartIndexLocation;
-	backRotor->BaseVertexLocation = backRotor->Geo->DrawArgs["backRotor"].BaseVertexLocation;
 
-	mOpaqueRitems[(int)RenderLayer::PlayerChilds].push_back(backRotor.get());
-	mAllRitems.push_back(std::move(backRotor));
-	
-	auto rotor = std::make_unique<GameObject>();
-	rotor->m_xmf4x4ToParentTransform = m_gunShip->m_pRotorFrame->m_xmf4x4ToParentTransform;
-	wcscpy( rotor->m_pstrFrameName , m_gunShip->m_pRotorFrame->m_pstrFrameName );
-	rotor->ObjCBIndex = objIndex++;
-	rotor->Mat = mMaterials["gunship"].get();
-	rotor->Geo = mGeometries["gunshipGeo"].get();
-	rotor->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	rotor->IndexCount = rotor->Geo->DrawArgs["rotor"].IndexCount;
-	rotor->StartIndexLocation = rotor->Geo->DrawArgs["rotor"].StartIndexLocation;
-	rotor->BaseVertexLocation = rotor->Geo->DrawArgs["rotor"].BaseVertexLocation;
-
-	mOpaqueRitems[(int)RenderLayer::PlayerChilds].push_back(rotor.get());
-	mAllRitems.push_back(std::move(rotor));*/
-	
-	//new LoadModel("Model/Robot Kyle.fbx");
 	auto dummy = std::make_unique<GameObject>();
 	XMStoreFloat4x4(&dummy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, -50.0f));
 	dummy->ObjCBIndex = objIndex++;
@@ -1673,16 +1687,16 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
 {
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
     UINT matCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
+	UINT skinnedCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(SkinnedConstants));
 
 	auto objectCB = mCurrFrameResource->ObjectCB->Resource();
 	auto matCB = mCurrFrameResource->MaterialCB->Resource();
+	auto skinnedCB = mCurrFrameResource->SkinnedCB->Resource();
 
     // For each render item...
     for(size_t i = 0; i < ritems.size(); ++i)
     {
 		auto ri = ritems[i];
-		//if (!ri->m_bActive) continue;
-		//if (ri->m_pChild) DrawGameObjects(cmdList, ri->m_pChild, (int)RenderLayer::Player);
 
         cmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());
         cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
@@ -1694,7 +1708,12 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
 		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() +ri->ObjCBIndex*objCBByteSize;
 		D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = matCB->GetGPUVirtualAddress() +ri->Mat->MatCBIndex*matCBByteSize;
 
-		if ((int)RenderLayer::Grid == itemState) {
+		if (ri->SkinnedModelInst != nullptr)
+		{
+			D3D12_GPU_VIRTUAL_ADDRESS skinnedCBAddress = skinnedCB->GetGPUVirtualAddress() + ri->SkinnedCBIndex*skinnedCBByteSize;
+			cmdList->SetGraphicsRootConstantBufferView(1, skinnedCBAddress);
+		}
+		else if ((int)RenderLayer::Grid == itemState) {
 			CD3DX12_GPU_DESCRIPTOR_HANDLE tex2(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 			tex2.Offset(1, mCbvSrvUavDescriptorSize);
 
