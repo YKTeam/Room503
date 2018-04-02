@@ -5,10 +5,10 @@
 #define MAIN_PORT	9000
 #define SERVER_IP	127.0.0.1
 #define MAX_BUF		4000
+#define MAX_PACKET	255
 
 #define SC_POS	1
 #define SC_MOVE 2
-
 
 
 enum clients_state {
@@ -23,7 +23,7 @@ typedef struct IoEx {
 	WSAOVERLAPPED	over;
 	WSABUF			m_wsabuf;
 	UCHAR			m_Iobuf[MAX_BUF];
-
+	clients_state	m_eState;
 };
 
 
@@ -34,6 +34,11 @@ typedef struct USER {
 	int				y;
 	clients_state	e_Type;
 	IoEx			m_IoEx;
+
+	int				cur_packet;
+	int				pre_packet;
+	unsigned char	packet_buffer[MAX_PACKET];
+	SOCKET			client_socket;
 };
 
 struct sc_position_packet {

@@ -63,6 +63,8 @@ void CServerFrameWork::Accept_Process()
 
 		m_clients[login_id].connect = true;
 		m_clients[login_id].x = 0, m_clients[login_id].y = 0;
+		m_clients[login_id].cur_packet = 0, m_clients[login_id].pre_packet = 0;
+		//////////////////////////////////
 		m_clients[login_id].e_Type = e_Recv;
 		m_clients[login_id].m_IoEx.m_wsabuf.buf
 			= reinterpret_cast<CHAR*>(m_clients[login_id].m_IoEx.m_Iobuf);
@@ -85,22 +87,65 @@ void CServerFrameWork::Work_Thread()
 	{
 		DWORD dwSize;
 		ULONGLONG cur_id;
-		WSAOVERLAPPED over;
+		IoEx* IoContext;
 		int err_no;
 
 		// GetQueuedCompletionSatus
 		BOOL ret = m_hIocp.GQCS(&dwSize, &cur_id,
-			reinterpret_cast<LPOVERLAPPED*>(&over), err_no);
+			reinterpret_cast<LPOVERLAPPED*>(&IoContext), err_no);
 
 		if (FALSE == ret) {
 			if (64 == err_no)
 				error_display("GQCS : ", WSAGetLastError());
 		}
 
-		
-
 		if (0 == dwSize)
 			continue;
+
+		if (e_Recv == IoContext->m_eState) {
+			unsigned char* buf = m_clients[cur_id].m_IoEx.m_Iobuf;
+			unsigned cur_size = m_clients[cur_id].cur_packet;
+			unsigned pre_size = m_clients[cur_id].pre_packet;
+
+			while (dwSize < 0) {
+				if (0 == cur_size) cur_size = buf[0];
+
+				if (dwSize + pre_size >= cur_size) {
+					UCHAR packet[MAX_PACKET];
+					memcpy(packet, m_clients[cur_id].packet_buffer, pre_size);
+					memcpy(packet + pre_size, buf, cur_size - pre_size);
+					Packet_Process(static_cast<int>(cur_id), packet);
+					dwSize -= cur_size - pre_size;
+					buf += cur_size - pre_size;
+					cur_size = 0, pre_size = 0;
+				}
+				else {
+					memcpy(m_clients[cur_id].packet_buffer + pre_size, buf, dwSize);
+					pre_size += dwSize;
+					dwSize = 0;
+				}
+			}
+			m_clients[cur_id].cur_packet = cur_size;
+			m_clients[cur_id].pre_packet = pre_size;
+			DWORD dwFlag = 0;
+			WSARecv(m_clients[cur_id].client_socket, &m_clients[cur_id].m_IoEx.m_wsabuf, 1, NULL,
+				&dwFlag, &m_clients[cur_id].m_IoEx.over, NULL);
+		}
+		else if (e_Send == IoContext->m_eState)
+		{
+			if (dwSize != IoContext->m_wsabuf.len) {
+				cout << "Send Error in WorkProcess!\n";
+				closesocket(m_clients[cur_id].client_socket);
+				m_clients[cur_id].connect = false;
+			}
+
+			delete IoContext;
+		}
+		else
+		{
+			cout << "I dont know GQCS\n";
+			while (1);
+		}
 	}
 }
 
@@ -109,10 +154,18 @@ void CServerFrameWork::SendPositionPacket(int client, int object)
 	sc_position_packet packet;
 	packet.id = object;
 	packet.size = sizeof(packet);
-	packet.type=SC_POS;
+	packet.type = SC_POS;
 	packet.x = m_clients[client].x;
 	packet.y = m_clients[client].y;
 
+}
+
+void CServerFrameWork::Packet_Process(int id, unsigned char packet[])
+{
+	switch (packet[1]) {
+	case 1:
+		break;
+	}
 }
 
 void CServerFrameWork::error_display(const char * msg, int err_no)

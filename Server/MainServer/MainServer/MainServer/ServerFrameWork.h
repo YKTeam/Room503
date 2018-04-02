@@ -15,6 +15,7 @@ public:
 	void Work_Thread();
 	void SendPositionPacket(int, int);
 
+	void Packet_Process(int, unsigned char[]);
 public:
 
 	void error_display(const char *msg, int err_no);
