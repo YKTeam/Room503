@@ -127,7 +127,7 @@ UINT SkinnedData::BoneCount()const
 	return mBoneHierarchy.size();
 }
 
-void SkinnedData::Set(std::vector<int>& boneHierarchy, 
+void SkinnedData::Set(std::vector<std::pair<std::string,int>>& boneHierarchy, 
 		              std::vector<XMFLOAT4X4>& boneOffsets,
 		              std::unordered_map<std::string, AnimationClip>& animations)
 {
@@ -161,7 +161,7 @@ void SkinnedData::GetFinalTransforms(const std::string& clipName, float timePos,
 	{
 		XMMATRIX toParent = XMLoadFloat4x4(&toParentTransforms[i]);
 
-		int parentIndex = mBoneHierarchy[i];
+		int parentIndex = mBoneHierarchy[i].second;
 		XMMATRIX parentToRoot = XMLoadFloat4x4(&toRootTransforms[parentIndex]);
 
 		XMMATRIX toRoot = XMMatrixMultiply(toParent, parentToRoot);

@@ -80,7 +80,7 @@ private:
 	void BuildShadersAndInputLayout();
 	
 	void BuildLandGeometry();
-	void BuildFbxGeometry(const std::string fileName, const std::string geoName, const std::string meshName, float loadScale , bool isMap);
+	void BuildFbxGeometry(const std::string fileName, const std::string geoName, const std::string meshName, float loadScale , bool isMap , bool isAnim);
 	//void BuildFlareSpritesGeometry();
 	//void BuildTreeSpritesGeometry();
 	//void BuildSkyBoxGeometry();
@@ -232,9 +232,9 @@ bool MyScene::Initialize()
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
 	BuildLandGeometry();
-	BuildFbxGeometry("Model/robotFree.fbx", "robot_freeGeo", "robot_free", 2.5f, false);
-	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 0.1f, false);
-	BuildFbxGeometry("Model/testmap.obj", "map00Geo", "map00", 1, true);
+	BuildFbxGeometry("Model/robotFree.fbx", "robot_freeGeo", "robot_free", 2.5f, false , true);
+	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 0.1f, false , false);
+	BuildFbxGeometry("Model/testmap.obj", "map00Geo", "map00", 1, true , false);
 	
 
 	BuildMaterials();
@@ -577,7 +577,6 @@ void MyScene::UpdateSkinnedCBs(const GameTimer& gt)
 	if (currSkinnedCB != nullptr) {
 		mSkinnedModelInst->UpdateSkinnedAnimation(gt.DeltaTime());
 
-
 		SkinnedConstants skinnedConstants;
 		std::copy(
 			std::begin(mSkinnedModelInst->FinalTransforms),
@@ -846,24 +845,25 @@ void MyScene::LoadTextures()
 
 void MyScene::BuildRootSignature()
 {
-	CD3DX12_DESCRIPTOR_RANGE texTable[4];
+	CD3DX12_DESCRIPTOR_RANGE texTable[3];
 	texTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-	texTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); //detail texture
-	texTable[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); //skybox textures
-	texTable[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 48, 3, 3); //본 데이터
+	texTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); 
+	texTable[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); 
+	//texTable[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 48, 3); //본 데이터
 
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[7];
 
 	// Perfomance TIP: Order from most frequent to least frequent.
 	slotRootParameter[0].InitAsDescriptorTable(1, &texTable[0], D3D12_SHADER_VISIBILITY_PIXEL);
-	slotRootParameter[4].InitAsDescriptorTable(1, &texTable[1], D3D12_SHADER_VISIBILITY_PIXEL);
-	slotRootParameter[5].InitAsDescriptorTable(1, &texTable[2], D3D12_SHADER_VISIBILITY_PIXEL);
-	slotRootParameter[6].InitAsDescriptorTable(1, &texTable[3], D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[5].InitAsDescriptorTable(1, &texTable[1], D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[6].InitAsDescriptorTable(1, &texTable[2], D3D12_SHADER_VISIBILITY_PIXEL);
+	//slotRootParameter[6].InitAsDescriptorTable(1, &texTable[3], D3D12_SHADER_VISIBILITY_PIXEL);
 
-	slotRootParameter[1].InitAsConstantBufferView(0);
-	slotRootParameter[2].InitAsConstantBufferView(1);
-	slotRootParameter[3].InitAsConstantBufferView(2);
+	slotRootParameter[1].InitAsConstantBufferView(0); //버텍스상수
+	slotRootParameter[2].InitAsConstantBufferView(1); //상수
+	slotRootParameter[3].InitAsConstantBufferView(2); //매터리얼상수
+	slotRootParameter[4].InitAsConstantBufferView(3); //본
 
 	auto staticSamplers = GetStaticSamplers();
 
@@ -1177,21 +1177,23 @@ void MyScene::BuildShadersAndInputLayout()
 
 }
 
-void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geoName , const std::string meshName, float loadScale , bool isMap)
+void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geoName , const std::string meshName, float loadScale , bool isMap , bool isAnim)
 {
 	GeometryGenerator geoGen;
 	auto dummy = std::make_unique<GameObject>();
 	dummy->LoadGameModel(fileName, loadScale, isMap);
-	GeometryGenerator::MeshData *robot = dummy->GetMeshData();
+	GeometryGenerator::SkinnedMeshData *robot = dummy->GetSkinMeshData();
 	int meshSize = dummy->meshSize;
 
-	dummy->LoadAnimation(mSkinnedInfo, "AnimStack::Take 001");
+	if (isAnim) {
+		dummy->LoadAnimation(mSkinnedInfo, "AnimStack::Take 001");
 
-	mSkinnedModelInst = std::make_unique<SkinnedModelInstance>();
-	mSkinnedModelInst->SkinnedInfo = &mSkinnedInfo;
-	mSkinnedModelInst->FinalTransforms.resize(mSkinnedInfo.BoneCount());
-	mSkinnedModelInst->ClipName = "AnimStack::Take 001";
-	mSkinnedModelInst->TimePos = 0.0f;
+		mSkinnedModelInst = std::make_unique<SkinnedModelInstance>();
+		mSkinnedModelInst->SkinnedInfo = &mSkinnedInfo;
+		mSkinnedModelInst->FinalTransforms.resize(mSkinnedInfo.BoneCount());
+		mSkinnedModelInst->ClipName = "AnimStack::Take 001";
+		mSkinnedModelInst->TimePos = 0.0f;
+	}
 
 	UINT robotVertexOffset = 0;
 	UINT robotIndexOffset = 0;
@@ -1209,7 +1211,7 @@ void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geo
 	}
 
 	UINT k = 0;
-	std::vector<Vertex> vertices(totalVertexCount);
+	std::vector<SkinnedVertex> vertices(totalVertexCount);
 
 	for (int z = 0; z < meshSize; ++z) {
 
@@ -1229,7 +1231,7 @@ void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geo
 		indices.insert(indices.end(), std::begin(robot[i].Indices32), std::end(robot[i].Indices32));
 	}
 
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(SkinnedVertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint32_t);
 
 	auto geo = std::make_unique<MeshGeometry>();
@@ -1247,7 +1249,7 @@ void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geo
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
 
-	geo->VertexByteStride = sizeof(Vertex);
+	geo->VertexByteStride = sizeof(SkinnedVertex);
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
@@ -1711,7 +1713,10 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
 		if (ri->SkinnedModelInst != nullptr)
 		{
 			D3D12_GPU_VIRTUAL_ADDRESS skinnedCBAddress = skinnedCB->GetGPUVirtualAddress() + ri->SkinnedCBIndex*skinnedCBByteSize;
-			cmdList->SetGraphicsRootConstantBufferView(1, skinnedCBAddress);
+			cmdList->SetGraphicsRootDescriptorTable(0, tex);
+			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
+			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
+			cmdList->SetGraphicsRootConstantBufferView(4, skinnedCBAddress);
 		}
 		else if ((int)RenderLayer::Grid == itemState) {
 			CD3DX12_GPU_DESCRIPTOR_HANDLE tex2(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
@@ -1720,7 +1725,7 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
 			cmdList->SetGraphicsRootDescriptorTable(0, tex);
 			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
 			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
-			cmdList->SetGraphicsRootDescriptorTable(4, tex2);
+			cmdList->SetGraphicsRootDescriptorTable(5, tex2);
 		}
 		else if ((int)RenderLayer::Player == itemState ) {    
 			CD3DX12_GPU_DESCRIPTOR_HANDLE tex2(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
@@ -1729,7 +1734,7 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
 			cmdList->SetGraphicsRootDescriptorTable(0, tex);
 			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
 			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
-			cmdList->SetGraphicsRootDescriptorTable(4, tex2);
+			cmdList->SetGraphicsRootDescriptorTable(5, tex2);
 		}
 		else if ((int)RenderLayer::Enemy == itemState) {
 			CD3DX12_GPU_DESCRIPTOR_HANDLE tex2(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
@@ -1738,12 +1743,12 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
 			cmdList->SetGraphicsRootDescriptorTable(0, tex);
 			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
 			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
-			cmdList->SetGraphicsRootDescriptorTable(4, tex2);
+			cmdList->SetGraphicsRootDescriptorTable(5, tex2);
 		}
 		else {
 			cmdList->SetGraphicsRootDescriptorTable(0, tex);
 			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
-			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
+			cmdList->SetGraphicsRootConstantBufferView(5, matCBAddress);
 		}
 
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);

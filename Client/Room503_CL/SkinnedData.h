@@ -69,7 +69,7 @@ public:
 	float GetClipEndTime(const std::string& clipName)const;
 
 	void Set(
-		std::vector<int>& boneHierarchy, 
+		std::vector<std::pair<std::string, int>>& boneHierarchy,
 		std::vector<DirectX::XMFLOAT4X4>& boneOffsets,
 		std::unordered_map<std::string, AnimationClip>& animations);
 
@@ -81,7 +81,7 @@ public:
 
 private:
     // Gives parentIndex of ith bone.
-	std::vector<int> mBoneHierarchy;
+	std::vector<std::pair<std::string,int>> mBoneHierarchy;
 
 	std::vector<DirectX::XMFLOAT4X4> mBoneOffsets;
    

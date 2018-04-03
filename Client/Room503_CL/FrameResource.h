@@ -70,7 +70,7 @@ struct SkinnedVertex
 {
 	DirectX::XMFLOAT3 Pos;
 	DirectX::XMFLOAT3 Normal;
-	DirectX::XMFLOAT2 TexC;
+	DirectX::XMFLOAT2 TexC0;
 	DirectX::XMFLOAT2 TexC1;
 
 	DirectX::XMFLOAT3 BoneWeights;

@@ -118,7 +118,7 @@ void GameObject::Rotate(XMFLOAT4 *pxmf4Quaternion)
 }
 
 
-void GameObject::LoadGameModel(const string& fileName, float loadScale,bool isMap)
+void GameObject::LoadGameModel(const string& fileName, float loadScale, bool isMap)
 {
 	if(isMap)
 	m_pScene = aiImportFile(fileName.c_str(), aiProcess_JoinIdenticalVertices |        // 동일한 꼭지점 결합, 인덱싱 최적화
@@ -153,58 +153,115 @@ void GameObject::LoadGameModel(const string& fileName, float loadScale,bool isMa
 			aiProcess_SortByPType);
 	if (m_pScene) {
 		meshSize = m_pScene->mNumMeshes;
-		meshData = new GeometryGenerator::MeshData[meshSize];
+		skinMeshData = new GeometryGenerator::SkinnedMeshData[meshSize];
+		
 		//m_numMaterial = m_pScene->mNumMaterials;
 		numBones = 0;
 		numAnimationClips = m_pScene->mNumAnimations;
 		for (UINT i = 0; i < meshSize; ++i) {
 			const aiMesh* pMesh = m_pScene->mMeshes[i];
+
 			numBones = pMesh->mNumBones;
-			InitMesh(i, pMesh, loadScale);
+			
+			mBones.resize(pMesh->mNumVertices);
+
+			LoadBones(i, pMesh, mBones);
+			InitMesh(i, pMesh, mBones, loadScale);
 		}
 
 		//m_ModelMeshes.resize(m_meshes.size());
 	}
 }
 
-void GameObject::InitMesh(UINT index, const aiMesh * pMesh, float loadScale)
+void GameObject::InitMesh(UINT index, const aiMesh * pMesh, std::vector<VertexBoneData>& Bones, float loadScale)
 {
-	meshData[index].Vertices.resize(pMesh->mNumVertices);
-	meshData[index].Indices32.resize(pMesh->mNumFaces * 3);
+	skinMeshData[index].Vertices.resize(pMesh->mNumVertices);
+	skinMeshData[index].Indices32.resize(pMesh->mNumFaces * 3);
 
 	for (UINT i = 0; i < pMesh->mNumVertices; ++i) {
 		XMFLOAT3 pos(&pMesh->mVertices[i].x);
 		XMFLOAT3 normal(&pMesh->mNormals[i].x);
 		XMFLOAT2 tex;
+		pMesh->mBones[i]->mWeights;
 		if (pMesh->HasTextureCoords(0))
 			tex = XMFLOAT2(&pMesh->mTextureCoords[0][i].x);
 		else
 			tex = XMFLOAT2(0.0f, 0.0f);
 
-		Vertex data;  
+		SkinnedVertex data;
 		data.Pos.x = pos.x *loadScale;
 		data.Pos.y = pos.y *loadScale;
 		data.Pos.z = pos.z *loadScale;
 		data.Normal.x = normal.x *loadScale;
 		data.Normal.y = normal.y *loadScale;
 		data.Normal.z = normal.z *loadScale;
-		
 		data.TexC1.x = tex.x;
 		data.TexC1.y = tex.y;
 		data.TexC0.x = tex.x;
 		data.TexC0.y = tex.y;
 
-		meshData[index].Vertices[i].Position = data.Pos;
-		meshData[index].Vertices[i].Normal = data.Normal;
-		meshData[index].Vertices[i].TexC = data.TexC0;
+		data.BoneIndices[0] = Bones[i].BoneIndices[0];
+		data.BoneIndices[1] = Bones[i].BoneIndices[1];
+		data.BoneIndices[2] = Bones[i].BoneIndices[2];
+		data.BoneIndices[3] = Bones[i].BoneIndices[3];
+
+		data.BoneWeights.x = Bones[i].BoneWeights.x;
+		data.BoneWeights.y = Bones[i].BoneWeights.y;
+		data.BoneWeights.z = Bones[i].BoneWeights.z;
+
+		skinMeshData[index].Vertices[i].Position = data.Pos;
+		skinMeshData[index].Vertices[i].Normal = data.Normal;
+		skinMeshData[index].Vertices[i].TexC = data.TexC0;
+		skinMeshData[index].Vertices[i].BoneIndices[0] = data.BoneIndices[0];
+		skinMeshData[index].Vertices[i].BoneIndices[1] = data.BoneIndices[1];
+		skinMeshData[index].Vertices[i].BoneIndices[2] = data.BoneIndices[2];
+		skinMeshData[index].Vertices[i].BoneIndices[3] = data.BoneIndices[3];
+		skinMeshData[index].Vertices[i].BoneWeights = data.BoneWeights;
 		}
 
 	for (UINT i = 0; i < pMesh->mNumFaces; ++i) {
 		const aiFace& face = pMesh->mFaces[i];
-		meshData[index].Indices32[i*3] = (face.mIndices[0]);
-		meshData[index].Indices32[i*3+1] = (face.mIndices[1]);
-		meshData[index].Indices32[i*3+2] = (face.mIndices[2]);
-		//m_meshes[index].m_indices.push_back(face.mIndices[0]);
+		skinMeshData[index].Indices32[i*3] = (face.mIndices[0]);
+		skinMeshData[index].Indices32[i*3+1] = (face.mIndices[1]);
+		skinMeshData[index].Indices32[i*3+2] = (face.mIndices[2]);
+	}
+}
+
+void GameObject::LoadBones(UINT MeshIndex, const aiMesh* pMesh, std::vector<VertexBoneData>& Bones)
+{
+	for (UINT i = 0; i < pMesh->mNumBones; i++) {
+		UINT BoneIndex = 0;
+		string BoneName(pMesh->mBones[i]->mName.data);
+		pair<string, int> boneNameIndex = make_pair(BoneName, i);
+
+		boneName.push_back(boneNameIndex);
+
+		for (UINT j = 0; j < pMesh->mBones[i]->mNumWeights; j++) {
+			UINT VertexID =  pMesh->mBones[i]->mWeights[j].mVertexId;//m_Entries[MeshIndex].BaseVertex +
+			float Weight = pMesh->mBones[i]->mWeights[j].mWeight;
+
+			for (int z = 0; z < 4; z++) {
+				//
+				if (Bones[VertexID].BoneWeights.x == 0.0) {
+					Bones[VertexID].BoneIndices[z] = i;
+					Bones[VertexID].BoneWeights.x = Weight;
+					break;
+				}
+				else if (Bones[VertexID].BoneWeights.y == 0.0)
+				{
+					Bones[VertexID].BoneIndices[z] = i;
+					Bones[VertexID].BoneWeights.y = Weight;
+					break;
+				}
+				else if (Bones[VertexID].BoneWeights.z == 0.0)
+				{
+					Bones[VertexID].BoneIndices[z] = i;
+					Bones[VertexID].BoneWeights.z = Weight;
+					break;
+				}
+				else Bones[VertexID].BoneIndices[z] = i;
+			}
+		}
 	}
 }
 
@@ -212,7 +269,7 @@ void GameObject::LoadAnimation(SkinnedData& skinInfo , string clipName)
 {
 	if (m_pScene) {
 		std::vector<XMFLOAT4X4> boneOffsets;
-		std::vector<int> boneIndexToParentIndex;
+		std::vector<pair<string,int>> boneIndexToParentIndex;
 		std::unordered_map<std::string, AnimationClip> animations;
 
 		//애니메이션 정보 받아오기
@@ -262,7 +319,7 @@ void GameObject::ReadBoneOffsets(UINT numBones, std::vector<DirectX::XMFLOAT4X4>
 		}
 	}
 }
-void GameObject::ReadBoneHierarchy(UINT numBones, std::vector<int>& boneIndexToParentIndex)
+void GameObject::ReadBoneHierarchy(UINT numBones, std::vector<pair<string,int>>& boneIndexToParentIndex)
 {
 	boneIndexToParentIndex.resize(numBones);
 
@@ -273,8 +330,44 @@ void GameObject::ReadBoneHierarchy(UINT numBones, std::vector<int>& boneIndexToP
 		if (pMesh->HasBones())
 		{
 			for (UINT j = 0; j < numBones; ++j) {
+				const char *bonesname;
+				const char *parentName;
+				bool isCheck = false;
+				int myindex = 0;
 				const aiBone* pBone = pMesh->mBones[j];
 
+				bonesname = boneName[j].first.c_str();
+				
+				//본갯수만큼 본의 이름데이터에 이름없으면 
+				parentName = m_pScene->mRootNode->FindNode(bonesname)->mParent->mName.C_Str();
+				for (int y = 0; ; ++y) {
+					
+					for (int z = 0; z < numBones; ++z) {
+						if (boneName[z].first == parentName) {
+							boneIndexToParentIndex[j].first = parentName;
+							isCheck = true;
+							break;
+						}
+					}
+					if (isCheck) break;
+					if (m_pScene->mRootNode->FindNode(parentName)->mParent == nullptr ||
+						strcmp( parentName,"RootNode") == 0 ) break;
+					parentName = m_pScene->mRootNode->FindNode(parentName)->mParent->mName.C_Str();
+				}
+				//본에서 이름을 찾아서 인덱스를 넘겨준다
+				for (auto vet = boneName.begin(); vet != boneName.end(); ++vet)
+				{
+					if ((*vet).first == parentName) {
+						myindex = (*vet).second;
+						boneIndexToParentIndex[j].second = myindex; //부모이름인 본을 찾아서
+					}
+					else if (strcmp(parentName, "RootNode") == 0)
+					{
+						boneIndexToParentIndex[j].first = "RootNode";
+						boneIndexToParentIndex[j].second = -1;
+					}
+				}
+				
 				//본 갯수만큼 리사이즈 한 뒤, 루트부터 돌아가면서 번호를?매겨? 시발?모라
 			}
 		}

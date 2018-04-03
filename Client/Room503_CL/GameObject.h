@@ -20,6 +20,12 @@ using namespace std;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
+struct VertexBoneData
+{
+	DirectX::XMFLOAT3 BoneWeights;
+	BYTE BoneIndices[4];
+};
+
 struct SkinnedModelInstance
 {
 	SkinnedData* SkinnedInfo = nullptr;
@@ -75,6 +81,7 @@ public:
 	Material* Mat = nullptr;
 	MeshGeometry* Geo = nullptr;
 	SkinnedModelInstance* SkinnedModelInst = nullptr;
+	
 
 	// Primitive topology.
 	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -115,6 +122,10 @@ public:
 	GameObject 	*m_pSibling = NULL;
 
 	GeometryGenerator::MeshData *meshData;
+	GeometryGenerator::SkinnedMeshData *skinMeshData;
+	vector<VertexBoneData> mBones;
+	vector<pair<std::string,int>> boneName;
+
 	UINT numBones = 0;
 	UINT numAnimationClips = 0;
 	int meshSize = 0;
@@ -127,16 +138,18 @@ public:
 	void Rotate(XMFLOAT3 *pxmf3Axis, float fAngle);
 	void Rotate(XMFLOAT4 *pxmf4Quaternion);
 
-
 	GeometryGenerator::MeshData *GetMeshData() { return meshData; }
+	GeometryGenerator::SkinnedMeshData *GetSkinMeshData() { return skinMeshData; }
 
 	//로드 모델
 	void LoadGameModel(const string& fileName, float loadScale, bool isMap);
-	void InitMesh(UINT index, const aiMesh * pMesh, float loadScale);
+	void InitMesh(UINT index, const aiMesh * pMesh, std::vector<VertexBoneData>& Bones , float loadScale);
+	void LoadBones(UINT MeshIndex, const aiMesh* pMesh, std::vector<VertexBoneData>& Bones);
+	void AddBoneData(UINT BoneID, float Weight);
 	//로드 애니메이션 정보
 	void LoadAnimation(SkinnedData& skinInfo, string clipName);
 	void ReadBoneOffsets( UINT numBones, std::vector<DirectX::XMFLOAT4X4>& boneOffsets);
-	void ReadBoneHierarchy( UINT numBones, std::vector<int>& boneIndexToParentIndex);
+	void ReadBoneHierarchy(UINT numBones, std::vector<pair<string, int>>& boneIndexToParentIndex);
 	void ReadAnimationClips( UINT numBones, UINT numAnimationClips, std::unordered_map<std::string, AnimationClip>& animations, string clipName);
 	void ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation);
 };
