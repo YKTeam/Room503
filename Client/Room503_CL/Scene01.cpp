@@ -384,8 +384,10 @@ void MyScene::Draw(const GameTimer& gt)
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 	
+	mCommandList->SetPipelineState(mPSOs["skinnedOpaque"].Get());
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Player], (int)RenderLayer::Player);
-	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::PlayerChilds], (int)RenderLayer::PlayerChilds);
+	
+	//DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::PlayerChilds], (int)RenderLayer::PlayerChilds);
 
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mOffscreenRT->Resource(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -604,14 +606,14 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		mCamera.RotateY(mx);
 
 		//e->Pitch(my);
-		e->RotateY(mx);
+		//e->RotateY(mx);
 
-		auto rand = mOpaqueRitems[(int)RenderLayer::Grid];
-		printf("%.2f\n", e->GetPosition().y);
-		if (e->GetPosition().y > rand[0]->GetPosition().y + 25)//모델키는 로드시 스케일로 맞춰서 일단 상수로
-			e->GravityUpdate(gt);
-		else
-			e->SetPosition(XMFLOAT3(e->GetPosition().x, -25, e->GetPosition().z));
+		//auto rand = mOpaqueRitems[(int)RenderLayer::Grid];
+		//printf("%.2f\n", e->GetPosition().y);
+		//if (e->GetPosition().y > rand[0]->GetPosition().y + 25)//모델키는 로드시 스케일로 맞춰서 일단 상수로
+		//	e->GravityUpdate(gt);
+		//else
+		//	e->SetPosition(XMFLOAT3(e->GetPosition().x, -25, e->GetPosition().z));
 
 		//카메라 공전
 		//카메라세팅
@@ -1519,6 +1521,23 @@ void MyScene::BuildPSOs()
 	};
 	sobelPSO.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 	ThrowIfFailed(md3dDevice->CreateComputePipelineState(&sobelPSO, IID_PPV_ARGS(&mPSOs["sobel"])));
+
+	//
+	// PSO for skinned pass.
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC skinnedOpaquePsoDesc = opaquePsoDesc;
+	skinnedOpaquePsoDesc.InputLayout = { mSkinnedInputLayout.data(), (UINT)mSkinnedInputLayout.size() };
+	skinnedOpaquePsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["skinnedVS"]->GetBufferPointer()),
+		mShaders["skinnedVS"]->GetBufferSize()
+	};
+	skinnedOpaquePsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["opaquePS"]->GetBufferPointer()),
+		mShaders["opaquePS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&skinnedOpaquePsoDesc, IID_PPV_ARGS(&mPSOs["skinnedOpaque"])));
 }
 
 void MyScene::BuildFrameResources()

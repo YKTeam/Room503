@@ -19,6 +19,12 @@ struct Subset
 struct Keyframe
 {
 	Keyframe();
+	Keyframe(float time, DirectX::XMFLOAT3 tr, DirectX::XMFLOAT3 sc, DirectX::XMFLOAT4 rt) {
+		TimePos = time;
+		Translation = tr;
+		Scale = sc;
+		RotationQuat = rt;
+	};
 	~Keyframe();
 
     float TimePos;

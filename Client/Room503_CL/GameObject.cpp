@@ -391,7 +391,7 @@ void GameObject::ReadAnimationClips(UINT numBones, UINT numAnimationClips, std::
 
 					for (UINT boneIndex = 0; boneIndex < numBones; ++boneIndex)
 					{
-						ReadBoneKeyframes( numBones, clip.BoneAnimations[boneIndex]);
+						ReadBoneKeyframes(boneIndex, clip.BoneAnimations[boneIndex]);
 					}
 
 					animations[clipName] = clip;
@@ -405,8 +405,47 @@ void GameObject::ReadAnimationClips(UINT numBones, UINT numAnimationClips, std::
 
 void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation)
 {
-	std::string ignore;
-	UINT numKeyframes = 0;
+	for (int i = 0; i < m_pScene->mNumAnimations; i++)
+	{
+		aiAnimation *animation = m_pScene->mAnimations[i];
+		boneAnimation.Keyframes.resize(animation->mChannels[0]->mNumPositionKeys);
+		float time = 0;
+		for (int j = 0; j < animation->mChannels[0]->mNumPositionKeys; j++)
+		{
+			aiNodeAnim *nodeAnimationPos = animation->mChannels[(numBones*3)];
+			aiNodeAnim *nodeAnimationRot = animation->mChannels[(numBones*3)+1];
+			aiNodeAnim *nodeAnimationScl = animation->mChannels[(numBones*3)+2];
+			
+			XMFLOAT3 position;
+			XMFLOAT3 scale;
+			XMFLOAT4 rotation;
+
+			/* load all keyframes */
+			time += animation->mTicksPerSecond / animation->mDuration;
+			{
+				position.x = nodeAnimationPos->mPositionKeys[j].mValue.x;
+				position.y = nodeAnimationPos->mPositionKeys[j].mValue.y;
+				position.z = nodeAnimationPos->mPositionKeys[j].mValue.z;
+
+				scale.x = nodeAnimationScl->mScalingKeys[j].mValue.x;
+				scale.y = nodeAnimationScl->mScalingKeys[j].mValue.y;
+				scale.z = nodeAnimationScl->mScalingKeys[j].mValue.z;
+
+				rotation.x = nodeAnimationRot->mRotationKeys[j].mValue.x;
+				rotation.y = nodeAnimationRot->mRotationKeys[j].mValue.y;
+				rotation.z = nodeAnimationRot->mRotationKeys[j].mValue.z;
+				rotation.w = nodeAnimationRot->mRotationKeys[j].mValue.w;
+
+				boneAnimation.Keyframes[j].TimePos = time;
+				boneAnimation.Keyframes[j].Translation = position;
+				boneAnimation.Keyframes[j].Scale = scale;
+				boneAnimation.Keyframes[j].RotationQuat = rotation;
+			}
+		}
+	}
+
+
+	/*UINT numKeyframes = 0;
 
 	const aiAnimation* pAni = m_pScene->mAnimations[0];
 
@@ -439,7 +478,7 @@ void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation)
 		boneAnimation.Keyframes[i].Scale = s;
 		boneAnimation.Keyframes[i].RotationQuat = q;
 	}
-
+*/
 }
 
 void GameObject::GravityUpdate(const GameTimer& gt)
