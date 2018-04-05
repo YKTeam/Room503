@@ -236,33 +236,32 @@ void GameObject::LoadBones(UINT MeshIndex, const aiMesh* pMesh, std::vector<Vert
 
 		boneName.push_back(boneNameIndex);
 
+		//본마다 영향이 있는 버텍스 갯수라고 봄
 		for (UINT j = 0; j < pMesh->mBones[i]->mNumWeights; j++) {
-			UINT VertexID =  pMesh->mBones[i]->mWeights[j].mVertexId;//m_Entries[MeshIndex].BaseVertex +
+			//해당 본의 해당 가중치정보의 버텍스ID와 가중치
+			UINT VertexID = pMesh->mBones[i]->mWeights[j].mVertexId;
 			float Weight = pMesh->mBones[i]->mWeights[j].mWeight;
 
-			for (int z = 0; z < 4; z++) {
-				//
-				if (Bones[VertexID].BoneWeights.x == 0.0) {
-					Bones[VertexID].BoneIndices[z] = i;
-					Bones[VertexID].BoneWeights.x = Weight;
-					break;
-				}
-				else if (Bones[VertexID].BoneWeights.y == 0.0)
-				{
-					Bones[VertexID].BoneIndices[z] = i;
-					Bones[VertexID].BoneWeights.y = Weight;
-					break;
-				}
-				else if (Bones[VertexID].BoneWeights.z == 0.0)
-				{
-					Bones[VertexID].BoneIndices[z] = i;
-					Bones[VertexID].BoneWeights.z = Weight;
-					break;
-				}
-				else Bones[VertexID].BoneIndices[z] = i;
+			if (Bones[VertexID].BoneWeights.x == 0.0) {
+				Bones[VertexID].BoneIndices[0] = i;
+				Bones[VertexID].BoneWeights.x = Weight;
+			}
+			else if (Bones[VertexID].BoneWeights.y == 0.0)
+			{
+				Bones[VertexID].BoneIndices[1] = i;
+				Bones[VertexID].BoneWeights.y = Weight;
+			}
+			else if (Bones[VertexID].BoneWeights.z == 0.0)
+			{
+				Bones[VertexID].BoneIndices[2] = i;
+				Bones[VertexID].BoneWeights.z = Weight;
+			}
+			else {
+				Bones[VertexID].BoneIndices[3] = i;
 			}
 		}
 	}
+	int a = 10;
 }
 
 void GameObject::LoadAnimation(SkinnedData& skinInfo , string clipName)
@@ -297,23 +296,23 @@ void GameObject::ReadBoneOffsets(UINT numBones, std::vector<DirectX::XMFLOAT4X4>
 				const aiBone* pBone = pMesh->mBones[j];
 
 				boneOffsets[j](0,0) = pBone->mOffsetMatrix.a1;
-				boneOffsets[j](0, 1) = pBone->mOffsetMatrix.a2;
-				boneOffsets[j](0, 2) = pBone->mOffsetMatrix.a3;
-				boneOffsets[j](0, 3) = pBone->mOffsetMatrix.a4;
+				boneOffsets[j](0, 1) = pBone->mOffsetMatrix.b1;
+				boneOffsets[j](0, 2) = pBone->mOffsetMatrix.c1;
+				boneOffsets[j](0, 3) = pBone->mOffsetMatrix.d1;
 
-				boneOffsets[j](1, 0) = pBone->mOffsetMatrix.c1;
-				boneOffsets[j](1, 1) = pBone->mOffsetMatrix.c2;
-				boneOffsets[j](1, 2) = pBone->mOffsetMatrix.c3;
-				boneOffsets[j](1, 3) = pBone->mOffsetMatrix.c4;
+				boneOffsets[j](1, 0) = -pBone->mOffsetMatrix.a3;
+				boneOffsets[j](1, 1) = -pBone->mOffsetMatrix.b3;
+				boneOffsets[j](1, 2) = -pBone->mOffsetMatrix.c3;
+				boneOffsets[j](1, 3) = -pBone->mOffsetMatrix.d3;
 
-				boneOffsets[j](2, 0) = pBone->mOffsetMatrix.b1;
+				boneOffsets[j](2, 0) = pBone->mOffsetMatrix.a2;
 				boneOffsets[j](2, 1) = pBone->mOffsetMatrix.b2;
-				boneOffsets[j](2, 2) = pBone->mOffsetMatrix.b3;
-				boneOffsets[j](2, 3) = pBone->mOffsetMatrix.b4;
+				boneOffsets[j](2, 2) = pBone->mOffsetMatrix.c2;
+				boneOffsets[j](2, 3) = pBone->mOffsetMatrix.d2;
 
-				boneOffsets[j](3, 0) = pBone->mOffsetMatrix.d1;
-				boneOffsets[j](3, 1) = pBone->mOffsetMatrix.d2;
-				boneOffsets[j](3, 2) = pBone->mOffsetMatrix.d3;
+				boneOffsets[j](3, 0) = pBone->mOffsetMatrix.a4;
+				boneOffsets[j](3, 1) = pBone->mOffsetMatrix.b4;
+				boneOffsets[j](3, 2) = pBone->mOffsetMatrix.c4;
 				boneOffsets[j](3, 3) = pBone->mOffsetMatrix.d4;
 			}
 		}

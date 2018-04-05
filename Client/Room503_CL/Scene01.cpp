@@ -576,17 +576,15 @@ void MyScene::UpdateSkinnedCBs(const GameTimer& gt)
 	
 	auto currSkinnedCB = mCurrFrameResource->SkinnedCB.get();
 
-	if (currSkinnedCB != nullptr) {
-		mSkinnedModelInst->UpdateSkinnedAnimation(gt.DeltaTime());
+	mSkinnedModelInst->UpdateSkinnedAnimation(gt.DeltaTime());
 
-		SkinnedConstants skinnedConstants;
-		std::copy(
-			std::begin(mSkinnedModelInst->FinalTransforms),
-			std::end(mSkinnedModelInst->FinalTransforms),
-			&skinnedConstants.BoneTransforms[0]);
+	SkinnedConstants skinnedConstants;
+	std::copy(
+		std::begin(mSkinnedModelInst->FinalTransforms),
+		std::end(mSkinnedModelInst->FinalTransforms),
+		&skinnedConstants.BoneTransforms[0]);
 
-		currSkinnedCB->CopyData(0, skinnedConstants);
-	}
+	currSkinnedCB->CopyData(0, skinnedConstants);
 }
 
 void MyScene::UpdateObjectCBs(const GameTimer& gt)
@@ -733,7 +731,7 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 
 	//∞£¡¢±§ »‰≥ª
-	mMainPassCB.AmbientLight = { 0.5f, 0.5f, 0.5f, 1.0f };
+	mMainPassCB.AmbientLight = { 0.9f, 0.9f, 0.9f, 1.0f };
 
 	int lightCount = 0;
 	
