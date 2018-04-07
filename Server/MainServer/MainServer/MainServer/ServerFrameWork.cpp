@@ -163,9 +163,69 @@ void CServerFrameWork::SendPositionPacket(int client, int object)
 void CServerFrameWork::Packet_Process(int id, unsigned char packet[])
 {
 	switch (packet[1]) {
-	case 1:
+	case CS_UP:
+		m_clients[id].y--;
 		break;
+	case CS_DOWN:
+		m_clients[id].y++;
+		break;
+	case CS_LEFT:
+		m_clients[id].x--;
+		break;
+	case CS_RIGHT:m_clients[id].x++;
+		break;
+	default:
+		cout << "UnKnown Packet Packet_Process : " << id << endl;
+		while (1);
 	}
+
+	SendMovePacket(id, id);
+
+	for (int j = 0; j < MAX_USER; ++j) {
+		if (j != id) {
+			if (m_clients[j].connect) {
+				SendMovePacket(j, id);
+				SendMovePacket(id, j);
+			}
+
+		}
+	}
+
+}
+
+
+// 포지션위치를 계속해서  move시켜줌
+void CServerFrameWork::SendMovePacket(int client, int obj)
+{
+	sc_position_packet packet;
+	packet.id = obj;
+	packet.size = sizeof(packet);
+	packet.type = SC_MOVE;
+	packet.x = m_clients[obj].x;
+	packet.y = m_clients[obj].y;
+
+	SendPacket(client, &packet);
+}
+
+void CServerFrameWork::SendPacket(int client, void* packet)
+{
+	int cur_size = reinterpret_cast<unsigned char*>(packet)[0];
+	IoEx* Io = new IoEx;
+	Io->m_eState = e_Send;
+	memcpy(Io->m_Iobuf, packet, cur_size);
+	ZeroMemory(&Io->over, sizeof(Io->over));
+	Io->m_wsabuf.buf = reinterpret_cast<CHAR*> (Io->m_Iobuf);
+	Io->m_wsabuf.len = cur_size;
+
+	int ret = WSASend(m_clients[client].client_socket, &Io->m_wsabuf,
+		1, NULL, 0, &Io->over, NULL);
+	if (0 != ret) {
+		int err_no = WSAGetLastError();
+		if (WSA_IO_PENDING != err_no)
+			error_display("Error in SendPacket : ", err_no);
+	}
+
+
 }
 
 void CServerFrameWork::error_display(const char * msg, int err_no)

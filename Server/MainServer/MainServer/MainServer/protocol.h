@@ -11,6 +11,16 @@
 #define SC_MOVE 2
 
 
+
+#define CS_UP		1
+#define CS_DOWN		2
+#define CS_LEFT		3
+#define CS_RIGHT	4
+
+#define SC_POS		1
+#define SC_MOVE		2
+#define SC_REMOVE	3
+
 enum clients_state {
 	e_Recv,
 	e_Send,
@@ -42,11 +52,11 @@ typedef struct USER {
 };
 
 struct sc_position_packet {
+	BYTE size;
+	BYTE type;
+	WORD id;
 	int x;
 	int y;
-	WORD id;
-	BYTE type;
-	BYTE size;
 };
 
 

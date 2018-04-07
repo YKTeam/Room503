@@ -16,6 +16,10 @@ public:
 	void SendPositionPacket(int, int);
 
 	void Packet_Process(int, unsigned char[]);
+
+	void SendMovePacket(int, int);
+	void SendPacket(int, void*);
+
 public:
 
 	void error_display(const char *msg, int err_no);
