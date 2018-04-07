@@ -233,7 +233,7 @@ bool MyScene::Initialize()
 	BuildShadersAndInputLayout();
 	BuildLandGeometry();
 	BuildFbxGeometry("Model/robotFree.fbx", "robot_freeGeo", "robot_free", 2.5f, false , true);
-	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 0.1f, false , false);
+	BuildFbxGeometry("Model/Robots_Prowler.fbx", "robotGeo", "robot" , 0.1f, false , false);
 	BuildFbxGeometry("Model/testmap.obj", "map00Geo", "map00", 1, true , false);
 	
 

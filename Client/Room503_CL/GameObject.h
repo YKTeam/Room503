@@ -13,7 +13,7 @@
 #include "include\assimp\cimport.h"
 #include "include\assimp\postprocess.h"
 #include "include\assimp\scene.h"
-#pragma comment(lib, "assimp.lib")
+#pragma comment(lib, "assimp-vc140-mt.lib")
 
 using Microsoft::WRL::ComPtr;
 using namespace std;

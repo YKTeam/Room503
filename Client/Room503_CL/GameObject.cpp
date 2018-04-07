@@ -371,6 +371,7 @@ void GameObject::ReadBoneHierarchy(UINT numBones, std::vector<pair<string,int>>&
 			}
 		}
 	}
+	int a = 10;
 }
 void GameObject::ReadAnimationClips(UINT numBones, UINT numAnimationClips, std::unordered_map<std::string, AnimationClip>& animations, string clipName)
 {
@@ -399,9 +400,11 @@ void GameObject::ReadAnimationClips(UINT numBones, UINT numAnimationClips, std::
 
 			}
 		}
+		int a = 10;
 	}
 }
 
+//d
 void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation)
 {
 	for (int i = 0; i < m_pScene->mNumAnimations; i++)
@@ -409,12 +412,15 @@ void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation)
 		aiAnimation *animation = m_pScene->mAnimations[i];
 		boneAnimation.Keyframes.resize(animation->mChannels[0]->mNumPositionKeys);
 		float time = 0;
+
+		float start_time = (float)animation->mChannels[0]->mPositionKeys[118].mTime; //프레임 시작 시점은 좌표 이동 프레임을 기준으로 맞춤
+		float end_time = (float)animation->mChannels[0]->mPositionKeys[animation->mChannels[0]->mNumPositionKeys - 1].mTime - 1.0f; //프레임 종료 시점에서 1.0 만큼 빼줘야 프레임이 안겹침
+		//nodeAnimationPos->mPositionKeys[j] 이 키 프레임값이 달라야 움직이는데..
+		
 		for (int j = 0; j < animation->mChannels[0]->mNumPositionKeys; j++)
 		{
-			aiNodeAnim *nodeAnimationPos = animation->mChannels[(numBones*3)];
-			aiNodeAnim *nodeAnimationRot = animation->mChannels[(numBones*3)+1];
-			aiNodeAnim *nodeAnimationScl = animation->mChannels[(numBones*3)+2];
-			
+			aiNodeAnim *nodeAnimation = animation->mChannels[(numBones)];
+
 			XMFLOAT3 position;
 			XMFLOAT3 scale;
 			XMFLOAT4 rotation;
@@ -422,18 +428,37 @@ void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation)
 			/* load all keyframes */
 			time += animation->mTicksPerSecond / animation->mDuration;
 			{
-				position.x = nodeAnimationPos->mPositionKeys[j].mValue.x;
-				position.y = nodeAnimationPos->mPositionKeys[j].mValue.y;
-				position.z = nodeAnimationPos->mPositionKeys[j].mValue.z;
-
-				scale.x = nodeAnimationScl->mScalingKeys[j].mValue.x;
-				scale.y = nodeAnimationScl->mScalingKeys[j].mValue.y;
-				scale.z = nodeAnimationScl->mScalingKeys[j].mValue.z;
-
-				rotation.x = nodeAnimationRot->mRotationKeys[j].mValue.x;
-				rotation.y = nodeAnimationRot->mRotationKeys[j].mValue.y;
-				rotation.z = nodeAnimationRot->mRotationKeys[j].mValue.z;
-				rotation.w = nodeAnimationRot->mRotationKeys[j].mValue.w;
+				if (nodeAnimation->mNumPositionKeys == 1) {
+					position.x = nodeAnimation->mPositionKeys[0].mValue.x;
+					position.y = nodeAnimation->mPositionKeys[0].mValue.y;
+					position.z = nodeAnimation->mPositionKeys[0].mValue.z;
+				}
+				else {
+					position.x = nodeAnimation->mPositionKeys[j].mValue.x;
+					position.y = nodeAnimation->mPositionKeys[j].mValue.y;
+					position.z = nodeAnimation->mPositionKeys[j].mValue.z;
+				}
+				if (nodeAnimation->mNumScalingKeys == 1) {
+					scale.x = nodeAnimation->mScalingKeys[0].mValue.x;
+					scale.y = nodeAnimation->mScalingKeys[0].mValue.y;
+					scale.z = nodeAnimation->mScalingKeys[0].mValue.z;
+				}else
+				{
+					scale.x = nodeAnimation->mScalingKeys[j].mValue.x;
+					scale.y = nodeAnimation->mScalingKeys[j].mValue.y;
+					scale.z = nodeAnimation->mScalingKeys[j].mValue.z;
+				}
+				if (nodeAnimation->mNumRotationKeys == 1) {
+					rotation.x = nodeAnimation->mRotationKeys[0].mValue.x;
+					rotation.y = nodeAnimation->mRotationKeys[0].mValue.y;
+					rotation.z = nodeAnimation->mRotationKeys[0].mValue.z;
+					rotation.w = nodeAnimation->mRotationKeys[0].mValue.w;
+				}else {
+					rotation.x = nodeAnimation->mRotationKeys[j].mValue.x;
+					rotation.y = nodeAnimation->mRotationKeys[j].mValue.y;
+					rotation.z = nodeAnimation->mRotationKeys[j].mValue.z;
+					rotation.w = nodeAnimation->mRotationKeys[j].mValue.w;
+				}
 
 				boneAnimation.Keyframes[j].TimePos = time;
 				boneAnimation.Keyframes[j].Translation = position;
@@ -441,43 +466,8 @@ void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation)
 				boneAnimation.Keyframes[j].RotationQuat = rotation;
 			}
 		}
+		int a = 10;
 	}
-
-
-	/*UINT numKeyframes = 0;
-
-	const aiAnimation* pAni = m_pScene->mAnimations[0];
-
-	numKeyframes = pAni->mNumChannels;
-
-	boneAnimation.Keyframes.resize(numKeyframes);
-
-	for (UINT i = 0; i < numKeyframes; ++i)
-	{
-		float t = 0.0f;
-		XMFLOAT3 p(0.0f, 0.0f, 0.0f);
-		XMFLOAT3 s(1.0f, 1.0f, 1.0f);
-		XMFLOAT4 q(0.0f, 0.0f, 0.0f, 1.0f);
-		
-		t = pAni->mChannels[i]->mPositionKeys->mTime;
-		p.x = pAni->mChannels[i]->mPositionKeys->mValue.x;
-		p.y = pAni->mChannels[i]->mPositionKeys->mValue.y;
-		p.z = pAni->mChannels[i]->mPositionKeys->mValue.z;
-
-		s.x = pAni->mChannels[i]->mScalingKeys->mValue.x;
-		s.y = pAni->mChannels[i]->mScalingKeys->mValue.y;
-		s.z = pAni->mChannels[i]->mScalingKeys->mValue.z;
-
-		q.x = pAni->mChannels[i]->mRotationKeys->mValue.x;
-		q.y = pAni->mChannels[i]->mRotationKeys->mValue.y;
-		q.z = pAni->mChannels[i]->mRotationKeys->mValue.z;
-
-		boneAnimation.Keyframes[i].TimePos = t;
-		boneAnimation.Keyframes[i].Translation = p;
-		boneAnimation.Keyframes[i].Scale = s;
-		boneAnimation.Keyframes[i].RotationQuat = q;
-	}
-*/
 }
 
 void GameObject::GravityUpdate(const GameTimer& gt)

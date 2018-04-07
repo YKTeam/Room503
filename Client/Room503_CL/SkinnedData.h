@@ -57,11 +57,13 @@ struct BoneAnimation
 ///</summary>
 struct AnimationClip
 {
-	float GetClipStartTime()const;
+	float GetClipStartTime()const; // 이 클립 뼈대중 가장 이른 시작시간
 	float GetClipEndTime()const;
 
+	//각 본 애니메이션을 훑으며 애니메이션 보간
     void Interpolate(float t, std::vector<DirectX::XMFLOAT4X4>& boneTransforms)const;
 
+	//뼈대별 애니메이션들
     std::vector<BoneAnimation> BoneAnimations; 	
 };
 
@@ -79,14 +81,12 @@ public:
 		std::vector<DirectX::XMFLOAT4X4>& boneOffsets,
 		std::unordered_map<std::string, AnimationClip>& animations);
 
-	 // In a real project, you'd want to cache the result if there was a chance
-	 // that you were calling this several times with the same clipName at 
-	 // the same timePos.
+	 // 
     void GetFinalTransforms(const std::string& clipName, float timePos, 
 		 std::vector<DirectX::XMFLOAT4X4>& finalTransforms)const;
 
 private:
-    // Gives parentIndex of ith bone.
+    // 뼈대 부모의 색인
 	std::vector<std::pair<std::string,int>> mBoneHierarchy;
 
 	std::vector<DirectX::XMFLOAT4X4> mBoneOffsets;
