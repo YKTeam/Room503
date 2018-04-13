@@ -125,6 +125,7 @@ public:
 	GeometryGenerator::SkinnedMeshData *skinMeshData;
 	vector<VertexBoneData> mBones;
 	vector<pair<std::string,int>> boneName;
+	
 
 	UINT numBones = 0;
 	UINT numAnimationClips = 0;
@@ -147,11 +148,11 @@ public:
 	void LoadBones(UINT MeshIndex, const aiMesh* pMesh, std::vector<VertexBoneData>& Bones);
 	void AddBoneData(UINT BoneID, float Weight);
 	//로드 애니메이션 정보
-	void LoadAnimation(SkinnedData& skinInfo, string clipName);
-	void ReadBoneOffsets( UINT numBones, std::vector<DirectX::XMFLOAT4X4>& boneOffsets);
+	void LoadAnimation(SkinnedData& skinInfo, string clipName, float loadScale);
+	void ReadBoneOffsets( UINT numBones, std::vector<DirectX::XMFLOAT4X4>& boneOffsets,float loadScale);
 	void ReadBoneHierarchy(UINT numBones, std::vector<pair<string, int>>& boneIndexToParentIndex);
-	void ReadAnimationClips( UINT numBones, UINT numAnimationClips, std::unordered_map<std::string, AnimationClip>& animations, string clipName);
-	void ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation);
+	void ReadAnimationClips( UINT numBones, UINT numAnimationClips, std::unordered_map<std::string, AnimationClip>& animations, string clipName , float loadScale);
+	void ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation,float loadScale);
 };
 
 class PlayerObject : public GameObject

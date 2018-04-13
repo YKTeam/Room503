@@ -9,11 +9,10 @@ Texture2D    gDetailMap : register(t1);
 
 struct VertexIn
 {
-	float3 PosL    : POSITION;  
-    float3 NormalL : NORMAL;
-	float2 TexC0 : TEXCOORD0;
-	float2 TexC1 : TEXCOORD1;
-
+	float3 PosL    : POSITION;
+	float3 NormalL : NORMAL;
+	float2 TexC    : TEXCOORD;
+	float3 TangentL : TANGENT;
 #ifdef SKINNED
 	float3 BoneWeights : WEIGHTS;
 	uint4 BoneIndices  : BONEINDICES;
@@ -25,8 +24,8 @@ struct VertexOut
 	float4 PosH    : SV_POSITION;
     float3 PosW    : POSITION;
     float3 NormalW : NORMAL;
-	float2 TexC0    : TEXCOORD0;
-	float2 TexC1    : TEXCOORD1;
+	float3 TangentW : TANGENT;
+	float2 TexC    : TEXCOORD;
 };
 
 VertexOut VS(VertexIn vin)
@@ -57,16 +56,16 @@ VertexOut VS(VertexIn vin)
     vout.PosW = posW.xyz;
 
     // Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
-
     vout.NormalW =  mul(vin.NormalL, (float3x3)gWorld);
+
     // Transform to homogeneous clip space.
     vout.PosH = mul(posW, gViewProj);
 	
 	// Output vertex attributes for interpolation across triangle.
-	float4 texC = mul(float4(vin.TexC0, 0.0f, 1.0f), gTexTransform);
-	float4 texC2 = mul(float4(vin.TexC1, 0.0f, 1.0f), gTexTransform);
-	vout.TexC0 = mul(texC, gMatTransform).xy;
-	vout.TexC1 = mul(texC2, gMatTransform).xy;
+	float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
+	//float4 texC2 = mul(float4(vin.TexC1, 0.0f, 1.0f), gTexTransform);
+	vout.TexC = mul(texC, gMatTransform).xy;
+	//vout.TexC1 = mul(texC2, gMatTransform).xy;
     return vout;
 }
 
@@ -76,10 +75,10 @@ float4 PS(VertexOut pin) : SV_Target
 	//gDetailMap
 	uint diffuseTexIndex = DiffuseMapIndex;
 	//float4 green = float4(0, 1, 0, 1);
-	float4 base = gDiffuseMap.Sample(gsamLinearWrap, pin.TexC0);
-	float4 detail = gDetailMap.Sample(gsamLinearWrap, pin.TexC1);
+	float4 base = gDiffuseMap.Sample(gsamLinearWrap, pin.TexC);
+	//float4 detail = gDetailMap.Sample(gsamLinearWrap, pin.TexC1);
 
-    float4 diffuseAlbedo =  saturate((base * 0.5f) + (detail * 0.5f)) * gDiffuseAlbedo;
+    float4 diffuseAlbedo =  saturate(base) * gDiffuseAlbedo;
 
 #ifdef ALPHA_TEST
 	// Discard pixel if texture alpha < 0.1.  We do this test as soon 

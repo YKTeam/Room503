@@ -30,7 +30,6 @@ public:
 		DirectX::XMFLOAT3 Normal;
 		DirectX::XMFLOAT3 TangentU;
 		DirectX::XMFLOAT2 TexC;
-		DirectX::XMFLOAT2 TexC1;
 		DirectX::XMFLOAT3 BoneWeights;
 		BYTE BoneIndices[4];
 	};
@@ -61,7 +60,6 @@ public:
         DirectX::XMFLOAT3 Normal;
         DirectX::XMFLOAT3 TangentU;
         DirectX::XMFLOAT2 TexC;
-		DirectX::XMFLOAT2 TexC1;
 	};
 
 	struct SkinnedMeshData
