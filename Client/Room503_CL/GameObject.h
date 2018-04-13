@@ -125,7 +125,6 @@ public:
 	GeometryGenerator::SkinnedMeshData *skinMeshData;
 	vector<VertexBoneData> mBones;
 	vector<pair<std::string,int>> boneName;
-	
 
 	UINT numBones = 0;
 	UINT numAnimationClips = 0;

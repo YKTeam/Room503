@@ -195,8 +195,10 @@ void GameObject::InitMesh(UINT index, const aiMesh * pMesh, std::vector<VertexBo
 		data.Normal.x = normal.x *loadScale;
 		data.Normal.y = normal.y *loadScale;
 		data.Normal.z = normal.z *loadScale;
-		data.TexC.x = tex.x;
-		data.TexC.y = tex.y;
+		data.TexC1.x = tex.x;
+		data.TexC1.y = tex.y;
+		data.TexC0.x = tex.x;
+		data.TexC0.y = tex.y;
 
 		data.BoneIndices[0] = Bones[i].BoneIndices[0];
 		data.BoneIndices[1] = Bones[i].BoneIndices[1];
@@ -209,7 +211,7 @@ void GameObject::InitMesh(UINT index, const aiMesh * pMesh, std::vector<VertexBo
 
 		skinMeshData[index].Vertices[i].Position = data.Pos;
 		skinMeshData[index].Vertices[i].Normal = data.Normal;
-		skinMeshData[index].Vertices[i].TexC = data.TexC;
+		skinMeshData[index].Vertices[i].TexC = data.TexC0;
 		skinMeshData[index].Vertices[i].BoneIndices[0] = data.BoneIndices[0];
 		skinMeshData[index].Vertices[i].BoneIndices[1] = data.BoneIndices[1];
 		skinMeshData[index].Vertices[i].BoneIndices[2] = data.BoneIndices[2];
@@ -241,21 +243,21 @@ void GameObject::LoadBones(UINT MeshIndex, const aiMesh* pMesh, std::vector<Vert
 			float Weight = pMesh->mBones[i]->mWeights[j].mWeight;
 
 			if (Bones[VertexID].BoneWeights.x == 0.0) {
-				Bones[VertexID].BoneIndices[0] = (int)i;
+				Bones[VertexID].BoneIndices[0] = i;
 				Bones[VertexID].BoneWeights.x = Weight;
 			}
 			else if (Bones[VertexID].BoneWeights.y == 0.0)
 			{
-				Bones[VertexID].BoneIndices[1] = (int)i;
+				Bones[VertexID].BoneIndices[1] = i;
 				Bones[VertexID].BoneWeights.y = Weight;
 			}
 			else if (Bones[VertexID].BoneWeights.z == 0.0)
 			{
-				Bones[VertexID].BoneIndices[2] = (int)i;
+				Bones[VertexID].BoneIndices[2] = i;
 				Bones[VertexID].BoneWeights.z = Weight;
 			}
 			else {
-				Bones[VertexID].BoneIndices[3] = (int)i;
+				Bones[VertexID].BoneIndices[3] = i;
 			}
 		}
 	}
@@ -293,21 +295,20 @@ void GameObject::ReadBoneOffsets(UINT numBones, std::vector<DirectX::XMFLOAT4X4>
 			for (UINT j = 0; j < numBones; ++j) {
 				const aiBone* pBone = pMesh->mBones[j];
 
-				
 				boneOffsets[j](0,0) = pBone->mOffsetMatrix.a1;
 				boneOffsets[j](0, 1) = pBone->mOffsetMatrix.b1;
 				boneOffsets[j](0, 2) = pBone->mOffsetMatrix.c1;
 				boneOffsets[j](0, 3) = pBone->mOffsetMatrix.d1;
 
-				boneOffsets[j](1, 0) = pBone->mOffsetMatrix.a2;
-				boneOffsets[j](1, 1) = pBone->mOffsetMatrix.b2;
-				boneOffsets[j](1, 2) = pBone->mOffsetMatrix.c2;
-				boneOffsets[j](1, 3) = pBone->mOffsetMatrix.d2;
+				boneOffsets[j](1, 0) = -pBone->mOffsetMatrix.a3;
+				boneOffsets[j](1, 1) = -pBone->mOffsetMatrix.b3;
+				boneOffsets[j](1, 2) = -pBone->mOffsetMatrix.c3;
+				boneOffsets[j](1, 3) = -pBone->mOffsetMatrix.d3;
 
-				boneOffsets[j](2, 0) = pBone->mOffsetMatrix.a3;
-				boneOffsets[j](2, 1) = pBone->mOffsetMatrix.b3;
-				boneOffsets[j](2, 2) = pBone->mOffsetMatrix.c3;
-				boneOffsets[j](2, 3) = pBone->mOffsetMatrix.d3;
+				boneOffsets[j](2, 0) = pBone->mOffsetMatrix.a2;
+				boneOffsets[j](2, 1) = pBone->mOffsetMatrix.b2;
+				boneOffsets[j](2, 2) = pBone->mOffsetMatrix.c2;
+				boneOffsets[j](2, 3) = pBone->mOffsetMatrix.d2;
 
 				boneOffsets[j](3, 0) = pBone->mOffsetMatrix.a4;
 				boneOffsets[j](3, 1) = pBone->mOffsetMatrix.b4;
@@ -315,7 +316,6 @@ void GameObject::ReadBoneOffsets(UINT numBones, std::vector<DirectX::XMFLOAT4X4>
 				boneOffsets[j](3, 3) = pBone->mOffsetMatrix.d4;
 			}
 		}
-		int a = 10;
 	}
 }
 void GameObject::ReadBoneHierarchy(UINT numBones, std::vector<pair<string,int>>& boneIndexToParentIndex)
@@ -334,49 +334,40 @@ void GameObject::ReadBoneHierarchy(UINT numBones, std::vector<pair<string,int>>&
 				bool isCheck = false;
 				int myindex = 0;
 				const aiBone* pBone = pMesh->mBones[j];
-				const aiNode* pFindNode;
-				bonesname = boneName[j].first.c_str(); //현재본 이름
-				
-				/*if (j == 0) {
-					pFindNode = m_pScene->mRootNode;
-					parentName = pFindNode->mName.C_Str();
-					boneIndexToParentIndex[j].first = parentName;
-					boneIndexToParentIndex[j].second = -1;
-				}
-				else
-				{
-					pFindNode = m_pScene->mRootNode->FindNode("Bone002");
-					parentName = pFindNode->mName.C_Str();
-					boneIndexToParentIndex[j].first = parentName;
-					boneIndexToParentIndex[j].second = 0;
-				}*/
-				//본갯수만큼 본의 이름데이터에 이름없으면 
-				if (j == 0) {
-					pFindNode = m_pScene->mRootNode;
-					parentName = pFindNode->mName.C_Str();
-					boneIndexToParentIndex[j].first = parentName;
-					boneIndexToParentIndex[j].second = -1;
-				}
-				else {
-					pFindNode = m_pScene->mRootNode->FindNode(bonesname)->mParent;
-					parentName = pFindNode->mName.C_Str();
 
-					while (1) {
-						//같으면 부모임
-						for (int z = 0; z < boneName.size(); z++) {
-							if (boneName[z].first == parentName) {
-								boneIndexToParentIndex[j].first = parentName;
-								boneIndexToParentIndex[j].second = z;
-								isCheck = true;
-								break;
-							}
+				bonesname = boneName[j].first.c_str();
+				
+				//본갯수만큼 본의 이름데이터에 이름없으면 
+				parentName = m_pScene->mRootNode->FindNode(bonesname)->mParent->mName.C_Str();
+				for (int y = 0; ; ++y) {
+					
+					for (int z = 0; z < numBones; ++z) {
+						if (boneName[z].first == parentName) {
+							boneIndexToParentIndex[j].first = parentName;
+							isCheck = true;
+							break;
 						}
-						if (isCheck) break;
-						pFindNode = pFindNode->mParent;
-						parentName = pFindNode->mName.C_Str();
+					}
+					if (isCheck) break;
+					if (m_pScene->mRootNode->FindNode(parentName)->mParent == nullptr ||
+						strcmp( parentName,"RootNode") == 0 ) break;
+					parentName = m_pScene->mRootNode->FindNode(parentName)->mParent->mName.C_Str();
+				}
+				//본에서 이름을 찾아서 인덱스를 넘겨준다
+				for (auto vet = boneName.begin(); vet != boneName.end(); ++vet)
+				{
+					if ((*vet).first == parentName) {
+						myindex = (*vet).second;
+						boneIndexToParentIndex[j].second = myindex; //부모이름인 본을 찾아서
+					}
+					else if (strcmp(parentName, "RootNode") == 0)
+					{
+						boneIndexToParentIndex[j].first = "RootNode";
+						boneIndexToParentIndex[j].second = -1;
 					}
 				}
-				int a = 10;
+				
+				//본 갯수만큼 리사이즈 한 뒤, 루트부터 돌아가면서 번호를?매겨? 시발?모라
 			}
 		}
 	}
@@ -390,6 +381,9 @@ void GameObject::ReadAnimationClips(UINT numBones, UINT numAnimationClips, std::
 		//본 정보 받기
 		if (pMesh->HasBones())
 		{
+			for (UINT j = 0; j < numBones; ++j) {
+				const aiBone* pBone = pMesh->mBones[j];
+
 				for (UINT clipIndex = 0; clipIndex < numAnimationClips; ++clipIndex)
 				{
 					AnimationClip clip;
@@ -402,6 +396,9 @@ void GameObject::ReadAnimationClips(UINT numBones, UINT numAnimationClips, std::
 
 					animations[clipName] = clip;
 				}
+
+
+			}
 		}
 		int a = 10;
 	}
@@ -410,98 +407,64 @@ void GameObject::ReadAnimationClips(UINT numBones, UINT numAnimationClips, std::
 //d
 void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation)
 {
-	
 	for (int i = 0; i < m_pScene->mNumAnimations; i++)
 	{
 		aiAnimation *animation = m_pScene->mAnimations[i];
 		boneAnimation.Keyframes.resize(animation->mChannels[0]->mNumPositionKeys);
-		float time = 0;		
-		int channelMode = 0;//채널 + 1 rot  +2 scale
-		bool isSame = false;//똑같지만 채널이 나눠진 경우모드
+		float time = 0;
 
-		aiNodeAnim *nodeAnimation = nullptr;// = animation->mChannels[(numBones)];
-		for (int j = 0; j < animation->mNumChannels; j++) {
-			nodeAnimation = animation->mChannels[j];
-			string nowName = nodeAnimation->mNodeName.C_Str();
-			//똑같으면 넣는다
-			if (j == 57)
-				int a = 10;
-			if (boneName[numBones].first == nowName) {
-				break;
-			}
-			//똑같지만 채널이 나눠진 경우다
-			for (int z = 0; z < boneName[numBones].first.length(); z++)
-			{
-				if ( boneName[numBones].first[z] != nowName[z])
-				{
-					isSame = false;
-					break;
-				}
-				isSame = true;
-			}
-
-				
-			if(isSame == true)//똑같지만 채널이 나눠진 경우면
-			{
-				channelMode = j;
-				break;
-			}
-			else nodeAnimation = nullptr;
-		}
+		float start_time = (float)animation->mChannels[0]->mPositionKeys[118].mTime; //프레임 시작 시점은 좌표 이동 프레임을 기준으로 맞춤
+		float end_time = (float)animation->mChannels[0]->mPositionKeys[animation->mChannels[0]->mNumPositionKeys - 1].mTime - 1.0f; //프레임 종료 시점에서 1.0 만큼 빼줘야 프레임이 안겹침
+		//nodeAnimationPos->mPositionKeys[j] 이 키 프레임값이 달라야 움직이는데..
+		
 		for (int j = 0; j < animation->mChannels[0]->mNumPositionKeys; j++)
 		{
-			XMFLOAT3 position(0,0,0);
-			XMFLOAT3 scale(1,1,1);
-			XMFLOAT4 rotation(-0,-0,0,1);
+			aiNodeAnim *nodeAnimation = animation->mChannels[(numBones)];
+
+			XMFLOAT3 position;
+			XMFLOAT3 scale;
+			XMFLOAT4 rotation;
 
 			/* load all keyframes */
-			// += animation->mTicksPerSecond / animation->mDuration;
-
 			time += animation->mTicksPerSecond / animation->mDuration;
-
-			//나눠진모드
-			if (isSame && nodeAnimation != nullptr) {
-				nodeAnimation = animation->mChannels[channelMode];
-				position.x = nodeAnimation->mPositionKeys[j].mValue.x;
-				position.y = nodeAnimation->mPositionKeys[j].mValue.y;
-				position.z = nodeAnimation->mPositionKeys[j].mValue.z;
-
-				nodeAnimation = animation->mChannels[channelMode + 1];
-				rotation.x = nodeAnimation->mRotationKeys[j].mValue.x;
-				rotation.y = nodeAnimation->mRotationKeys[j].mValue.y;
-				rotation.z = nodeAnimation->mRotationKeys[j].mValue.z;
-				rotation.w = nodeAnimation->mRotationKeys[j].mValue.w;
-
-				nodeAnimation = animation->mChannels[channelMode + 2];
-				scale.x = nodeAnimation->mScalingKeys[j].mValue.x;
-				scale.y = nodeAnimation->mScalingKeys[j].mValue.y;
-				scale.z = nodeAnimation->mScalingKeys[j].mValue.z;
-			}
-			else if (nodeAnimation != nullptr) {
-				if (nodeAnimation->mNumPositionKeys > 1) {
+			{
+				if (nodeAnimation->mNumPositionKeys == 1) {
+					position.x = nodeAnimation->mPositionKeys[0].mValue.x;
+					position.y = nodeAnimation->mPositionKeys[0].mValue.y;
+					position.z = nodeAnimation->mPositionKeys[0].mValue.z;
+				}
+				else {
 					position.x = nodeAnimation->mPositionKeys[j].mValue.x;
 					position.y = nodeAnimation->mPositionKeys[j].mValue.y;
 					position.z = nodeAnimation->mPositionKeys[j].mValue.z;
 				}
-				if (nodeAnimation->mNumScalingKeys > 1) {
+				if (nodeAnimation->mNumScalingKeys == 1) {
+					scale.x = nodeAnimation->mScalingKeys[0].mValue.x;
+					scale.y = nodeAnimation->mScalingKeys[0].mValue.y;
+					scale.z = nodeAnimation->mScalingKeys[0].mValue.z;
+				}else
+				{
 					scale.x = nodeAnimation->mScalingKeys[j].mValue.x;
 					scale.y = nodeAnimation->mScalingKeys[j].mValue.y;
 					scale.z = nodeAnimation->mScalingKeys[j].mValue.z;
 				}
-				if (nodeAnimation->mNumRotationKeys > 1) {
+				if (nodeAnimation->mNumRotationKeys == 1) {
+					rotation.x = nodeAnimation->mRotationKeys[0].mValue.x;
+					rotation.y = nodeAnimation->mRotationKeys[0].mValue.y;
+					rotation.z = nodeAnimation->mRotationKeys[0].mValue.z;
+					rotation.w = nodeAnimation->mRotationKeys[0].mValue.w;
+				}else {
 					rotation.x = nodeAnimation->mRotationKeys[j].mValue.x;
 					rotation.y = nodeAnimation->mRotationKeys[j].mValue.y;
 					rotation.z = nodeAnimation->mRotationKeys[j].mValue.z;
 					rotation.w = nodeAnimation->mRotationKeys[j].mValue.w;
 				}
+
+				boneAnimation.Keyframes[j].TimePos = time;
+				boneAnimation.Keyframes[j].Translation = position;
+				boneAnimation.Keyframes[j].Scale = scale;
+				boneAnimation.Keyframes[j].RotationQuat = rotation;
 			}
-			
-
-			boneAnimation.Keyframes[j].TimePos = time;
-			boneAnimation.Keyframes[j].Translation = position;
-			boneAnimation.Keyframes[j].Scale = scale;
-			boneAnimation.Keyframes[j].RotationQuat = rotation;
-
 		}
 		int a = 10;
 	}

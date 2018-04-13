@@ -591,8 +591,8 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGrid(float width, float dep
 
 			//meshData.Vertices[i*n + j].TexC1.x = x / float(width - 1);
 			//meshData.Vertices[i*n + j].TexC1.y = float(depth - 1 - z) / float(depth - 1);
-			//meshData.Vertices[i*n + j].TexC1.x = x / float(5);
-			//meshData.Vertices[i*n + j].TexC1.y = z / float(5);
+			meshData.Vertices[i*n + j].TexC1.x = x / float(5);
+			meshData.Vertices[i*n + j].TexC1.y = z / float(5);
 		}
 	}
  
@@ -873,8 +873,8 @@ GeometryGenerator::MeshData GeometryGenerator::CHeightMapGridMesh(int xStart, in
 
 			meshData.Vertices[i].TexC = XMFLOAT2(float(x) / float(m_nWidth - 1),
 				float(m_nLength - 1 - z) / float(m_nLength - 1));
-			//meshData.Vertices[i].TexC1 = XMFLOAT2(float(x) / float(m_xmf3Scale.x*0.5f),
-			//	float(z) / float(m_xmf3Scale.z*0.5f));
+			meshData.Vertices[i].TexC1 = XMFLOAT2(float(x) / float(m_xmf3Scale.x*0.5f),
+				float(z) / float(m_xmf3Scale.z*0.5f));
 
 			if (fHeight < fMinHeight) fMinHeight = fHeight;
 			if (fHeight > fMaxHeight) fMaxHeight = fHeight;

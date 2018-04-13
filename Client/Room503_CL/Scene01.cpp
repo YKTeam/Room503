@@ -232,7 +232,7 @@ bool MyScene::Initialize()
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
 	BuildLandGeometry();
-	BuildFbxGeometry("Model/robotFree3.fbx", "robot_freeGeo", "robot_free", 1.0f, false , true);//angle
+	BuildFbxGeometry("Model/robotFree.fbx", "robot_freeGeo", "robot_free", 2.5f, false , true);
 	BuildFbxGeometry("Model/Robots_Prowler.fbx", "robotGeo", "robot" , 0.1f, false , false);
 	BuildFbxGeometry("Model/testmap.obj", "map00Geo", "map00", 1, true , false);
 	
@@ -731,7 +731,7 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 
 	//°£Á¢±¤ Èä³»
-	mMainPassCB.AmbientLight = { 0.1f, 0.1f, 0.1f, 1.0f };
+	mMainPassCB.AmbientLight = { 0.9f, 0.9f, 0.9f, 1.0f };
 
 	int lightCount = 0;
 	
@@ -1156,7 +1156,7 @@ void MyScene::BuildShadersAndInputLayout()
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
 	mTreeSpriteInputLayout =
@@ -1170,9 +1170,9 @@ void MyScene::BuildShadersAndInputLayout()
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "WEIGHTS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 44, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "BONEINDICES", 0, DXGI_FORMAT_R8G8B8A8_UINT, 0, 56, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "TEXCOORD", 1, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "WEIGHTS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 40, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "BONEINDICES", 0, DXGI_FORMAT_R8G8B8A8_UINT, 0, 52, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
 }
@@ -1186,12 +1186,12 @@ void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geo
 	int meshSize = dummy->meshSize;
 
 	if (isAnim) {
-		dummy->LoadAnimation(mSkinnedInfo, "Take 001");// "AnimStack::Take 001");
+		dummy->LoadAnimation(mSkinnedInfo, "AnimStack::Take 001");
 
 		mSkinnedModelInst = std::make_unique<SkinnedModelInstance>();
 		mSkinnedModelInst->SkinnedInfo = &mSkinnedInfo;
 		mSkinnedModelInst->FinalTransforms.resize(mSkinnedInfo.BoneCount());
-		mSkinnedModelInst->ClipName = "Take 001";
+		mSkinnedModelInst->ClipName = "AnimStack::Take 001";
 		mSkinnedModelInst->TimePos = 0.0f;
 	}
 
@@ -1220,12 +1220,8 @@ void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geo
 			auto& p = robot[z].Vertices[i].Position;
 			vertices[k].Pos = p;
 			vertices[k].Normal = robot[z].Vertices[i].Normal;
-			vertices[k].TexC = robot[z].Vertices[i].TexC;
-			vertices[k].BoneWeights = robot[z].Vertices[i].BoneWeights;
-			vertices[k].BoneIndices[0] = robot[z].Vertices[i].BoneIndices[0];
-			vertices[k].BoneIndices[1] = robot[z].Vertices[i].BoneIndices[1];
-			vertices[k].BoneIndices[2] = robot[z].Vertices[i].BoneIndices[2];
-			vertices[k].BoneIndices[3] = robot[z].Vertices[i].BoneIndices[3];
+			vertices[k].TexC0 = robot[z].Vertices[i].TexC;
+			vertices[k].TexC1 = robot[z].Vertices[i].TexC;
 		}
 
 	}
@@ -1301,8 +1297,8 @@ void MyScene::BuildLandGeometry()
 		vertices[k].Pos = p;
 		//vertices[k].Pos.y = grid.Vertices[i].Position.y;//geoGen.GetHeight(p.x, p.z, false); //* xmf3Scale.y;
 		vertices[k].Normal = grid.Vertices[i].Normal;//geoGen.GetHeightMapNormal(p.x / xmf3Scale.x, p.z / xmf3Scale.z);
-		vertices[k].TexC = grid.Vertices[i].TexC;
-		//vertices[k].TexC1 = grid.Vertices[i].TexC1;
+		vertices[k].TexC0 = grid.Vertices[i].TexC;
+		vertices[k].TexC1 = grid.Vertices[i].TexC1;
 	}
 
 
@@ -1651,7 +1647,7 @@ void MyScene::BuildGameObjects()
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////
 	auto gridRitem = std::make_unique<GameObject>();
 
-	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, -50.0f, 0.0f));
+	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
 	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	gridRitem->ObjCBIndex = objIndex++;
 	gridRitem->Mat = mMaterials["rand"].get();
