@@ -26,17 +26,10 @@ enum class RenderLayer : int
 	Opaque = 0,
 	Grid,
 	Player,
-	PlayerChilds,
-	Missile,
 	Shadow,
 	Grass,
-	TreeSprites,
-	Flare,
 	SkyBox,
 	Enemy,//적
-	EnemyMissile,
-	Red,
-	Blue,
 	Count
 };
 
@@ -80,8 +73,8 @@ private:
 	void BuildShadersAndInputLayout();
 	
 	void BuildLandGeometry();
-	void BuildFbxGeometry(const std::string fileName, const std::string geoName, const std::string meshName, float loadScale , bool isMap);
-	void BuildAnimation(const std::string fileName, float loadScale, bool isMap);
+	void BuildFbxGeometry(const std::string fileName, const std::string geoName, const std::string meshName, float loadScale, bool isMap, bool hasAniBone); //본갯수리턴
+	void BuildAnimation(const std::string fileName, const std::string clipName, float loadScale, bool isMap);
 
 	void BuildPSOs();
 	void BuildFrameResources();
@@ -135,12 +128,15 @@ private:
 	std::unique_ptr<SkinnedModelInstance> mSkinnedModelInst;
 	SkinnedData mSkinnedInfo;
 	Subset mSkinnedSubsets;
+	//메쉬랑 본오프셋이랑 
+	aiMesh* playerMesh;
+	std::vector<XMFLOAT4X4> playerboneOffsets;
+	std::vector<pair<string, int>> playerboneIndexToParentIndex;
+	vector<pair<std::string, int>> playerboneName;
 
 	bool mIsWireframe = false;
-	
-	float mSunTheta = 205.917; 
-	//float mSunPhi = XM_PIDIV4; // pi/4
-	
+	float mSunTheta = 205.917;
+
 	//구조가 생성자로 생성되는구조임
 	ObjectConstants mPlayerInfo;
 	int m_ObjIndex = 0;
@@ -230,10 +226,11 @@ bool MyScene::Initialize()
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
 	BuildLandGeometry();
-	BuildFbxGeometry("Model/robotFree3.fbx", "robot_freeGeo", "robot_free", 1.0f, false);//angle
-	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 1.0f, false);
-	BuildFbxGeometry("Model/testmap.obj", "map00Geo", "map00", 1, true);
-	BuildAnimation("Model/robotFree3.fbx", 1.0f, false);
+	BuildFbxGeometry("Model/robotFree3.fbx", "robot_freeGeo", "robot_free", 1.0f, false , true);//angle  robotModel  robotIdle
+	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 0.1f, false , false);
+	BuildFbxGeometry("Model/testmap.obj", "map00Geo", "map00", 1, true, false);
+	//BuildAnimation("Model/robotidle2.fbx","idle", 1.0f, false);
+	BuildAnimation("Model/robotFree3.fbx","walk", 1.0f, false);//robotwalk
 	
 
 	BuildMaterials();
@@ -438,10 +435,6 @@ void MyScene::OnMouseDown(WPARAM btnState, int x, int y)
 {
 	if ((btnState & MK_LBUTTON) != 0)
 	{
-		for (auto& e : mOpaqueRitems[(int)RenderLayer::Missile])
-		{
-			
-		}
 	}
 	SetCapture(mhMainWnd);
 }
@@ -508,31 +501,21 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 	if (GetAsyncKeyState('1') & 0x8000) mIsWireframe = true;
 	else mIsWireframe = false;
 
-
-	
 	if (GetAsyncKeyState('Q') & 0x8000) {
 		mSunTheta += gt.DeltaTime();
-
 		printf("%.3f\n", (mSunTheta));
 	}
 	if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
 		m_BlurCount = 1;
-		m_PlayerSpeed = m_CplayerSpeed+25.0f;
 	}
 	else {
 		m_BlurCount = 0;
-		m_PlayerSpeed = m_CplayerSpeed;
 	}
+
 	if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
-		//auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
-		//eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(XMFLOAT3(0, 1, 0), 50.0f *dt, false)));
-		//mPlayerInfo.World = eplayer[0]->World;
 	}
 
 	if (GetAsyncKeyState('W') & 0x8000) {
-		//mPlayerInfo.World._41 += mCamera.GetLook3f().x * m_PlayerSpeed *dt;
-		//mPlayerInfo.World._42 += mCamera.GetLook3f().y * m_PlayerSpeed *dt;
-		//mPlayerInfo.World._43 += mCamera.GetLook3f().z * m_PlayerSpeed *dt;
 		for (auto& e : mOpaqueRitems[(int)RenderLayer::Player])
 		{
 			XMFLOAT3 move = Vector3::ScalarProduct(e->GetLook3f(), gt.DeltaTime() * 5, false);
@@ -541,26 +524,48 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 		mCamera.Walk(50.0f *dt);
 	}
 	if (GetAsyncKeyState('S') & 0x8000) {
-		//mPlayerInfo.World._41 -= mCamera.GetLook3f().x * m_PlayerSpeed *dt;
-		//mPlayerInfo.World._42 -= mCamera.GetLook3f().y * m_PlayerSpeed *dt;
-		//mPlayerInfo.World._43 -= mCamera.GetLook3f().z * m_PlayerSpeed *dt;
 		mCamera.Walk(-50.0f *dt);
 	}
 	if (GetAsyncKeyState('A') & 0x8000) {
-		//mPlayerInfo.World._41 -= mCamera.GetRight3f().x * m_PlayerSpeed *dt;
-		//mPlayerInfo.World._42 -= mCamera.GetRight3f().y * m_PlayerSpeed *dt;
-		//mPlayerInfo.World._43 -= mCamera.GetRight3f().z * m_PlayerSpeed *dt;
 		mCamera.Strafe(-50.0f *dt);
 	}
 	if (GetAsyncKeyState('D') & 0x8000) {
-		//mPlayerInfo.World._41 += mCamera.GetRight3f().x * m_PlayerSpeed *dt;
-		//mPlayerInfo.World._42 += mCamera.GetRight3f().y * m_PlayerSpeed *dt;
-		//mPlayerInfo.World._43 += mCamera.GetRight3f().z * m_PlayerSpeed *dt;
 		mCamera.Strafe(50.0f *dt);
 	}
 
-	//mCamera.SetPosition(mPlayerInfo.World._41 + sin(mx) * 7, mPlayerInfo.World._42 + 3, mPlayerInfo.World._43 - cos(mx) * 7 - 5);
-	//mSunPhi = MathHelper::Clamp(mSunPhi, 0.1f, XM_PIDIV2);
+	if (GetAsyncKeyState(VK_LEFT) || GetAsyncKeyState(VK_RIGHT) || GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN)) {
+		mSkinnedModelInst->SetNowAni("walk");
+		if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
+			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
+			eplayer[0]->SetLook3f(XMFLOAT3(1, 0, 0));
+			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
+			eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), -50.0f *dt, false)));
+		}
+		if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
+			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
+			eplayer[0]->SetLook3f(XMFLOAT3(-1, 0, 0));
+			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
+			eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), -50.0f *dt, false)));
+		}
+		if (GetAsyncKeyState(VK_UP) & 0x8000) {
+			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
+			XMFLOAT3 look = Vector3::Normalize( Vector3::Add( XMFLOAT3(0, 0, -1) , eplayer[0]->GetLook3f()));
+			
+			eplayer[0]->SetLook3f(look);
+			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
+			eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), -50.0f *dt, false)));
+		}
+		if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
+			XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, 1), eplayer[0]->GetLook3f()));
+
+			eplayer[0]->SetLook3f(look);
+			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
+			eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), -50.0f *dt, false)));
+		}
+	}
+	else mSkinnedModelInst->SetNowAni("idle");
+	
 
 	mCamera.UpdateViewMatrix();
 }
@@ -729,7 +734,7 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 
 	//간접광 흉내
-	mMainPassCB.AmbientLight = { 0.1f, 0.1f, 0.1f, 1.0f };
+	mMainPassCB.AmbientLight = { 0.2f, 0.2f, 0.2f, 1.0f };
 
 	int lightCount = 0;
 	
@@ -816,7 +821,7 @@ void MyScene::LoadTextures()
 
 	auto robotTex = std::make_unique<Texture>();
 	robotTex->Name = "robotTex";
-	robotTex->Filename = L"Textures/robot_king.dds";
+	robotTex->Filename = L"Textures/monster.dds";//robotBoy.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), robotTex->Filename.c_str(),
 		robotTex->Resource, robotTex->UploadHeap));
@@ -1175,25 +1180,42 @@ void MyScene::BuildShadersAndInputLayout()
 
 }
 
-void MyScene::BuildAnimation(const std::string fileName, float loadScale, bool isMap)
+void MyScene::BuildAnimation(const std::string fileName,std::string clipNmae, float loadScale, bool isMap)
 {
 	auto dummy = std::make_unique<GameObject>();
-	dummy->LoadGameModel(fileName, loadScale, isMap);
+	
+	dummy->pMesh = playerMesh;
+	dummy->boneOffsets = playerboneOffsets;
+	dummy->boneIndexToParentIndex = playerboneIndexToParentIndex;
+	dummy->boneName = playerboneName;
 
-	dummy->LoadAnimation(mSkinnedInfo, "Take 001", loadScale);// "AnimStack::Take 001");
+	dummy->LoadAnimationModel(fileName, loadScale);
+	//dummy->LoadGameModel(fileName, loadScale, isMap, true);
+
+	dummy->LoadAnimation(mSkinnedInfo, clipNmae, loadScale);// "AnimStack::Take 001");
 
 	mSkinnedModelInst = std::make_unique<SkinnedModelInstance>();
 	mSkinnedModelInst->SkinnedInfo = &mSkinnedInfo;
 	mSkinnedModelInst->FinalTransforms.resize(mSkinnedInfo.BoneCount());
-	mSkinnedModelInst->ClipName = "Take 001";
+	mSkinnedModelInst->ClipName = clipNmae;
 	mSkinnedModelInst->TimePos = 0.0f;
+
+	mSkinnedModelInst->SetNowAni("Take001");
 }
 
-void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geoName , const std::string meshName, float loadScale , bool isMap)
+void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geoName , const std::string meshName, float loadScale , bool isMap, bool hasAniBone)
 {
 	GeometryGenerator geoGen;
 	auto dummy = std::make_unique<GameObject>();
-	dummy->LoadGameModel(fileName, loadScale, isMap);
+	dummy->LoadGameModel(fileName, loadScale, isMap, hasAniBone);
+	
+	if (hasAniBone) {
+		playerMesh = dummy->pMesh;
+		playerboneOffsets = dummy->boneOffsets;
+		playerboneIndexToParentIndex = dummy->boneIndexToParentIndex;
+		playerboneName = dummy->boneName;
+	}
+	
 	GeometryGenerator::SkinnedMeshData *robot = dummy->GetSkinMeshData();
 	int meshSize = dummy->meshSize;
 
@@ -1263,6 +1285,7 @@ void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geo
 	geo->DrawArgs[meshName] = robotSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
+
 }
 
 void MyScene::BuildLandGeometry()
@@ -1676,7 +1699,7 @@ void MyScene::BuildGameObjects()
 
 	player->World = Matrix4x4::Multiply(player->m_xmf4x4ToParentTransform, mPlayerInfo.World);
 	player->ObjCBIndex = objIndex++;
-	player->Mat = mMaterials["rand"].get();
+	player->Mat = mMaterials["robot"].get();
 	player->Geo = mGeometries["robot_freeGeo"].get();
 	player->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	player->IndexCount = player->Geo->DrawArgs["robot_free"].IndexCount;

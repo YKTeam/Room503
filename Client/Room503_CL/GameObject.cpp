@@ -117,8 +117,30 @@ void GameObject::Rotate(XMFLOAT4 *pxmf4Quaternion)
 	m_xmf4x4ToParentTransform = Matrix4x4::Multiply(mtxRotate, m_xmf4x4ToParentTransform);
 }
 
+void GameObject::LoadAnimationModel(const string& fileName, float loadScale)
+{
+	m_pScene = aiImportFile(fileName.c_str(), aiProcess_JoinIdenticalVertices |        // 동일한 꼭지점 결합, 인덱싱 최적화
+		aiProcess_ValidateDataStructure |        // 로더의 출력을 검증
+		aiProcess_ImproveCacheLocality |        // 출력 정점의 캐쉬위치를 개선
+		aiProcess_RemoveRedundantMaterials |    // 중복된 매터리얼 제거
+		aiProcess_GenUVCoords |                    // 구형, 원통형, 상자 및 평면 매핑을 적절한 UV로 변환
+		aiProcess_TransformUVCoords |            // UV 변환 처리기 (스케일링, 변환...)
+		aiProcess_FindInstances |                // 인스턴스된 매쉬를 검색하여 하나의 마스터에 대한 참조로 제거
+		aiProcess_LimitBoneWeights |            // 정점당 뼈의 가중치를 최대 4개로 제한
+		aiProcess_OptimizeMeshes |                // 가능한 경우 작은 매쉬를 조인
+		aiProcess_GenSmoothNormals |            // 부드러운 노말벡터(법선벡터) 생성
+		aiProcess_SplitLargeMeshes |            // 거대한 하나의 매쉬를 하위매쉬들로 분활(나눔)
+		aiProcess_Triangulate |                    // 3개 이상의 모서리를 가진 다각형 면을 삼각형으로 만듬(나눔)
+		aiProcess_ConvertToLeftHanded |            // D3D의 왼손좌표계로 변환
+		aiProcess_SortByPType);
 
-void GameObject::LoadGameModel(const string& fileName, float loadScale, bool isMap)
+	if (m_pScene) {
+		numAnimationClips = m_pScene->mNumAnimations;
+		numBones = pMesh->mNumBones;
+	}
+}
+
+void GameObject::LoadGameModel(const string& fileName, float loadScale, bool isMap, bool hasAniBone)
 {
 	if(isMap)
 	m_pScene = aiImportFile(fileName.c_str(), aiProcess_JoinIdenticalVertices |        // 동일한 꼭지점 결합, 인덱싱 최적화
@@ -159,13 +181,16 @@ void GameObject::LoadGameModel(const string& fileName, float loadScale, bool isM
 		numBones = 0;
 		numAnimationClips = m_pScene->mNumAnimations;
 		for (UINT i = 0; i < meshSize; ++i) {
-			const aiMesh* pMesh = m_pScene->mMeshes[i];
+			pMesh = m_pScene->mMeshes[i];
 
 			numBones = pMesh->mNumBones;
 			
 			mBones.resize(pMesh->mNumVertices);
-
-			LoadBones(i, pMesh, mBones);
+			LoadBones(i, pMesh, mBones, hasAniBone);
+			if (hasAniBone) {
+				ReadBoneOffsets(numBones, boneOffsets, loadScale);
+				ReadBoneHierarchy(numBones, boneIndexToParentIndex);
+			}
 			InitMesh(i, pMesh, mBones, loadScale);
 		}
 
@@ -225,20 +250,80 @@ void GameObject::InitMesh(UINT index, const aiMesh * pMesh, std::vector<VertexBo
 	}
 }
 
-void GameObject::LoadBones(UINT MeshIndex, const aiMesh* pMesh, std::vector<VertexBoneData>& Bones)
-{
-	for (UINT i = 0; i < pMesh->mNumBones; i++) {
-		UINT BoneIndex = 0;
-		string BoneName(pMesh->mBones[i]->mName.data);
-		pair<string, int> boneNameIndex = make_pair(BoneName, i);
+int GameObject::RobotModelHierarchy(string name) {
 
-		boneName.push_back(boneNameIndex);
+	if(name == "Hip_Joint")return 0;
+	else if (name == "Leg_L_Joint") return 1;
+	else if (name == "Knee_L_Joint") return 2;
+	else if (name == "Heel_L_Joint") return 3;
+	else if (name == "Toe_L_Joint") return 4;
+	else if (name == "Leg_R_Joint") return 5;
+	else if (name == "Knee_R_Joint") return 6;
+	else if (name == "Heel_R_Joint") return 7;
+	else if (name == "Toe_R_Joint") return 8;
+	else if (name == "Spine_1_Joint") return 9;
+	else if (name == "Spine_2_Joint") return 10;
+	else if (name == "Shoulder_L_Joint") return 11;
+	else if (name == "Elbow_L_Joint") return 12;
+	else if (name == "Hand_L_Joint") return 13;
+	else if (name == "Index_01_Joint") return 14;
+	else if (name == "Index_02_Joint") return 15;
+	else if (name == "Middle_01_Joint") return 16;
+	else if (name == "Middle_02_Joint") return 17;
+	else if (name == "Pink_01_Joint") return 18;
+	else if (name == "Pink_02_Joint") return 19;
+	else if (name == "Thumb_01_Joint") return 20;
+	else if (name == "Thumb_02_Joint") return 21;
+	else if (name == "Shoulder_R_Joint") return 22;
+	else if (name == "Elbow_R_Joint") return 23;
+	else if (name == "Hand_R_Joint") return 24;
+	else if (name == "Index_01_Joint1") return 25;
+	else if (name == "Index_02_Joint1") return 26;
+	else if (name == "Middle_01_Joint1") return 27;
+	else if (name == "Middle_02_Joint1") return 28;
+	else if (name == "Pink_01_Joint1") return 29;
+	else if (name == "Pink_02_Joint1") return 30;
+	else if (name == "Thumb_01_Joint1") return 31;
+	else if (name == "Thumb_02_Joint1") return 32;
+	else if (name == "Neck_Joint") return 33;
+	else if (name == "Head_Joint") return 34;
+	else return -1;
+}
+
+void GameObject::LoadBones(UINT MeshIndex, const aiMesh* pMesh, std::vector<VertexBoneData>& Bones, bool hasAniBone)
+{
+	if (hasAniBone) {
+		//본이름로딩
+		for (UINT i = 0; i < pMesh->mNumBones; i++) {
+			int myboneIndex = 0;
+			string BoneName(pMesh->mBones[i]->mName.data);
+			//myboneIndex = RobotModelHierarchy(BoneName);
+			pair<string, int> boneNameIndex = make_pair(BoneName, i);// myboneIndex);
+			boneName.push_back(boneNameIndex);
+		}
+	}
+	else {
+		for (UINT i = 0; i < pMesh->mNumBones; i++) {
+			string BoneName(pMesh->mBones[i]->mName.data);
+			pair<string, int> boneNameIndex = make_pair(BoneName, i);
+			boneName.push_back(boneNameIndex);
+		}
+	}
+	for (UINT i = 0; i < pMesh->mNumBones; i++) {
+		int myindex;
+
+		for (int z = 0; z < numBones; z++) {
+			if (boneName[z].second == i) {
+				myindex = z;
+				break;
+			}
+		}
 
 		//본마다 영향이 있는 버텍스 갯수라고 봄
-		for (UINT j = 0; j < pMesh->mBones[i]->mNumWeights; j++) {
+		for (UINT j = 0; j < pMesh->mBones[myindex]->mNumWeights; j++) {
 			//해당 본의 해당 가중치정보의 버텍스ID와 가중치
-			UINT VertexID = pMesh->mBones[i]->mWeights[j].mVertexId;
-			float Weight = pMesh->mBones[i]->mWeights[j].mWeight;
+			UINT VertexID = pMesh->mBones[myindex]->mWeights[j].mVertexId;
+			float Weight = pMesh->mBones[myindex]->mWeights[j].mWeight;
 
 			if (Bones[VertexID].BoneWeights.x == 0.0) {
 				Bones[VertexID].BoneIndices[0] = (int)i;
@@ -265,15 +350,12 @@ void GameObject::LoadBones(UINT MeshIndex, const aiMesh* pMesh, std::vector<Vert
 void GameObject::LoadAnimation(SkinnedData& skinInfo , string clipName, float loadScale)
 {
 	if (m_pScene) {
-		std::vector<XMFLOAT4X4> boneOffsets;
-		std::vector<pair<string,int>> boneIndexToParentIndex;
+		
 		std::unordered_map<std::string, AnimationClip> animations;
 
 		//애니메이션 정보 받아오기
 		if (m_pScene->HasAnimations())
 		{
-			ReadBoneOffsets(numBones, boneOffsets, loadScale);
-			ReadBoneHierarchy(numBones, boneIndexToParentIndex);
 			ReadAnimationClips(numBones, numAnimationClips, animations, clipName, loadScale);
 			skinInfo.Set(boneIndexToParentIndex, boneOffsets, animations);
 		}
@@ -285,13 +367,24 @@ void GameObject::ReadBoneOffsets(UINT numBones, std::vector<DirectX::XMFLOAT4X4>
 	boneOffsets.resize(numBones);
 
 	for (UINT i = 0; i < meshSize; ++i) {
-		const aiMesh* pMesh = m_pScene->mMeshes[i];
+		
 
 		//본 정보 받기
 		if (pMesh->HasBones())
 		{
 			for (UINT j = 0; j < numBones; ++j) {
-				const aiBone* pBone = pMesh->mBones[j];
+				const char *bonesname;
+				int myindex;
+				
+
+				for (int z = 0; z < numBones; z++) {
+					if (boneName[z].second == j) {
+						bonesname = boneName[z].first.c_str(); //현재본 이름
+						myindex = z;
+						break;
+					}
+				}
+				const aiBone* pBone = pMesh->mBones[myindex];
 				
 					boneOffsets[j](0, 0) = pBone->mOffsetMatrix.a1;
 					boneOffsets[j](0, 1) = pBone->mOffsetMatrix.b1;
@@ -322,7 +415,7 @@ void GameObject::ReadBoneHierarchy(UINT numBones, std::vector<pair<string,int>>&
 	boneIndexToParentIndex.resize(numBones);
 
 	for (UINT i = 0; i < meshSize; ++i) {
-		const aiMesh* pMesh = m_pScene->mMeshes[i];
+		
 
 		//본 정보 받기
 		if (pMesh->HasBones())
@@ -331,10 +424,14 @@ void GameObject::ReadBoneHierarchy(UINT numBones, std::vector<pair<string,int>>&
 				const char *bonesname;
 				const char *parentName;
 				bool isCheck = false;
-				int myindex = 0;
 				const aiBone* pBone = pMesh->mBones[j];
 				const aiNode* pFindNode;
-				bonesname = boneName[j].first.c_str(); //현재본 이름
+				for (int z = 0; z < numBones; z++) {
+					if (boneName[z].second == j){
+						bonesname = boneName[z].first.c_str(); //현재본 이름
+						break;
+					}
+				}
 				
 				/*if (j == 0) {
 					pFindNode = m_pScene->mRootNode;
@@ -364,8 +461,8 @@ void GameObject::ReadBoneHierarchy(UINT numBones, std::vector<pair<string,int>>&
 						//같으면 부모임
 						for (int z = 0; z < boneName.size(); z++) {
 							if (boneName[z].first == parentName) {
-								boneIndexToParentIndex[j].first = parentName;
-								boneIndexToParentIndex[j].second = z;
+								boneIndexToParentIndex[j].first = boneName[z].first;
+								boneIndexToParentIndex[j].second = boneName[z].second;
 								isCheck = true;
 								break;
 							}
@@ -383,8 +480,6 @@ void GameObject::ReadBoneHierarchy(UINT numBones, std::vector<pair<string,int>>&
 }
 void GameObject::ReadAnimationClips(UINT numBones, UINT numAnimationClips, std::unordered_map<std::string, AnimationClip>& animations, string clipName,float loadScale)
 {
-	for (UINT i = 0; i < meshSize; ++i) {
-		const aiMesh* pMesh = m_pScene->mMeshes[i];
 
 		//본 정보 받기
 		if (pMesh->HasBones())
@@ -396,24 +491,36 @@ void GameObject::ReadAnimationClips(UINT numBones, UINT numAnimationClips, std::
 
 					for (UINT boneIndex = 0; boneIndex < numBones; ++boneIndex)
 					{
-						ReadBoneKeyframes(boneIndex, clip.BoneAnimations[boneIndex] , loadScale);
+						int myindex;
+						for (int z = 0; z < numBones; z++) {
+							if (boneName[z].second == boneIndex) {
+								myindex = z;
+								break;
+							}
+						}
+
+						ReadBoneKeyframes(myindex, clip.BoneAnimations[boneIndex] , loadScale);
 					}
 
 					animations[clipName] = clip;
 				}
 		}
 		int a = 10;
-	}
 }
 
 //d
 void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation, float loadScale)
 {
-	
+	int numKey = 0;
 	for (int i = 0; i < m_pScene->mNumAnimations; i++)
 	{
 		aiAnimation *animation = m_pScene->mAnimations[i];
-		boneAnimation.Keyframes.resize(animation->mChannels[0]->mNumPositionKeys);
+		for (int j = 0; j < animation->mNumChannels; j++) {
+			if (animation->mChannels[j]->mNumPositionKeys > 1) { 
+				boneAnimation.Keyframes.resize(animation->mChannels[j]->mNumPositionKeys);
+				break;//오류생기는가능성부분
+			}
+		}
 		float time = 0;		
 		int channelMode = 0;//채널 + 1 rot  +2 scale
 		bool isSame = false;//똑같지만 채널이 나눠진 경우모드
@@ -447,7 +554,7 @@ void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation,
 			}
 			else nodeAnimation = nullptr;
 		}
-		for (int j = 0; j < animation->mChannels[0]->mNumPositionKeys; j++)
+		for (int j = 0; j < boneAnimation.Keyframes.size(); j++)
 		{
 			XMFLOAT3 position(0,0,0);
 			XMFLOAT3 scale(1,1,1);
@@ -456,7 +563,7 @@ void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation,
 			/* load all keyframes */
 			// += animation->mTicksPerSecond / animation->mDuration;
 
-			time += animation->mTicksPerSecond / animation->mDuration;
+			time += 0.05f;
 
 			//나눠진모드
 			if (isSame && nodeAnimation != nullptr) {
@@ -477,17 +584,17 @@ void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation,
 				scale.z = nodeAnimation->mScalingKeys[j].mValue.z;
 			}
 			else if (nodeAnimation != nullptr) {
-				if (nodeAnimation->mNumPositionKeys > 1) {
+				if (nodeAnimation->mNumPositionKeys > j) {
 					position.x = nodeAnimation->mPositionKeys[j].mValue.x* loadScale;
 					position.y = nodeAnimation->mPositionKeys[j].mValue.y* loadScale;
 					position.z = nodeAnimation->mPositionKeys[j].mValue.z* loadScale;
 				}
-				if (nodeAnimation->mNumScalingKeys > 1) {
+				if (nodeAnimation->mNumScalingKeys > j) {
 					scale.x = nodeAnimation->mScalingKeys[j].mValue.x;
 					scale.y = nodeAnimation->mScalingKeys[j].mValue.y;
 					scale.z = nodeAnimation->mScalingKeys[j].mValue.z;
 				}
-				if (nodeAnimation->mNumRotationKeys > 1) {
+				if (nodeAnimation->mNumRotationKeys > j) {
 					rotation.x = nodeAnimation->mRotationKeys[j].mValue.x;
 					rotation.y = nodeAnimation->mRotationKeys[j].mValue.y;
 					rotation.z = nodeAnimation->mRotationKeys[j].mValue.z;

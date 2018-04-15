@@ -28,22 +28,39 @@ struct VertexBoneData
 
 struct SkinnedModelInstance
 {
+private:
+	std::string NowAniName;
+	float StartTime = 0;
+	float EndTime = 0;
+
+public :
 	SkinnedData* SkinnedInfo = nullptr;
 	std::vector<DirectX::XMFLOAT4X4> FinalTransforms;
 	std::string ClipName;
-	float TimePos = 0.0f;
+	int boneSize = 0;
+	float TimePos = 0;
 
-	// Called every frame and increments the time position, interpolates the 
-	// animations for each bone based on the current animation clip, and 
-	// generates the final transforms which are ultimately set to the effect
-	// for processing in the vertex shader.
+	void SetNowAni(string aniName) {
+		NowAniName = aniName;
+		//ClipName = aniName;
+		if (NowAniName == "idle") {
+			StartTime = 0.0f;
+			EndTime = 3.0f;//0.05f * 51;// SkinnedInfo->GetClipEndTime(ClipName);//0.05f * 51;
+		}
+		else if (NowAniName == "walk") {
+			StartTime = 3.05f; //0;//3.05f;
+			EndTime = 4.55f; //SkinnedInfo->GetClipEndTime(ClipName);//4.55f;
+		}
+	}
+
 	void UpdateSkinnedAnimation(float dt)
 	{
+		if (TimePos < StartTime) TimePos = StartTime;
 		TimePos += dt;
 
-		// Loop animation
-		if (TimePos > SkinnedInfo->GetClipEndTime(ClipName))
-			TimePos = 0.0f;
+		// Loop animation  0.05 -> 60 / 530   4.55 3.05   3.0  0
+		if (TimePos > EndTime)//SkinnedInfo->GetClipEndTime(ClipName) )
+			TimePos = StartTime;
 
 		// Compute the final transforms for this time position.
 		SkinnedInfo->GetFinalTransforms(ClipName, TimePos, FinalTransforms);
@@ -123,6 +140,11 @@ public:
 
 	GeometryGenerator::MeshData *meshData;
 	GeometryGenerator::SkinnedMeshData *skinMeshData;
+
+	//본 구조
+	std::vector<XMFLOAT4X4> boneOffsets;
+	std::vector<pair<string, int>> boneIndexToParentIndex;
+
 	vector<VertexBoneData> mBones;
 	vector<pair<std::string,int>> boneName;
 	
@@ -131,9 +153,7 @@ public:
 	UINT numAnimationClips = 0;
 	int meshSize = 0;
 	const aiScene*                m_pScene;        //모델 정보
-	//GeometryGenerator::MeshData   meshData;        //매쉬 정보
-	//UINT                            m_numVertices;
-	//UINT                            m_numMaterial;
+	aiMesh* pMesh; //단일메쉬
 
 	void Rotate(float fPitch = 10.0f, float fYaw = 10.0f, float fRoll = 10.0f);
 	void Rotate(XMFLOAT3 *pxmf3Axis, float fAngle);
@@ -143,9 +163,11 @@ public:
 	GeometryGenerator::SkinnedMeshData *GetSkinMeshData() { return skinMeshData; }
 
 	//로드 모델
-	void LoadGameModel(const string& fileName, float loadScale, bool isMap);
+	void LoadGameModel(const string& fileName, float loadScale, bool isMap, bool hasAniBone);
+	void LoadAnimationModel(const string& fileName, float loadScale);
 	void InitMesh(UINT index, const aiMesh * pMesh, std::vector<VertexBoneData>& Bones , float loadScale);
-	void LoadBones(UINT MeshIndex, const aiMesh* pMesh, std::vector<VertexBoneData>& Bones);
+	void LoadBones(UINT MeshIndex, const aiMesh* pMesh, std::vector<VertexBoneData>& Bones, bool hasAniBone);
+	int RobotModelHierarchy(string name);
 	void AddBoneData(UINT BoneID, float Weight);
 	//로드 애니메이션 정보
 	void LoadAnimation(SkinnedData& skinInfo, string clipName, float loadScale);
