@@ -109,6 +109,7 @@ public:
     /// face has m rows and n columns of vertices.
 	///</summary>
     MeshData CreateBox(float width, float height, float depth, uint32 numSubdivisions);
+	MeshData CreateBox(float width, float height, float depth);
 
 	///<summary>
 	/// Creates a sphere centered at the origin with the given radius.  The

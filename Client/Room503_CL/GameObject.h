@@ -20,6 +20,71 @@ using namespace std;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
+////////////////////////////// AABB ///////////////////////////////////
+
+class Aabb
+{
+	//최대 최소값
+	DirectX::XMFLOAT3 _max = { 0.01f, 0.01f, 0.01f };
+	DirectX::XMFLOAT3 _min = { 0.01f, 0.01f, 0.01f };
+
+	DirectX::XMFLOAT3 _box[8];
+
+public:
+	XMFLOAT3* GetAabbBox() { return _box; }
+	//최대 최소값 (회전시 갱신)
+	void GetMaxMin(GeometryGenerator::SkinnedMeshData mesh)
+	{
+		float x = mesh.Vertices[0].Position.x;
+		float y = mesh.Vertices[0].Position.y;
+		float z = mesh.Vertices[0].Position.z;
+
+		for (int i = 0; i < mesh.Vertices.size(); ++i)
+		{
+			if (mesh.Vertices[i].Position.x > x)
+				x = mesh.Vertices[i].Position.x;
+			if (mesh.Vertices[i].Position.y > y)
+				y = mesh.Vertices[i].Position.y;
+			if (mesh.Vertices[i].Position.z > z)
+				z = mesh.Vertices[i].Position.z;
+		}
+		_max = XMFLOAT3(x, y, z);
+		x = mesh.Vertices[0].Position.x;
+		y = mesh.Vertices[0].Position.y;
+		z = mesh.Vertices[0].Position.z;
+
+		for (int i = 0; i < mesh.Vertices.size(); ++i)
+		{
+			if (mesh.Vertices[i].Position.x < x)
+				x = mesh.Vertices[i].Position.x;
+			if (mesh.Vertices[i].Position.y < y)
+				y = mesh.Vertices[i].Position.y;
+			if (mesh.Vertices[i].Position.z < z)
+				z = mesh.Vertices[i].Position.z;
+		}
+		_min = XMFLOAT3(x, y, z);
+
+		//박스갱신
+		_box[0].x = _min.x; _box[0].y = _max.y; _box[0].z = _max.z;
+		_box[1].x = _max.x; _box[1].y = _max.y; _box[1].z = _max.z;
+
+		_box[2].x = _min.x; _box[2].y = _max.y; _box[2].z = _min.z;
+		_box[3].x = _max.x; _box[3].y = _max.y; _box[3].z = _min.z;
+
+		_box[4].x = _min.x; _box[4].y = _min.y; _box[4].z = _max.z;
+		_box[5].x = _max.x; _box[5].y = _min.y; _box[5].z = _max.z;
+
+		_box[6].x = _min.x; _box[6].y = _min.y; _box[6].z = _min.z;
+		_box[7].x = _max.x; _box[7].y = _min.y; _box[7].z = _min.z;
+	}
+	bool IsCollsionAABB( Aabb *dest ) {
+		if (_min.x > dest->_max.x || _max.x < dest->_min.x) return false;
+		if (_min.y > dest->_max.y || _max.y < dest->_min.y) return false;
+		if (_min.z > dest->_max.z || _max.z < dest->_min.z) return false;
+		return true;
+	}
+};
+
 struct VertexBoneData
 {
 	DirectX::XMFLOAT3 BoneWeights;
@@ -98,12 +163,13 @@ public:
 	Material* Mat = nullptr;
 	MeshGeometry* Geo = nullptr;
 	SkinnedModelInstance* SkinnedModelInst = nullptr;
-	
+	Aabb bounds;
 
 	// Primitive topology.
 	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
-	BoundingBox Bounds;
+	//BoundingBox Bounds;
+	
 	XMFLOAT3 Dir;
 
 	// DrawIndexedInstanced 매개변수들
@@ -133,10 +199,6 @@ public:
 public:
 	TCHAR	m_pstrFrameName[256];
 	bool	m_bActive = true;
-
-	GameObject 	*m_pParent = NULL;
-	GameObject 	*m_pChild = NULL;
-	GameObject 	*m_pSibling = NULL;
 
 	GeometryGenerator::MeshData *meshData;
 	GeometryGenerator::SkinnedMeshData *skinMeshData;
@@ -190,3 +252,6 @@ class SkyBoxObject : public GameObject
 {
 	void Update(const GameTimer& gt);
 };
+
+
+

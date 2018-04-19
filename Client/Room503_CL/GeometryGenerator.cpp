@@ -6,6 +6,61 @@
 
 using namespace DirectX;
 
+GeometryGenerator::MeshData GeometryGenerator::CreateBox(float width, float height, float depth)
+{
+	MeshData meshData;
+
+	//
+	// Create the vertices.
+	//
+
+	Vertex v[8];
+
+	float w2 = 0.5f*width;
+	float h2 = 0.5f*height;
+	float d2 = 0.5f*depth;
+
+	// Fill in the front face vertex data.
+	v[0] = Vertex(-w2, -h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+	v[1] = Vertex(-w2, +h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+	v[2] = Vertex(+w2, +h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	v[3] = Vertex(+w2, -h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f);
+
+	// Fill in the back face vertex data.
+	v[4] = Vertex(-w2, -h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f);
+	v[5] = Vertex(+w2, -h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+	v[6] = Vertex(+w2, +h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+	v[7] = Vertex(-w2, +h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+
+	meshData.Vertices.assign(&v[0], &v[8]);
+
+	//
+	// Create the indices.
+	//
+
+	uint32 i[24];
+
+	// Fill in the front face index data
+	i[0] = 0; i[1] = 1; 
+	i[2] = 1; i[3] = 2; 
+	i[4] = 2; i[5] = 3;
+	i[6] = 3; i[7] = 0;
+
+	i[8] = 4; i[9] = 5; 
+	i[10] = 5; i[11] = 6;
+	i[12] = 6; i[13] = 7; 
+	i[14] = 7; i[15] = 4;
+
+	i[16] = 0; i[17] = 4;
+	i[18] = 3; i[19] = 5; 
+	i[20] = 1; i[21] = 7; 
+	i[22] = 2; i[23] = 6;
+
+	meshData.Indices32.assign(&i[0], &i[24]);
+
+	return meshData;
+}
+
 GeometryGenerator::MeshData GeometryGenerator::CreateBox(float width, float height, float depth, uint32 numSubdivisions)
 {
     MeshData meshData;

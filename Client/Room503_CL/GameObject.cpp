@@ -192,6 +192,7 @@ void GameObject::LoadGameModel(const string& fileName, float loadScale, bool isM
 				ReadBoneHierarchy(numBones, boneIndexToParentIndex);
 			}
 			InitMesh(i, pMesh, mBones, loadScale);
+			bounds.GetMaxMin(skinMeshData[0]);
 		}
 
 		//m_ModelMeshes.resize(m_meshes.size());
