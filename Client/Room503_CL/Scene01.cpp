@@ -606,14 +606,20 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 	for (auto& e : mOpaqueRitems[(int)RenderLayer::Player])
 	{
 		auto enemy = mOpaqueRitems[(int)RenderLayer::Enemy];
-
+		auto rand = mOpaqueRitems[(int)RenderLayer::Grid];
 		mCamera.Pitch(my);
 		mCamera.RotateY(mx);
 
-		//e->Pitch(my);
-		//e->RotateY(mx);
-		if (e->bounds.IsCollsionAABB(&enemy[0]->bounds))
+		//땅 -값
+		if (e->GetPosition().y > rand[0]->GetPosition().y + 25)//모델키는 로드시 스케일로 맞춰서 일단 상수로
+			e->GravityUpdate(gt);
+		else
+			e->SetPosition(XMFLOAT3(e->GetPosition().x, -25, e->GetPosition().z));
+
+		if (e->bounds.IsCollsionAABB(e->GetPosition(),&enemy[0]->bounds, enemy[0]->GetPosition()))
 			printf("충돌 \n");
+		else 
+			printf("NO \n");
 
 		//회전초기화
 		mx = 0;
@@ -641,8 +647,12 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 	{
 		auto player = mOpaqueRitems[(int)RenderLayer::Player];
 		auto enemy = mOpaqueRitems[(int)RenderLayer::Enemy];
-		if(e->Geo->Name == "robot_freeBoxGeo") e->World = player[0]->World;
-		else e->World = enemy[0]->World;
+		if (e->Geo->Name == "robot_freeBoxGeo") {
+			e->World = player[0]->World;
+		}
+		else {
+			e->World = enemy[0]->World;
+		}
 
 		e->NumFramesDirty = gNumFrameResources;
 	}
@@ -1695,7 +1705,7 @@ void MyScene::BuildGameObjects()
 	mAllRitems.push_back(std::move(player));
 
 	auto dummy = std::make_unique<GameObject>();
-	XMStoreFloat4x4(&dummy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, -50.0f));
+	XMStoreFloat4x4(&dummy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
 	dummy->ObjCBIndex = objIndex++;
 	dummy->Mat = mMaterials["robot"].get();
 	dummy->Geo = mGeometries["robotGeo"].get();
@@ -1726,7 +1736,7 @@ void MyScene::BuildGameObjects()
 
 
 	auto line = std::make_unique<GameObject>();
-	XMStoreFloat4x4(&line->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, -50.0f));
+	XMStoreFloat4x4(&line->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
 	line->ObjCBIndex = objIndex++;
 	line->Mat = mMaterials["robot"].get();
 	line->Geo = mGeometries["dummyBoxGeo"].get();

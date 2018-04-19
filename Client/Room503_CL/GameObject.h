@@ -32,7 +32,7 @@ class Aabb
 
 public:
 	XMFLOAT3* GetAabbBox() { return _box; }
-	//최대 최소값 (회전시 갱신)
+	//최대 최소값 (회전시 갱신?)
 	void GetMaxMin(GeometryGenerator::SkinnedMeshData mesh)
 	{
 		float x = mesh.Vertices[0].Position.x;
@@ -77,10 +77,10 @@ public:
 		_box[6].x = _min.x; _box[6].y = _min.y; _box[6].z = _min.z;
 		_box[7].x = _max.x; _box[7].y = _min.y; _box[7].z = _min.z;
 	}
-	bool IsCollsionAABB( Aabb *dest ) {
-		if (_min.x > dest->_max.x || _max.x < dest->_min.x) return false;
-		if (_min.y > dest->_max.y || _max.y < dest->_min.y) return false;
-		if (_min.z > dest->_max.z || _max.z < dest->_min.z) return false;
+	bool IsCollsionAABB( XMFLOAT3 Pos, Aabb *dest , XMFLOAT3 destPos ) {
+		if (_min.x + Pos.x > dest->_max.x + destPos.x || _max.x + Pos.x < dest->_min.x + destPos.x) return false;
+		if (_min.y + Pos.y > dest->_max.y + destPos.y || _max.y + Pos.y < dest->_min.y + destPos.y) return false;
+		if (_min.z + Pos.z > dest->_max.z + destPos.z || _max.z + Pos.z < dest->_min.z + destPos.z) return false;
 		return true;
 	}
 };
