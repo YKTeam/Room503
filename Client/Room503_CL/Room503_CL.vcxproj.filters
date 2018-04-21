@@ -60,6 +60,9 @@
     <ClCompile Include="SkinnedData.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="ShadowMap.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BlurFilter.h">
@@ -110,6 +113,9 @@
     <ClInclude Include="SkinnedData.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="ShadowMap.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Blur.hlsl">
@@ -140,6 +146,12 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\Common.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ShadowDebug.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Shadows.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

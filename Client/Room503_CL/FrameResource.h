@@ -28,6 +28,7 @@ struct PassConstants
     DirectX::XMFLOAT4X4 ViewProj = MathHelper::Identity4x4();
     DirectX::XMFLOAT4X4 InvViewProj = MathHelper::Identity4x4();
 
+	DirectX::XMFLOAT4X4 ShadowTransform = MathHelper::Identity4x4();
 	/*DirectX::XMFLOAT4X4 ViewMini = MathHelper::Identity4x4();
 	DirectX::XMFLOAT4X4 ProjMini = MathHelper::Identity4x4();
 	DirectX::XMFLOAT4X4 ViewProjMini = MathHelper::Identity4x4();*/
