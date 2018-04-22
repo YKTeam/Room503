@@ -1,11 +1,10 @@
 
 
 // Include structures and functions for lighting.
-#include "LightingUtil.hlsl"
 #include "Common.hlsl"
 
 Texture2D    gDiffuseMap : register(t0);
-Texture2D    gDetailMap : register(t1);
+Texture2D    gDetailMap : register(t2);
 
 struct VertexIn
 {
@@ -22,7 +21,8 @@ struct VertexIn
 struct VertexOut
 {
 	float4 PosH    : SV_POSITION;
-    float3 PosW    : POSITION;
+	float4 ShadowPosH : POSITION0;
+	float3 PosW    : POSITION1;
     float3 NormalW : NORMAL;
 	float3 TangentW : TANGENT;
 	float2 TexC    : TEXCOORD;
@@ -66,6 +66,9 @@ VertexOut VS(VertexIn vin)
 	//float4 texC2 = mul(float4(vin.TexC1, 0.0f, 1.0f), gTexTransform);
 	vout.TexC = mul(texC, gMatTransform).xy;
 	//vout.TexC1 = mul(texC2, gMatTransform).xy;
+
+	// Generate projective tex-coords to project shadow map onto scene.
+	vout.ShadowPosH = mul(posW, gShadowTransform);
     return vout;
 }
 
@@ -75,7 +78,7 @@ float4 PS(VertexOut pin) : SV_Target
 	//gDetailMap
 	uint diffuseTexIndex = DiffuseMapIndex;
 	//float4 green = float4(0, 1, 0, 1);
-	float4 base = gDiffuseMap.Sample(gsamLinearWrap, pin.TexC);
+	float4 base = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC);
 	//float4 detail = gDetailMap.Sample(gsamLinearWrap, pin.TexC1);
 
     float4 diffuseAlbedo =  saturate(base) * gDiffuseAlbedo;
@@ -95,13 +98,17 @@ float4 PS(VertexOut pin) : SV_Target
 	toEyeW /= distToEye; // normalize
 
     // Light terms.
-	
     float4 ambient = gAmbientLight*diffuseAlbedo;
+
+	// Only the first light casts a shadow.
+	
+	float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
+	shadowFactor[0] = CalcShadowFactor(pin.ShadowPosH);
 
     const float shininess = 1.0f - gRoughness;
     Material mat = { diffuseAlbedo, gFresnelR0, shininess };
-    float3 shadowFactor = 1.0f;
-    float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
+
+	float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         pin.NormalW, toEyeW, shadowFactor, 5);
 
     float4 litColor = ambient + directLight;
@@ -109,8 +116,6 @@ float4 PS(VertexOut pin) : SV_Target
 	/*float fogAmount = saturate((distToEye - gFogStart) / gFogRange);
 	litColor = lerp(litColor, gFogColor, fogAmount);*/
 #endif
-	
-    // Common convention to take alpha from diffuse albedo.
 	
     litColor.a = diffuseAlbedo.a;
 	

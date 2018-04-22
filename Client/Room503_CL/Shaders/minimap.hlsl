@@ -1,9 +1,9 @@
 
 // Include structures and functions for lighting.
-#include "LightingUtil.hlsl"
+
 #include "Common.hlsl"
 Texture2D    gDiffuseMap : register(t0);
-Texture2D    gDetailMap : register(t1);
+Texture2D    gDetailMap : register(t2);
 
 
 struct VertexIn
@@ -72,9 +72,13 @@ float4 PS(VertexOut pin) : SV_Target
     // Light terms.
     float4 ambient = gAmbientLight*diffuseAlbedo;
 
+	// Only the first light casts a shadow.
+	float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
+	shadowFactor[0] = CalcShadowFactor(pin.ShadowPosH);
+
     const float shininess = 1.0f - gRoughness;
     Material mat = { diffuseAlbedo, gFresnelR0, shininess };
-    float3 shadowFactor = 1.0f;
+
     float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         pin.NormalW, toEyeW, shadowFactor, 5);
 

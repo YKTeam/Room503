@@ -20,7 +20,7 @@ using namespace DirectX::PackedVector;
 #pragma comment(lib, "D3D12.lib")
 
 
-const int gNumFrameResources = 2;
+const int gNumFrameResources = 3;
 
 enum class RenderLayer : int
 {
@@ -99,6 +99,7 @@ private:
 	int mCurrFrameResourceIndex = 0;
 	UINT mCbvSrvUavDescriptorSize = 0;
 	UINT mCbvSrvDescriptor2Size = 0;
+	UINT mSkyTexHeapIndex = 0;
 	UINT mShadowMapHeapIndex = 0;
 	//그림자용 빈 소스
 	UINT mNullCubeSrvIndex = 0;
@@ -214,7 +215,7 @@ MyScene::MyScene(HINSTANCE hInstance)
 : D3DApp(hInstance) 
 {
 	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	mSceneBounds.Radius = sqrtf(10.0f*10.0f + 15.0f*15.0f);
+	mSceneBounds.Radius = sqrtf(1500.0f*1500.0f + 3000.0f*3000.0f);
 }
 
 MyScene::~MyScene()
@@ -250,8 +251,10 @@ bool MyScene::Initialize()
 		mClientWidth, mClientHeight,
 		mBackBufferFormat);
 
+	mCamera.SetPosition(0.0f, 2.0f, -15.0f);
+
 	mShadowMap = std::make_unique<ShadowMap>(
-		md3dDevice.Get(), 2048, 2048);
+		md3dDevice.Get(), 4096, 4096);
 
 	LoadTextures();
 	BuildRootSignature();
@@ -261,7 +264,7 @@ bool MyScene::Initialize()
 	BuildShadersAndInputLayout();
 	BuildShapeGeometry();
 	BuildFbxGeometry("Model/robotFree3.fbx", "robot_freeGeo", "robot_free", 1.0f, false , true);//angle  robotModel  robotIdle
-	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 0.1f, false , false);
+	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 1.0f, false , false);
 	BuildFbxGeometry("Model/testmap2.obj", "map00Geo", "map00", 1, true, false);
 	//BuildAnimation("Model/robotidle2.fbx","idle", 1.0f, false);
 	BuildAnimation("Model/robotFree3.fbx","walk", 1.0f, false);//robotwalk
@@ -300,7 +303,7 @@ void MyScene::CreateRtvAndDsvDescriptorHeaps()
 		&rtvHeapDesc, IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
 
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
-	dsvHeapDesc.NumDescriptors = 1 + 2;
+	dsvHeapDesc.NumDescriptors = 3;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	dsvHeapDesc.NodeMask = 0;
@@ -387,10 +390,15 @@ void MyScene::Draw(const GameTimer& gt)
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+
+	auto matBuffer = mCurrFrameResource->MaterialCB->Resource();
+	mCommandList->SetGraphicsRootConstantBufferView(3, matBuffer->GetGPUVirtualAddress());
 	// Bind null SRV for shadow map pass.
 	mCommandList->SetGraphicsRootDescriptorTable(7, mNullSrv);
 
 	DrawSceneToShadowMap();
+
+	mCommandList->SetGraphicsRootDescriptorTable(0, mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
 	///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -417,8 +425,14 @@ void MyScene::Draw(const GameTimer& gt)
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
 
-	mCommandList->SetPipelineState(mPSOs["debug"].Get());
-	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Debug], (int)RenderLayer::Debug);
+	CD3DX12_GPU_DESCRIPTOR_HANDLE skyTexDescriptor(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	skyTexDescriptor.Offset(mSkyTexHeapIndex+1, mCbvSrvUavDescriptorSize);
+	mCommandList->SetGraphicsRootDescriptorTable(7, skyTexDescriptor);
+
+	//mCommandList->SetPipelineState(mPSOs["debug"].Get());
+	//DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Debug], (int)RenderLayer::Debug);
+
+	
 	if (mIsWireframe)
 	{
 		mCommandList->SetPipelineState(mPSOs["opaque_wireframe"].Get());
@@ -427,6 +441,7 @@ void MyScene::Draw(const GameTimer& gt)
 	{
 		mCommandList->SetPipelineState(mPSOs["grid"].Get());
 	}
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Opaque], (int)RenderLayer::Opaque);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Grid], (int)RenderLayer::Grid);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Enemy], (int)RenderLayer::Enemy);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::CollBox], (int)RenderLayer::CollBox);
@@ -444,7 +459,6 @@ void MyScene::Draw(const GameTimer& gt)
 		mCommandList->SetPipelineState(mPSOs["skinnedOpaque"].Get());
 	}
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Player], (int)RenderLayer::Player);
-	
 
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mOffscreenRT->Resource(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -512,7 +526,12 @@ void MyScene::OnMouseMove(WPARAM btnState, int x, int y)
 {
 	if ((btnState & MK_LBUTTON) != 0)
 	{
-		
+		// Make each pixel correspond to a quarter of a degree.
+		float dx = XMConvertToRadians(0.25f*static_cast<float>(x - mLastMousePos.x));
+		float dy = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
+
+		mCamera.Pitch(dy);
+		mCamera.RotateY(dx);
 	}
 	if ((btnState & MK_RBUTTON) != 0)
 	{
@@ -805,12 +824,15 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
 	XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
 
+	XMMATRIX shadowTransform = XMLoadFloat4x4(&mShadowTransform);
+
 	XMStoreFloat4x4(&mMainPassCB.View, XMMatrixTranspose(view));
 	XMStoreFloat4x4(&mMainPassCB.InvView, XMMatrixTranspose(invView));
 	XMStoreFloat4x4(&mMainPassCB.Proj, XMMatrixTranspose(proj));
 	XMStoreFloat4x4(&mMainPassCB.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&mMainPassCB.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mMainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+	XMStoreFloat4x4(&mMainPassCB.ShadowTransform, XMMatrixTranspose(shadowTransform));
 
 	mMainPassCB.EyePosW = mCamera.GetPosition3f();
 
@@ -877,7 +899,8 @@ void MyScene::LoadTextures()
 		"enemyTex",
 		"enemyDetailTex",
 		"robotTex",
-		"robot_prowlerTex"
+		"robot_prowlerTex",
+		"skyCubeMap"
 	};
 
 	std::vector<std::wstring> texFilenames =
@@ -888,7 +911,8 @@ void MyScene::LoadTextures()
 		L"Textures/FlyerPlayershipAlbedo.dds",
 		L"Textures/FlyerPlayershipEmission.dds",
 		L"Textures/monster.dds",
-		L"Textures/robot_prowler.dds"
+		L"Textures/robot_prowler.dds",
+		L"Textures/desertcube1024.dds"
 	};
 
 	for (int i = 0; i < (int)texNames.size(); ++i)
@@ -908,9 +932,9 @@ void MyScene::BuildRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE texTable[4];
 	texTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); //기본텍스처
-	texTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); //디테일
-	texTable[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); //스카이박스
-	texTable[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 3, 0);//그림자용 널값
+	texTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); //디테일
+	texTable[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3); //스카이박스
+	texTable[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);//그림자용 널값
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[8];
 
@@ -1046,9 +1070,7 @@ void MyScene::BuildDescriptorHeaps()
 	int sobelSrvOffset = srvOffset + blurDescriptorCount;
 	int offscreenSrvOffset = sobelSrvOffset + mSobelFilter->DescriptorCount(); // +1
 
-	mShadowMapHeapIndex = offscreenSrvOffset + 1;
-	mNullCubeSrvIndex = mShadowMapHeapIndex + 1;
-	mNullTexSrvIndex = mNullCubeSrvIndex + 1;
+	
 
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
 	srvHeapDesc.NumDescriptors = textureDescriptorCount + blurDescriptorCount +
@@ -1069,6 +1091,7 @@ void MyScene::BuildDescriptorHeaps()
 		mTextures["robotTex"]->Resource,
 		mTextures["robot_prowlerTex"]->Resource
 	};
+	auto skyCubeMap = mTextures["skyCubeMap"]->Resource;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -1085,8 +1108,18 @@ void MyScene::BuildDescriptorHeaps()
 		// next descriptor
 		hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
 	}
-
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+	srvDesc.TextureCube.MostDetailedMip = 0;
+	srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
+	srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+	srvDesc.Format = skyCubeMap->GetDesc().Format;
+	md3dDevice->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
 	
+	mSkyTexHeapIndex = offscreenSrvOffset;
+	mShadowMapHeapIndex = mSkyTexHeapIndex + 1;
+	mNullCubeSrvIndex = mShadowMapHeapIndex + 1;
+	mNullTexSrvIndex = mNullCubeSrvIndex + 1;
+
 	// Fill out the heap with the descriptors to the BlurFilter resources.
 	
 	auto srvCpuStart = mCbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
@@ -1155,6 +1188,7 @@ void MyScene::BuildShadersAndInputLayout()
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", defines, "PS", "ps_5_1");
 
 	mShaders["shadowVS"] = d3dUtil::CompileShader(L"Shaders\\Shadows.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["shadowSkinVS"] = d3dUtil::CompileShader(L"Shaders\\Shadows.hlsl", skinnedDefines, "VS", "vs_5_1");
 	mShaders["shadowOpaquePS"] = d3dUtil::CompileShader(L"Shaders\\Shadows.hlsl", nullptr, "PS", "ps_5_1");
 	mShaders["shadowAlphaTestedPS"] = d3dUtil::CompileShader(L"Shaders\\Shadows.hlsl", alphaTestDefines, "PS", "ps_5_1");
 
@@ -1560,6 +1594,7 @@ void MyScene::BuildPSOs()
 	smapPsoDesc.RasterizerState.DepthBiasClamp = 0.0f;
 	smapPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
 	smapPsoDesc.pRootSignature = mRootSignature.Get();
+	smapPsoDesc.InputLayout = { mSkinnedInputLayout.data(), (UINT)mSkinnedInputLayout.size() };
 	smapPsoDesc.VS =
 	{
 		reinterpret_cast<BYTE*>(mShaders["shadowVS"]->GetBufferPointer()),
@@ -1575,6 +1610,31 @@ void MyScene::BuildPSOs()
 	smapPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
 	smapPsoDesc.NumRenderTargets = 0;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&smapPsoDesc, IID_PPV_ARGS(&mPSOs["shadow_opaque"])));
+
+	//
+	// PSO for shadow map pass (animation).
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC ssmapPsoDesc = opaquePsoDesc;
+	ssmapPsoDesc.RasterizerState.DepthBias = 100000;
+	ssmapPsoDesc.RasterizerState.DepthBiasClamp = 0.0f;
+	ssmapPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
+	ssmapPsoDesc.pRootSignature = mRootSignature.Get();
+	ssmapPsoDesc.InputLayout = { mSkinnedInputLayout.data(), (UINT)mSkinnedInputLayout.size() };
+	ssmapPsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["shadowSkinVS"]->GetBufferPointer()),
+		mShaders["shadowSkinVS"]->GetBufferSize()
+	};
+	ssmapPsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["shadowOpaquePS"]->GetBufferPointer()),
+		mShaders["shadowOpaquePS"]->GetBufferSize()
+	};
+
+	// Shadow map pass does not have a render target.
+	ssmapPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+	ssmapPsoDesc.NumRenderTargets = 0;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&ssmapPsoDesc, IID_PPV_ARGS(&mPSOs["shadow_skin_opaque"])));
 
 	//
 	// PSO for debug layer.
@@ -1758,6 +1818,31 @@ void MyScene::BuildPSOs()
 		mShaders["opaquePS"]->GetBufferSize()
 	};
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&skinnedOpaquePsoDesc, IID_PPV_ARGS(&mPSOs["skinnedOpaque"])));
+
+	//
+	// PSO for sky.
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC skyPsoDesc = opaquePsoDesc;
+
+	// The camera is inside the sky sphere, so just turn off culling.
+	skyPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+
+	// Make sure the depth function is LESS_EQUAL and not just LESS.  
+	// Otherwise, the normalized depth values at z = 1 (NDC) will 
+	// fail the depth test if the depth buffer was cleared to 1.
+	skyPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	skyPsoDesc.pRootSignature = mRootSignature.Get();
+	skyPsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["SkyBoxVS"]->GetBufferPointer()),
+		mShaders["SkyBoxVS"]->GetBufferSize()
+	};
+	skyPsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["SkyBoxPS"]->GetBufferPointer()),
+		mShaders["SkyBoxPS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&skyPsoDesc, IID_PPV_ARGS(&mPSOs["sky"])));
 }
 
 void MyScene::BuildFrameResources()
@@ -1818,6 +1903,11 @@ void MyScene::BuildMaterials()
 	robot_prowler->MatCBIndex = matIndex;
 	robot_prowler->DiffuseSrvHeapIndex = matIndex++;
 
+	auto sky = std::make_unique<Material>();
+	sky->Name = "sky";
+	sky->MatCBIndex = matIndex;
+	sky->DiffuseSrvHeapIndex = matIndex++;
+
 	mMaterials["rand"] = std::move(rand);
 	mMaterials["gu"] = std::move(gu);
 	mMaterials["grass"] = std::move(grass);
@@ -1825,11 +1915,26 @@ void MyScene::BuildMaterials()
 	mMaterials["enemyDetail"] = std::move(enemyDetail);
 	mMaterials["robot"] = std::move(robot);
 	mMaterials["robot_prowler"] = std::move(robot_prowler);
+	mMaterials["sky"] = std::move(sky);
 }
 
 void MyScene::BuildGameObjects()
 {
 	int objIndex = 0;
+
+	auto skyRitem = std::make_unique<GameObject>();
+	XMStoreFloat4x4(&skyRitem->World, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
+	skyRitem->TexTransform = MathHelper::Identity4x4();
+	skyRitem->ObjCBIndex = objIndex++;
+	skyRitem->Mat = mMaterials["sky"].get();
+	skyRitem->Geo = mGeometries["shapeGeo"].get();
+	skyRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	skyRitem->IndexCount = skyRitem->Geo->DrawArgs["sphere"].IndexCount;
+	skyRitem->StartIndexLocation = skyRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
+	skyRitem->BaseVertexLocation = skyRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+
+	mOpaqueRitems[(int)RenderLayer::SkyBox].push_back(skyRitem.get());
+	mAllRitems.push_back(std::move(skyRitem));
 
 	auto quadRitem = std::make_unique<GameObject>();
 	quadRitem->World = MathHelper::Identity4x4();
@@ -1932,6 +2037,7 @@ void MyScene::BuildGameObjects()
 	mOpaqueRitems[(int)RenderLayer::CollBox].push_back(line.get());
 	mAllRitems.push_back(std::move(line));
 
+	XMMATRIX brickTexTransform = XMMatrixScaling(1.5f, 2.0f, 1.0f);
 
 	m_ObjIndex = objIndex;
 
@@ -2032,12 +2138,14 @@ void MyScene::DrawSceneToShadowMap()
 	// Bind the pass constant buffer for the shadow map pass.
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
-	mCommandList->SetGraphicsRootConstantBufferView(1, passCBAddress);
-
+	mCommandList->SetGraphicsRootConstantBufferView(2, passCBAddress);
+	
 	mCommandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
-	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Player], (int)RenderLayer::Player);
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Opaque], (int)RenderLayer::Opaque);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Grid], (int)RenderLayer::Grid);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Enemy], (int)RenderLayer::Enemy);
+	mCommandList->SetPipelineState(mPSOs["shadow_skin_opaque"].Get());
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Player], (int)RenderLayer::Player);
 
 	// Change back to GENERIC_READ so we can read the texture in a shader.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),

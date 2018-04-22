@@ -1,4 +1,4 @@
-#include "LightingUtil.hlsl"
+
 #include "Common.hlsl"
 
 Texture2D gFlareMap : register(t0);

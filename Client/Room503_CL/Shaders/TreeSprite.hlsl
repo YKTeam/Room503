@@ -1,7 +1,7 @@
 
 
 // Include structures and functions for lighting.
-#include "LightingUtil.hlsl"
+
 #include "Common.hlsl"
 
 Texture2DArray gTreeMapArray : register(t0);
