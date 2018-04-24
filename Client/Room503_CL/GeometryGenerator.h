@@ -10,6 +10,8 @@
 #include <tchar.h>
 #include <iosfwd>
 
+
+
 class GeometryGenerator
 {
 public:
@@ -104,6 +106,7 @@ public:
 		std::vector<uint16> mIndices16;
 	};
 
+	
 	///<summary>
 	/// Creates a box centered at the origin with the given dimensions, where each
     /// face has m rows and n columns of vertices.

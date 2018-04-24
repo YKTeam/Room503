@@ -447,8 +447,8 @@ void MyScene::Draw(const GameTimer& gt)
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::CollBox], (int)RenderLayer::CollBox);
 	//
 	//플레이어..
-	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+	//mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+	//mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 	
 	if (mIsWireframe)
 	{
@@ -682,10 +682,10 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		mCamera.RotateY(mx);
 
 		//땅 -값
-		if (e->GetPosition().y > rand[0]->GetPosition().y + 25)//모델키는 로드시 스케일로 맞춰서 일단 상수로
+		if (e->GetPosition().y > rand[0]->GetPosition().y + 10)//모델키는 로드시 스케일로 맞춰서 일단 상수로
 			e->GravityUpdate(gt);
 		else
-			e->SetPosition(XMFLOAT3(e->GetPosition().x, -25, e->GetPosition().z));
+			e->SetPosition(XMFLOAT3(e->GetPosition().x, -50, e->GetPosition().z));
 
 		if (e->bounds.IsCollsionAABB(e->GetPosition(),&enemy[0]->bounds, enemy[0]->GetPosition()))
 			printf("충돌 \n");
@@ -847,9 +847,9 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	//간접광 흉내
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 	mMainPassCB.Lights[0].Direction = mRotatedLightDirections[0];
-	mMainPassCB.Lights[0].Strength = { 0.9f, 0.8f, 0.7f };
+	mMainPassCB.Lights[0].Strength = { 0.7f, 0.7f, 0.7f };
 	mMainPassCB.Lights[1].Direction = mRotatedLightDirections[1];
-	mMainPassCB.Lights[1].Strength = { 0.4f, 0.4f, 0.4f };
+	mMainPassCB.Lights[1].Strength = { 0.1f, 0.1f, 0.1f };
 	mMainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
 	mMainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
 
@@ -893,25 +893,25 @@ void MyScene::LoadTextures()
 {
 	std::vector<std::string> texNames =
 	{
-		"gridTex",
-		"detailTex",
+		"tileTex",
+		"tilenomalTex",
 		"grassTex",
 		"enemyTex",
 		"enemyDetailTex",
 		"robotTex",
-		"robot_prowlerTex",
+		"robot_nomalTex",
 		"skyCubeMap"
 	};
 
 	std::vector<std::wstring> texFilenames =
 	{
-		L"Textures/grid2.dds",
-		L"Textures/Detail_Texture_7.dds",
+		L"Textures/tile.dds",
+		L"Textures/tile_nmap.dds",
 		L"Textures/Grass08.dds",
 		L"Textures/FlyerPlayershipAlbedo.dds",
 		L"Textures/FlyerPlayershipEmission.dds",
 		L"Textures/monster.dds",
-		L"Textures/robot_prowler.dds",
+		L"Textures/monster_nomal.dds",
 		L"Textures/desertcube1024.dds"
 	};
 
@@ -1083,13 +1083,13 @@ void MyScene::BuildDescriptorHeaps()
 
 	std::vector<ComPtr<ID3D12Resource>> tex2DList =
 	{
-		mTextures["gridTex"]->Resource,
-		mTextures["detailTex"]->Resource,
+		mTextures["tileTex"]->Resource,
+		mTextures["tilenomalTex"]->Resource,
 		mTextures["grassTex"]->Resource,
 		mTextures["enemyTex"]->Resource,
 		mTextures["enemyDetailTex"]->Resource,
 		mTextures["robotTex"]->Resource,
-		mTextures["robot_prowlerTex"]->Resource
+		mTextures["robot_nomalTex"]->Resource
 	};
 	auto skyCubeMap = mTextures["skyCubeMap"]->Resource;
 
@@ -1509,6 +1509,7 @@ void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geo
 			vertices[k].Pos = p;
 			vertices[k].Normal = robot[z].Vertices[i].Normal;
 			vertices[k].TexC = robot[z].Vertices[i].TexC;
+			vertices[k].TangentU = robot[z].Vertices[i].TangentU;
 			vertices[k].BoneWeights = robot[z].Vertices[i].BoneWeights;
 			vertices[k].BoneIndices[0] = robot[z].Vertices[i].BoneIndices[0];
 			vertices[k].BoneIndices[1] = robot[z].Vertices[i].BoneIndices[1];
@@ -1865,15 +1866,15 @@ void MyScene::BuildMaterials()
 	rand->DiffuseSrvHeapIndex = matIndex++;
 	rand->DiffuseAlbedo = XMFLOAT4(1, 1.0f, 1, 1.0f);
 	rand->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
-	rand->Roughness = 0.3f;
+	rand->Roughness = 0.9f;
 
 	auto gu = std::make_unique<Material>();
-	gu->Name = "gu";
+	gu->Name = "rand_nomal";
 	gu->MatCBIndex = matIndex;
 	gu->DiffuseSrvHeapIndex = matIndex++;
 	gu->DiffuseAlbedo = XMFLOAT4(1, 1, 1, 1);
 	gu->FresnelR0 = XMFLOAT3(0.85f, 0.85f, 0.85f);
-	gu->Roughness = 0.6f;
+	gu->Roughness = 0.5f;
 
 	auto grass = std::make_unique<Material>();
 	grass->Name = "grass";
@@ -1898,10 +1899,10 @@ void MyScene::BuildMaterials()
 	robot->MatCBIndex = matIndex;
 	robot->DiffuseSrvHeapIndex = matIndex++;
 
-	auto robot_prowler = std::make_unique<Material>();
-	robot_prowler->Name = "robot_prowler";
-	robot_prowler->MatCBIndex = matIndex;
-	robot_prowler->DiffuseSrvHeapIndex = matIndex++;
+	auto robot_nomal = std::make_unique<Material>();
+	robot_nomal->Name = "robot_nomal";
+	robot_nomal->MatCBIndex = matIndex;
+	robot_nomal->DiffuseSrvHeapIndex = matIndex++;
 
 	auto sky = std::make_unique<Material>();
 	sky->Name = "sky";
@@ -1909,12 +1910,12 @@ void MyScene::BuildMaterials()
 	sky->DiffuseSrvHeapIndex = matIndex++;
 
 	mMaterials["rand"] = std::move(rand);
-	mMaterials["gu"] = std::move(gu);
+	mMaterials["rand_nomal"] = std::move(gu);
 	mMaterials["grass"] = std::move(grass);
 	mMaterials["enemy"] = std::move(enemy);
 	mMaterials["enemyDetail"] = std::move(enemyDetail);
 	mMaterials["robot"] = std::move(robot);
-	mMaterials["robot_prowler"] = std::move(robot_prowler);
+	mMaterials["robot_nomal"] = std::move(robot_nomal);
 	mMaterials["sky"] = std::move(sky);
 }
 
@@ -1953,7 +1954,7 @@ void MyScene::BuildGameObjects()
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////
 	auto gridRitem = std::make_unique<GameObject>();
 
-	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, -50.0f, 0.0f));
+	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, -40.0f, 0.0f));
 	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	gridRitem->ObjCBIndex = objIndex++;
 	gridRitem->Mat = mMaterials["rand"].get();
@@ -2069,36 +2070,22 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
 		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() +ri->ObjCBIndex*objCBByteSize;
 		D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = matCB->GetGPUVirtualAddress() +ri->Mat->MatCBIndex*matCBByteSize;
 
+		//스킨 인스턴스 ( 플레이어이기도함 )
 		if (ri->SkinnedModelInst != nullptr)
 		{
+			CD3DX12_GPU_DESCRIPTOR_HANDLE tex2(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 			D3D12_GPU_VIRTUAL_ADDRESS skinnedCBAddress = skinnedCB->GetGPUVirtualAddress() + ri->SkinnedCBIndex*skinnedCBByteSize;
+			tex2.Offset(ri->Mat->DiffuseSrvHeapIndex + 1, mCbvSrvUavDescriptorSize);
 			cmdList->SetGraphicsRootDescriptorTable(0, tex);
 			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
 			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
 			cmdList->SetGraphicsRootConstantBufferView(4, skinnedCBAddress);
+			cmdList->SetGraphicsRootDescriptorTable(5, tex2);
 		}
 		else if ((int)RenderLayer::Grid == itemState) {
 			CD3DX12_GPU_DESCRIPTOR_HANDLE tex2(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-			tex2.Offset(1, mCbvSrvUavDescriptorSize);
+			tex2.Offset(ri->Mat->DiffuseSrvHeapIndex + 1, mCbvSrvUavDescriptorSize);
 
-			cmdList->SetGraphicsRootDescriptorTable(0, tex);
-			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
-			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
-			cmdList->SetGraphicsRootDescriptorTable(5, tex2);
-		}
-		else if ((int)RenderLayer::Player == itemState ) {    
-			CD3DX12_GPU_DESCRIPTOR_HANDLE tex2(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-			
-			tex2.Offset(ri->Mat->DiffuseSrvHeapIndex, mCbvSrvUavDescriptorSize);
-			cmdList->SetGraphicsRootDescriptorTable(0, tex);
-			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
-			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
-			cmdList->SetGraphicsRootDescriptorTable(5, tex2);
-		}
-		else if ((int)RenderLayer::Enemy == itemState) {
-			CD3DX12_GPU_DESCRIPTOR_HANDLE tex2(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
-			tex2.Offset(14, mCbvSrvUavDescriptorSize);
 			cmdList->SetGraphicsRootDescriptorTable(0, tex);
 			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
 			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);

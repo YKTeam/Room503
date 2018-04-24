@@ -22,6 +22,13 @@ using namespace DirectX::PackedVector;
 
 ////////////////////////////// AABB ///////////////////////////////////
 
+namespace TG {
+	struct Triangle
+	{
+		unsigned short  index[3];
+	};
+}
+
 class Aabb
 {
 	//최대 최소값
@@ -231,6 +238,8 @@ public:
 	void LoadBones(UINT MeshIndex, const aiMesh* pMesh, std::vector<VertexBoneData>& Bones, bool hasAniBone);
 	int RobotModelHierarchy(string name);
 	void AddBoneData(UINT BoneID, float Weight);
+	//탄젠트 축 계산
+	void CalculateTangentArray(long vertexCount, SkinnedVertex *data, long triangleCount, TG::Triangle *triangle, XMFLOAT4 *tangent);
 	//로드 애니메이션 정보
 	void LoadAnimation(SkinnedData& skinInfo, string clipName, float loadScale);
 	void ReadBoneOffsets( UINT numBones, std::vector<DirectX::XMFLOAT4X4>& boneOffsets,float loadScale);

@@ -4,7 +4,7 @@
 #include "Common.hlsl"
 
 Texture2D    gDiffuseMap : register(t0);
-Texture2D    gDetailMap : register(t2);
+Texture2D    gNomalMap : register(t2);
 
 struct VertexIn
 {
@@ -41,14 +41,17 @@ VertexOut VS(VertexIn vin)
 
 	float3 posL = float3(0.0f, 0.0f, 0.0f);
 	float3 normalL = float3(0.0f, 0.0f, 0.0f);
+	float3 tangentL = float3(0.0f, 0.0f, 0.0f);
 	for (int i = 0; i < 4; ++i)
 	{
 		posL += weights[i] * mul(float4(vin.PosL, 1.0f), gBoneTransforms[vin.BoneIndices[i]]).xyz;
 		normalL += weights[i] * mul(vin.NormalL, (float3x3)gBoneTransforms[vin.BoneIndices[i]]);
+		tangentL += weights[i] * mul(vin.TangentL, (float3x3)gBoneTransforms[vin.BoneIndices[i]]);
 	}
 
 	vin.PosL = posL;
 	vin.NormalL = normalL;
+	vin.TangentL = tangentL;
 #endif
 
     // Transform to world space.
@@ -57,6 +60,8 @@ VertexOut VS(VertexIn vin)
 
     // Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
     vout.NormalW =  mul(vin.NormalL, (float3x3)gWorld);
+
+	vout.TangentW = mul(vin.TangentL, (float3x3)gWorld);
 
     // Transform to homogeneous clip space.
     vout.PosH = mul(posW, gViewProj);
@@ -81,7 +86,14 @@ float4 PS(VertexOut pin) : SV_Target
 	float4 base = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC);
 	//float4 detail = gDetailMap.Sample(gsamLinearWrap, pin.TexC1);
 
-    float4 diffuseAlbedo =  saturate(base) * gDiffuseAlbedo;
+	//법선 보간하면 단위길이가 안될 수 있어서 다시
+	pin.NormalW = normalize(pin.NormalW);
+	float4 normalMapSample = gNomalMap.Sample(gsamAnisotropicWrap, pin.TexC);
+	float3 bumpedNormalW = NormalSampleToWorldSpace(normalMapSample.rgb, pin.NormalW, pin.TangentW);
+	// 법선 매핑 온오프.
+	//bumpedNormalW = pin.NormalW;
+    
+	float4 diffuseAlbedo =  saturate(base) * gDiffuseAlbedo;
 
 #ifdef ALPHA_TEST
 	// Discard pixel if texture alpha < 0.1.  We do this test as soon 
@@ -105,13 +117,15 @@ float4 PS(VertexOut pin) : SV_Target
 	float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
 	shadowFactor[0] = CalcShadowFactor(pin.ShadowPosH);
 
-    const float shininess = 1.0f - gRoughness;
+    const float shininess = (1.0f - gRoughness)*normalMapSample.a;
     Material mat = { diffuseAlbedo, gFresnelR0, shininess };
 
 	float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
-        pin.NormalW, toEyeW, shadowFactor, 5);
+		bumpedNormalW, toEyeW, shadowFactor, 5);
 
     float4 litColor = ambient + directLight;
+
+
 #ifdef FOG
 	/*float fogAmount = saturate((distToEye - gFogStart) / gFogRange);
 	litColor = lerp(litColor, gFogColor, fogAmount);*/

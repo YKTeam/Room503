@@ -117,6 +117,93 @@ void GameObject::Rotate(XMFLOAT4 *pxmf4Quaternion)
 	m_xmf4x4ToParentTransform = Matrix4x4::Multiply(mtxRotate, m_xmf4x4ToParentTransform);
 }
 
+void GameObject::CalculateTangentArray(long vertexCount, SkinnedVertex *data , long triangleCount, TG::Triangle *triangle, XMFLOAT4 *tangent)
+{
+	XMFLOAT3 *tan1 = new XMFLOAT3[vertexCount * 2];
+	XMFLOAT3 *tan2 = tan1 + vertexCount;
+	ZeroMemory(tan1, vertexCount * sizeof(XMFLOAT3) * 2);
+
+	for (long a = 0; a < triangleCount; a++)
+	{
+		long i1 = triangle[a].index[0];
+		long i2 = triangle[a].index[1];
+		long i3 = triangle[a].index[2];
+
+		const XMFLOAT3& v1 = data[i1].Pos;
+		const XMFLOAT3& v2 = data[i2].Pos;
+		const XMFLOAT3& v3 = data[i3].Pos;
+
+		const XMFLOAT2& w1 = data[i1].TexC;
+		const XMFLOAT2& w2 = data[i2].TexC;
+		const XMFLOAT2& w3 = data[i3].TexC;
+
+		float x1 = v2.x - v1.x;
+		float x2 = v3.x - v1.x;
+		float y1 = v2.y - v1.y;
+		float y2 = v3.y - v1.y;
+		float z1 = v2.z - v1.z;
+		float z2 = v3.z - v1.z;
+
+		float s1 = w2.x - w1.x;
+		float s2 = w3.x - w1.x;
+		float t1 = w2.y - w1.y;
+		float t2 = w3.y - w1.y;
+
+		float r = 1.0F / (s1 * t2 - s2 * t1);
+		XMFLOAT3 sdir((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r,
+			(t2 * z1 - t1 * z2) * r);
+		XMFLOAT3 tdir((s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r,
+			(s1 * z2 - s2 * z1) * r);
+
+		tan1[i1].x += sdir.x;
+		tan1[i1].y += sdir.y;
+		tan1[i1].z += sdir.z;
+
+		tan1[i2].x += sdir.x;
+		tan1[i2].y += sdir.y;
+		tan1[i2].z += sdir.z;
+
+		tan1[i3].x += sdir.x;
+		tan1[i3].y += sdir.y;
+		tan1[i3].z += sdir.z;
+
+		tan2[i1].x += sdir.x;
+		tan2[i1].y += sdir.y;
+		tan2[i1].z += sdir.z;
+
+		tan2[i2].x += sdir.x;
+		tan2[i2].y += sdir.y;
+		tan2[i2].z += sdir.z;
+
+		tan2[i3].x += sdir.x;
+		tan2[i3].y += sdir.y;
+		tan2[i3].z += sdir.z;
+
+		//triangle++;
+	}
+
+	for (long a = 0; a < vertexCount; a++)
+	{
+		XMFLOAT3& n = data[a].Normal;
+		XMFLOAT3& t = tan1[a];
+
+		XMFLOAT4 tmp4;
+
+		XMFLOAT3 tmp = Vector3::Normalize(Vector3::Subtract(t, Vector3::ScalarProduct(n, Vector3::DotProduct(n, t))));
+		tmp4.x = tmp.x;
+		tmp4.y = tmp.y;
+		tmp4.z = tmp.z;
+		// Gram-Schmidt orthogonalize
+		tangent[a] = tmp4;
+
+		// Calculate handedness
+		tangent[a].w = (Vector3::DotProduct(Vector3::CrossProduct(n, t, false), tan2[a]) < 0.0F) ? -1.0F : 1.0F;
+	}
+
+	delete[] tan1;
+}
+
+
 void GameObject::LoadAnimationModel(const string& fileName, float loadScale)
 {
 	m_pScene = aiImportFile(fileName.c_str(), aiProcess_JoinIdenticalVertices |        // 동일한 꼭지점 결합, 인덱싱 최적화
@@ -194,19 +281,32 @@ void GameObject::LoadGameModel(const string& fileName, float loadScale, bool isM
 			InitMesh(i, pMesh, mBones, loadScale);
 			bounds.GetMaxMin(skinMeshData[0]);
 		}
-
-		//m_ModelMeshes.resize(m_meshes.size());
 	}
 }
 
 void GameObject::InitMesh(UINT index, const aiMesh * pMesh, std::vector<VertexBoneData>& Bones, float loadScale)
 {
+	TG::Triangle *tri = new TG::Triangle[pMesh->mNumFaces * 3];
+	XMFLOAT4 *tangent = new XMFLOAT4[pMesh->mNumVertices];
+	SkinnedVertex *data = new SkinnedVertex[pMesh->mNumVertices];
+
 	skinMeshData[index].Vertices.resize(pMesh->mNumVertices);
 	skinMeshData[index].Indices32.resize(pMesh->mNumFaces * 3);
 
+	for (UINT i = 0; i < pMesh->mNumFaces; ++i) {
+		const aiFace& face = pMesh->mFaces[i];
+		skinMeshData[index].Indices32[i * 3] = (face.mIndices[0]);
+		skinMeshData[index].Indices32[i * 3 + 1] = (face.mIndices[1]);
+		skinMeshData[index].Indices32[i * 3 + 2] = (face.mIndices[2]);
+
+		tri[i].index[0] = (face.mIndices[0]);
+		tri[i].index[1] = (face.mIndices[1]);
+		tri[i].index[2] = (face.mIndices[2]);
+	}
 	for (UINT i = 0; i < pMesh->mNumVertices; ++i) {
 		XMFLOAT3 pos(&pMesh->mVertices[i].x);
 		XMFLOAT3 normal(&pMesh->mNormals[i].x);
+		
 		XMFLOAT2 tex;
 		pMesh->mBones[i]->mWeights;
 		if (pMesh->HasTextureCoords(0))
@@ -214,41 +314,44 @@ void GameObject::InitMesh(UINT index, const aiMesh * pMesh, std::vector<VertexBo
 		else
 			tex = XMFLOAT2(0.0f, 0.0f);
 
-		SkinnedVertex data;
-		data.Pos.x = pos.x *loadScale;
-		data.Pos.y = pos.y *loadScale;
-		data.Pos.z = pos.z *loadScale;
-		data.Normal.x = normal.x *loadScale;
-		data.Normal.y = normal.y *loadScale;
-		data.Normal.z = normal.z *loadScale;
-		data.TexC.x = tex.x;
-		data.TexC.y = tex.y;
+		data[i].Pos.x = pos.x *loadScale;
+		data[i].Pos.y = pos.y *loadScale;
+		data[i].Pos.z = pos.z *loadScale;
+		data[i].Normal.x = normal.x *loadScale;
+		data[i].Normal.y = normal.y *loadScale;
+		data[i].Normal.z = normal.z *loadScale;
+		data[i].TexC.x = tex.x;
+		data[i].TexC.y = tex.y;
 
-		data.BoneIndices[0] = Bones[i].BoneIndices[0];
-		data.BoneIndices[1] = Bones[i].BoneIndices[1];
-		data.BoneIndices[2] = Bones[i].BoneIndices[2];
-		data.BoneIndices[3] = Bones[i].BoneIndices[3];
+		data[i].BoneIndices[0] = Bones[i].BoneIndices[0];
+		data[i].BoneIndices[1] = Bones[i].BoneIndices[1];
+		data[i].BoneIndices[2] = Bones[i].BoneIndices[2];
+		data[i].BoneIndices[3] = Bones[i].BoneIndices[3];
 
-		data.BoneWeights.x = Bones[i].BoneWeights.x;
-		data.BoneWeights.y = Bones[i].BoneWeights.y;
-		data.BoneWeights.z = Bones[i].BoneWeights.z;
+		data[i].BoneWeights.x = Bones[i].BoneWeights.x;
+		data[i].BoneWeights.y = Bones[i].BoneWeights.y;
+		data[i].BoneWeights.z = Bones[i].BoneWeights.z;
 
-		skinMeshData[index].Vertices[i].Position = data.Pos;
-		skinMeshData[index].Vertices[i].Normal = data.Normal;
-		skinMeshData[index].Vertices[i].TexC = data.TexC;
-		skinMeshData[index].Vertices[i].BoneIndices[0] = data.BoneIndices[0];
-		skinMeshData[index].Vertices[i].BoneIndices[1] = data.BoneIndices[1];
-		skinMeshData[index].Vertices[i].BoneIndices[2] = data.BoneIndices[2];
-		skinMeshData[index].Vertices[i].BoneIndices[3] = data.BoneIndices[3];
-		skinMeshData[index].Vertices[i].BoneWeights = data.BoneWeights;
-		}
-
-	for (UINT i = 0; i < pMesh->mNumFaces; ++i) {
-		const aiFace& face = pMesh->mFaces[i];
-		skinMeshData[index].Indices32[i*3] = (face.mIndices[0]);
-		skinMeshData[index].Indices32[i*3+1] = (face.mIndices[1]);
-		skinMeshData[index].Indices32[i*3+2] = (face.mIndices[2]);
+		skinMeshData[index].Vertices[i].Position = data[i].Pos;
+		skinMeshData[index].Vertices[i].Normal = data[i].Normal;
+		skinMeshData[index].Vertices[i].TexC = data[i].TexC;
+		
+		skinMeshData[index].Vertices[i].BoneIndices[0] = data[i].BoneIndices[0];
+		skinMeshData[index].Vertices[i].BoneIndices[1] = data[i].BoneIndices[1];
+		skinMeshData[index].Vertices[i].BoneIndices[2] = data[i].BoneIndices[2];
+		skinMeshData[index].Vertices[i].BoneIndices[3] = data[i].BoneIndices[3];
+		skinMeshData[index].Vertices[i].BoneWeights = data[i].BoneWeights;
 	}
+
+	CalculateTangentArray(pMesh->mNumVertices, data, pMesh->mNumFaces, tri, tangent);
+	for (UINT i = 0; i < pMesh->mNumVertices; ++i) {
+		skinMeshData[index].Vertices[i].TangentU.x = tangent[i].x;
+		skinMeshData[index].Vertices[i].TangentU.y = tangent[i].y;
+		skinMeshData[index].Vertices[i].TangentU.z = tangent[i].z;
+	}
+	delete tri;
+	delete data;
+	delete tangent;
 }
 
 int GameObject::RobotModelHierarchy(string name) {
