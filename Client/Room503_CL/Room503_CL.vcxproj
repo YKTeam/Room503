@@ -151,12 +151,14 @@
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
+    <ClCompile Include="Main.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="RenderTarget.cpp" />
     <ClCompile Include="Scene01.cpp" />
     <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="SkinnedData.cpp" />
     <ClCompile Include="SobelFilter.cpp" />
+    <ClCompile Include="WaitScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BlurFilter.h" />
@@ -171,10 +173,12 @@
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="RenderTarget.h" />
+    <ClInclude Include="Scene01.h" />
     <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="SkinnedData.h" />
     <ClInclude Include="SobelFilter.h" />
     <ClInclude Include="UploadBuffer.h" />
+    <ClInclude Include="WaitScene.h" />
     <ClInclude Include="XMHelper12.h" />
   </ItemGroup>
   <ItemGroup>

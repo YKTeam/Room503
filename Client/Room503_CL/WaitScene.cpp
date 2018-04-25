@@ -1,26 +1,29 @@
-#include "Scene01.h"
+#include "WaitScene.h"
 
-MyScene::MyScene(HINSTANCE hInstance)
-: D3DApp(hInstance) 
+extern bool gIsChangeScene;
+extern int gSceneIndex;
+
+WaitScene::WaitScene(HINSTANCE hInstance)
+	: D3DApp(hInstance)
 {
 	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	mSceneBounds.Radius = sqrtf(1500.0f*1500.0f + 3000.0f*3000.0f);
 }
 
-MyScene::~MyScene()
+WaitScene::~WaitScene()
 {
 }
 
-bool MyScene::Initialize()
+bool WaitScene::Initialize()
 {
-    //if(!D3DApp::Initialize())
-	//	return false;
-		
+	if (!D3DApp::Initialize())
+		return false;
+
 	// Reset the command list to prep for initialization commands.
 	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
 	mCbvSrvUavDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	
+
 	//md3dDevice->
 
 #ifdef _DEBUG
@@ -34,7 +37,7 @@ bool MyScene::Initialize()
 		md3dDevice.Get(),
 		mClientWidth, mClientHeight,
 		mBackBufferFormat);
-	
+
 	mOffscreenRT = std::make_unique<RenderTarget>(
 		md3dDevice.Get(),
 		mClientWidth, mClientHeight,
@@ -52,12 +55,12 @@ bool MyScene::Initialize()
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
 	BuildShapeGeometry();
-	BuildFbxGeometry("Model/robotFree3.fbx", "robot_freeGeo", "robot_free", 1.0f, false , true);//angle  robotModel  robotIdle
-	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 1.0f, false , false);
+	BuildFbxGeometry("Model/robotFree3.fbx", "robot_freeGeo", "robot_free", 1.0f, false, true);//angle  robotModel  robotIdle
+	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot", 1.0f, false, false);
 	BuildFbxGeometry("Model/testmap2.obj", "map00Geo", "map00", 1, true, false);
 	//BuildAnimation("Model/robotidle2.fbx","idle", 1.0f, false);
-	BuildAnimation("Model/robotFree3.fbx","walk", 1.0f, false);//robotwalk
-	
+	BuildAnimation("Model/robotFree3.fbx", "walk", 1.0f, false);//robotwalk
+
 
 	BuildMaterials();
 	BuildGameObjects();
@@ -76,11 +79,11 @@ bool MyScene::Initialize()
 
 	// Wait until initialization is complete.
 	FlushCommandQueue();
-	
+
 	return true;
 }
 
-void MyScene::CreateRtvAndDsvDescriptorHeaps()
+void WaitScene::CreateRtvAndDsvDescriptorHeaps()
 {
 	// Add +1 descriptor for offscreen render target.
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
@@ -100,7 +103,7 @@ void MyScene::CreateRtvAndDsvDescriptorHeaps()
 		&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
 }
 
-void MyScene::OnResize()
+void WaitScene::OnResize()
 {
 	if (mSobelFilter != nullptr)
 	{
@@ -123,9 +126,9 @@ void MyScene::OnResize()
 	D3DApp::OnResize();
 }
 
-void MyScene::Update(const GameTimer& gt)
+void WaitScene::Update(const GameTimer& gt)
 {
-	
+
 	OnKeyboardInput(gt);
 
 	// 순환적으로 자원 프레임 배열의 다음 원소에 접근한다
@@ -143,7 +146,7 @@ void MyScene::Update(const GameTimer& gt)
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
-	
+
 	mLightRotationAngle += 0.1f*gt.DeltaTime();
 	XMMATRIX R = XMMatrixRotationY(mLightRotationAngle);
 	for (int i = 0; i < 3; ++i)
@@ -162,11 +165,11 @@ void MyScene::Update(const GameTimer& gt)
 	UpdateShadowPassCB(gt);
 }
 
-void MyScene::Draw(const GameTimer& gt)
+void WaitScene::Draw(const GameTimer& gt)
 {
 	auto cmdListAlloc = mCurrFrameResource->CmdListAlloc;
-    // 명령 기록에 관련된 메모리의 재활용을 위해 명령 할당자를 재설정한다.
-    // 재설정은 GPU가 관련 명령 목ㅇ록들을 모두 처리한 후에 일어남
+	// 명령 기록에 관련된 메모리의 재활용을 위해 명령 할당자를 재설정한다.
+	// 재설정은 GPU가 관련 명령 목ㅇ록들을 모두 처리한 후에 일어남
 	ThrowIfFailed(cmdListAlloc->Reset());
 
 	// 명령 목록을 ExecuteCommandList를 통해서 명령 대기열에
@@ -191,20 +194,20 @@ void MyScene::Draw(const GameTimer& gt)
 
 	///////////////////////////////////////////////////////////////////////////////////////////
 
-    // 뷰포트와 가위 직사각형 설정
+	// 뷰포트와 가위 직사각형 설정
 	// 명령 목록을 재설정할 때마다 재설정
-    mCommandList->RSSetViewports(1, &mScreenViewport);
-    mCommandList->RSSetScissorRects(1, &mScissorRect);
+	mCommandList->RSSetViewports(1, &mScreenViewport);
+	mCommandList->RSSetScissorRects(1, &mScissorRect);
 
 	// 자원 용도에 관련된 상태 전이를 Direct3D에 통지한다
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mOffscreenRT->Resource(),
 		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    // 후면 버퍼와 깊이 버퍼를 지운다.
+	// 후면 버퍼와 깊이 버퍼를 지운다.
 	mCommandList->ClearRenderTargetView(mOffscreenRT->Rtv(), Colors::LightSteelBlue, 0, nullptr);
 	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	
-    // 렌더링 결과가 기록될 렌더 대상 버퍼들을 지정
+
+	// 렌더링 결과가 기록될 렌더 대상 버퍼들을 지정
 	mCommandList->OMSetRenderTargets(1, &mOffscreenRT->Rtv(), true, &DepthStencilView());
 
 	////////////////////////////////////////////////////////////
@@ -215,13 +218,13 @@ void MyScene::Draw(const GameTimer& gt)
 
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE skyTexDescriptor(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-	skyTexDescriptor.Offset(mSkyTexHeapIndex+1, mCbvSrvUavDescriptorSize);
+	skyTexDescriptor.Offset(mSkyTexHeapIndex + 1, mCbvSrvUavDescriptorSize);
 	mCommandList->SetGraphicsRootDescriptorTable(7, skyTexDescriptor);
 
 	//mCommandList->SetPipelineState(mPSOs["debug"].Get());
 	//DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Debug], (int)RenderLayer::Debug);
 
-	
+
 	if (mIsWireframe)
 	{
 		mCommandList->SetPipelineState(mPSOs["opaque_wireframe"].Get());
@@ -238,7 +241,7 @@ void MyScene::Draw(const GameTimer& gt)
 	//플레이어..
 	//mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 	//mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
-	
+
 	if (mIsWireframe)
 	{
 		mCommandList->SetPipelineState(mPSOs["opaque_wireframe"].Get());
@@ -254,7 +257,7 @@ void MyScene::Draw(const GameTimer& gt)
 	mSobelFilter->Execute(mCommandList.Get(), mPostProcessSobelRootSignature.Get(),
 		mPSOs["sobel"].Get(), mOffscreenRT->Srv());
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
-	
+
 	mCommandList->SetGraphicsRootSignature(mPostProcessSobelRootSignature.Get());
 	mCommandList->SetPipelineState(mPSOs["composite"].Get());
 	mCommandList->SetGraphicsRootDescriptorTable(0, mOffscreenRT->Srv());
@@ -275,8 +278,8 @@ void MyScene::Draw(const GameTimer& gt)
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
-	
-	
+
+
 	// Done recording commands.
 	ThrowIfFailed(mCommandList->Close());
 
@@ -297,7 +300,7 @@ void MyScene::Draw(const GameTimer& gt)
 	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
 }
 
-void MyScene::OnMouseDown(WPARAM btnState, int x, int y)
+void WaitScene::OnMouseDown(WPARAM btnState, int x, int y)
 {
 	if ((btnState & MK_LBUTTON) != 0)
 	{
@@ -305,13 +308,13 @@ void MyScene::OnMouseDown(WPARAM btnState, int x, int y)
 	SetCapture(mhMainWnd);
 }
 
-void MyScene::OnMouseUp(WPARAM btnState, int x, int y)
+void WaitScene::OnMouseUp(WPARAM btnState, int x, int y)
 {
 	m_CameraMoveLevel = 0;
 	ReleaseCapture();
 }
 
-void MyScene::OnMouseMove(WPARAM btnState, int x, int y)
+void WaitScene::OnMouseMove(WPARAM btnState, int x, int y)
 {
 	if ((btnState & MK_LBUTTON) != 0)
 	{
@@ -333,26 +336,26 @@ void MyScene::OnMouseMove(WPARAM btnState, int x, int y)
 		my = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
 		blurMx = 0.1f*static_cast<float>(x - mLastMousePos.x);
 		blurMy = 0.1f*static_cast<float>(y - mLastMousePos.y);
-		printf("%.2f, %.2f\n", mx,my);
-		if ( abs( blurMx ) <= 0.3f && abs(blurMy) <= 0.3f)
+		printf("%.2f, %.2f\n", mx, my);
+		if (abs(blurMx) <= 0.3f && abs(blurMy) <= 0.3f)
 			m_CameraMoveLevel = m_BlurCount;
 		else if (abs(blurMx) >= 0.7f || abs(blurMy) >= 0.7f) {
 			m_CameraMoveLevel = 2;
 		}
 		else if (abs(blurMx)  > 0.3f || abs(blurMy) > 0.3f)
-			m_CameraMoveLevel = 1+ m_BlurCount;
-		
-		
+			m_CameraMoveLevel = 1 + m_BlurCount;
+
+
 	}
 
 	mLastMousePos.x = x;
 	mLastMousePos.y = y;
 	//mCamera.UpdateViewMatrix();
-	
+
 }
 
 
-void MyScene::OnKeyboardInput(const GameTimer& gt)
+void WaitScene::OnKeyboardInput(const GameTimer& gt)
 {
 	const float dt = gt.DeltaTime();
 
@@ -366,6 +369,10 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 	}
 	if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
 		OnResize();
+		//씬 변경
+		gIsChangeScene = true;
+		gSceneIndex = 1;
+		PostQuitMessage(0);
 		return;
 	}
 
@@ -406,20 +413,20 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
 			eplayer[0]->SetLook3f(XMFLOAT3(1, 0, 0));
 			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
-			if ( !( GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN) ))
-			eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
+			if (!(GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN)))
+				eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
 		}
 		if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
 			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
 			eplayer[0]->SetLook3f(XMFLOAT3(-1, 0, 0));
 			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
-			if ( !(GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN) ))
-			eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
+			if (!(GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN)))
+				eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
 		}
 		if (GetAsyncKeyState(VK_UP) & 0x8000) {
 			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
-			XMFLOAT3 look = Vector3::Normalize( Vector3::Add( XMFLOAT3(0, 0, -1) , eplayer[0]->GetLook3f()));
-			
+			XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, -1), eplayer[0]->GetLook3f()));
+
 			eplayer[0]->SetLook3f(look);
 			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
 			eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
@@ -434,17 +441,17 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 		}
 	}
 	else mSkinnedModelInst->SetNowAni("idle");
-	
+
 
 	mCamera.UpdateViewMatrix();
 }
 
-void MyScene::AnimateMaterials(const GameTimer& gt)
+void WaitScene::AnimateMaterials(const GameTimer& gt)
 {
 
 }
 
-void MyScene::UpdateSkinnedCBs(const GameTimer& gt)
+void WaitScene::UpdateSkinnedCBs(const GameTimer& gt)
 {
 	auto currSkinnedCB = mCurrFrameResource->SkinnedCB.get();
 
@@ -459,7 +466,7 @@ void MyScene::UpdateSkinnedCBs(const GameTimer& gt)
 	currSkinnedCB->CopyData(0, skinnedConstants);
 }
 
-void MyScene::UpdateObjectCBs(const GameTimer& gt)
+void WaitScene::UpdateObjectCBs(const GameTimer& gt)
 {
 	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
 
@@ -476,9 +483,9 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		else
 			e->SetPosition(XMFLOAT3(e->GetPosition().x, -50, e->GetPosition().z));
 
-		if (e->bounds.IsCollsionAABB(e->GetPosition(),&enemy[0]->bounds, enemy[0]->GetPosition()))
+		if (e->bounds.IsCollsionAABB(e->GetPosition(), &enemy[0]->bounds, enemy[0]->GetPosition()))
 			printf("충돌 \n");
-		else 
+		else
 			printf("NO \n");
 
 		//회전초기화
@@ -486,11 +493,11 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		my = 0;
 
 		e->NumFramesDirty = gNumFrameResources;
-		
+
 		mCamera.UpdateViewMatrix();
 		//mCameraTmp = mCamera;
 	}
-	
+
 	for (auto& e : mOpaqueRitems[(int)RenderLayer::Enemy])
 	{
 
@@ -516,19 +523,19 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 
 		e->NumFramesDirty = gNumFrameResources;
 	}
-	
-	
+
+
 	for (auto& e : mAllRitems)
 	{
 		if (e->NumFramesDirty > 0)
 		{
 			XMMATRIX world = XMLoadFloat4x4(&e->World);
-			XMMATRIX texTransform = XMLoadFloat4x4(&e->TexTransform); 
+			XMMATRIX texTransform = XMLoadFloat4x4(&e->TexTransform);
 
 			ObjectConstants objConstants;
 			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
 			XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
-			
+
 			currObjectCB->CopyData(e->ObjCBIndex, objConstants);
 			e->NumFramesDirty--;
 
@@ -536,7 +543,7 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 	}
 }
 
-void MyScene::UpdateMaterialBuffer(const GameTimer& gt)
+void WaitScene::UpdateMaterialBuffer(const GameTimer& gt)
 {
 	auto currMaterialBuffer = mCurrFrameResource->MaterialCB.get();
 	for (auto& e : mMaterials)
@@ -563,7 +570,7 @@ void MyScene::UpdateMaterialBuffer(const GameTimer& gt)
 	}
 }
 
-void MyScene::UpdateShadowTransform(const GameTimer& gt)
+void WaitScene::UpdateShadowTransform(const GameTimer& gt)
 {
 	// Only the first "main" light casts a shadow.
 	XMVECTOR lightDir = XMLoadFloat3(&mRotatedLightDirections[0]);
@@ -603,11 +610,11 @@ void MyScene::UpdateShadowTransform(const GameTimer& gt)
 	XMStoreFloat4x4(&mShadowTransform, S);
 }
 
-void MyScene::UpdateMainPassCB(const GameTimer& gt)
+void WaitScene::UpdateMainPassCB(const GameTimer& gt)
 {
 	XMMATRIX view = mCamera.GetView();
 	XMMATRIX proj = mCamera.GetProj();
-	
+
 	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
 	XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
@@ -644,12 +651,12 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 
 	mMainPassCB.gFogStart = 100.0f;
 	mMainPassCB.gFogRange = 700.0f;
-	
+
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
 }
 
-void MyScene::UpdateShadowPassCB(const GameTimer& gt)
+void WaitScene::UpdateShadowPassCB(const GameTimer& gt)
 {
 	XMMATRIX view = XMLoadFloat4x4(&mLightView);
 	XMMATRIX proj = XMLoadFloat4x4(&mLightProj);
@@ -678,7 +685,7 @@ void MyScene::UpdateShadowPassCB(const GameTimer& gt)
 	currPassCB->CopyData(1, mShadowPassCB);
 }
 
-void MyScene::LoadTextures()
+void WaitScene::LoadTextures()
 {
 	std::vector<std::string> texNames =
 	{
@@ -717,14 +724,14 @@ void MyScene::LoadTextures()
 	}
 }
 
-void MyScene::BuildRootSignature()
+void WaitScene::BuildRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE texTable[4];
 	texTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); //기본텍스처
 	texTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); //디테일
 	texTable[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3); //스카이박스
 	texTable[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);//그림자용 널값
-	// Root parameter can be a table, root descriptor or root constants.
+															   // Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[8];
 
 	// Perfomance TIP: Order from most frequent to least frequent.
@@ -740,7 +747,7 @@ void MyScene::BuildRootSignature()
 
 	auto staticSamplers = GetStaticSamplers();
 
-	  // 루트 서명은 루트 매개변수들의 배열이다
+	// 루트 서명은 루트 매개변수들의 배열이다
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(8, slotRootParameter, //루트파라메터 사이즈
 		(UINT)staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -763,7 +770,7 @@ void MyScene::BuildRootSignature()
 		IID_PPV_ARGS(mRootSignature.GetAddressOf())));
 }
 
-void MyScene::BuildPostProcessRootSignature()
+void WaitScene::BuildPostProcessRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE srvTable;
 	srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
@@ -803,7 +810,7 @@ void MyScene::BuildPostProcessRootSignature()
 		IID_PPV_ARGS(mPostProcessRootSignature.GetAddressOf())));
 }
 
-void MyScene::BuildPostProcessSobelRootSignature()
+void WaitScene::BuildPostProcessSobelRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE srvTable0;
 	srvTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
@@ -848,7 +855,7 @@ void MyScene::BuildPostProcessSobelRootSignature()
 		IID_PPV_ARGS(mPostProcessSobelRootSignature.GetAddressOf())));
 }
 
-void MyScene::BuildDescriptorHeaps()
+void WaitScene::BuildDescriptorHeaps()
 {
 	int rtvOffset = SwapChainBufferCount;
 
@@ -859,7 +866,7 @@ void MyScene::BuildDescriptorHeaps()
 	int sobelSrvOffset = srvOffset + blurDescriptorCount;
 	int offscreenSrvOffset = sobelSrvOffset + mSobelFilter->DescriptorCount(); // +1
 
-	
+
 
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
 	srvHeapDesc.NumDescriptors = textureDescriptorCount + blurDescriptorCount +
@@ -903,14 +910,14 @@ void MyScene::BuildDescriptorHeaps()
 	srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
 	srvDesc.Format = skyCubeMap->GetDesc().Format;
 	md3dDevice->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
-	
+
 	mSkyTexHeapIndex = offscreenSrvOffset;
 	mShadowMapHeapIndex = mSkyTexHeapIndex + 1;
 	mNullCubeSrvIndex = mShadowMapHeapIndex + 1;
 	mNullTexSrvIndex = mNullCubeSrvIndex + 1;
 
 	// Fill out the heap with the descriptors to the BlurFilter resources.
-	
+
 	auto srvCpuStart = mCbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	auto srvGpuStart = mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	auto dsvCpuStart = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -951,7 +958,7 @@ void MyScene::BuildDescriptorHeaps()
 		CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1, mDsvDescriptorSize));
 }
 
-void MyScene::BuildShadersAndInputLayout()
+void WaitScene::BuildShadersAndInputLayout()
 {
 	const D3D_SHADER_MACRO defines[] =
 	{
@@ -1005,33 +1012,33 @@ void MyScene::BuildShadersAndInputLayout()
 	mInputLayout =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
 	mTreeSpriteInputLayout =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "SIZE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	{ "SIZE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
 	mSkinnedInputLayout =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "WEIGHTS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 44, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "BONEINDICES", 0, DXGI_FORMAT_R8G8B8A8_UINT, 0, 56, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	{ "WEIGHTS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 44, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	{ "BONEINDICES", 0, DXGI_FORMAT_R8G8B8A8_UINT, 0, 56, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
 }
 
-void MyScene::BuildAnimation(const std::string fileName,std::string clipNmae, float loadScale, bool isMap)
+void WaitScene::BuildAnimation(const std::string fileName, std::string clipNmae, float loadScale, bool isMap)
 {
 	auto dummy = std::make_unique<GameObject>();
-	
+
 	dummy->pMesh = playerMesh;
 	dummy->boneOffsets = playerboneOffsets;
 	dummy->boneIndexToParentIndex = playerboneIndexToParentIndex;
@@ -1051,7 +1058,7 @@ void MyScene::BuildAnimation(const std::string fileName,std::string clipNmae, fl
 	mSkinnedModelInst->SetNowAni("Take001");
 }
 
-void MyScene::BuildShapeGeometry()
+void WaitScene::BuildShapeGeometry()
 {
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData box = geoGen.CreateBox(1.0f, 1.0f, 1.0f, 3);
@@ -1198,7 +1205,7 @@ void MyScene::BuildShapeGeometry()
 	mGeometries[geo->Name] = std::move(geo);
 }
 
-void MyScene::BuildCollBoxGeometry(Aabb colbox, const std::string geoName, const std::string meshName)
+void WaitScene::BuildCollBoxGeometry(Aabb colbox, const std::string geoName, const std::string meshName)
 {
 	GeometryGenerator geoGen;
 	XMFLOAT3 *_box = colbox.GetAabbBox();
@@ -1256,19 +1263,19 @@ void MyScene::BuildCollBoxGeometry(Aabb colbox, const std::string geoName, const
 	mGeometries[geo->Name] = std::move(geo);
 }
 
-void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geoName , const std::string meshName, float loadScale , bool isMap, bool hasAniBone)
+void WaitScene::BuildFbxGeometry(const std::string fileName, const std::string geoName, const std::string meshName, float loadScale, bool isMap, bool hasAniBone)
 {
 	GeometryGenerator geoGen;
 	auto dummy = std::make_unique<GameObject>();
 	dummy->LoadGameModel(fileName, loadScale, isMap, hasAniBone);
-	
+
 	if (hasAniBone) {
 		playerMesh = dummy->pMesh;
 		playerboneOffsets = dummy->boneOffsets;
 		playerboneIndexToParentIndex = dummy->boneIndexToParentIndex;
 		playerboneName = dummy->boneName;
 	}
-	
+
 	GeometryGenerator::SkinnedMeshData *robot = dummy->GetSkinMeshData();
 	int meshSize = dummy->meshSize;
 
@@ -1344,7 +1351,7 @@ void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geo
 }
 
 
-void MyScene::BuildPSOs()
+void WaitScene::BuildPSOs()
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
 
@@ -1375,7 +1382,7 @@ void MyScene::BuildPSOs()
 	opaquePsoDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 	opaquePsoDesc.DSVFormat = mDepthStencilFormat;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
-	
+
 	//
 	// PSO for shadow map pass.
 	//
@@ -1471,14 +1478,14 @@ void MyScene::BuildPSOs()
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframePsoDesc = opaquePsoDesc;
 	opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaqueWireframePsoDesc, IID_PPV_ARGS(&mPSOs["opaque_wireframe"])));
-	
+
 	//
 	// 그리드
 	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gridPsoDesc = opaquePsoDesc;
 	gridPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&gridPsoDesc, IID_PPV_ARGS(&mPSOs["grid"])));
-	
+
 	//
 	// PSO for tree sprites
 	//
@@ -1635,18 +1642,18 @@ void MyScene::BuildPSOs()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&skyPsoDesc, IID_PPV_ARGS(&mPSOs["sky"])));
 }
 
-void MyScene::BuildFrameResources()
+void WaitScene::BuildFrameResources()
 {
 	mFrameResources.clear();
 	for (int i = 0; i < gNumFrameResources; ++i)
 	{
 		mFrameResources.push_back(std::make_unique<FrameResource>(md3dDevice.Get(),
 			2, (UINT)mAllRitems.size(), 1, (UINT)mMaterials.size()));
-	
+
 	}
 }
 
-void MyScene::BuildMaterials()
+void WaitScene::BuildMaterials()
 {
 	int matIndex = 0;
 	auto rand = std::make_unique<Material>();
@@ -1708,7 +1715,7 @@ void MyScene::BuildMaterials()
 	mMaterials["sky"] = std::move(sky);
 }
 
-void MyScene::BuildGameObjects()
+void WaitScene::BuildGameObjects()
 {
 	int objIndex = 0;
 
@@ -1795,12 +1802,12 @@ void MyScene::BuildGameObjects()
 	dummy->StartIndexLocation = dummy->Geo->DrawArgs["robot"].StartIndexLocation;
 	dummy->BaseVertexLocation = dummy->Geo->DrawArgs["robot"].BaseVertexLocation;
 
-	BuildCollBoxGeometry(dummy->bounds,"dummyBoxGeo","dummyBox");
+	BuildCollBoxGeometry(dummy->bounds, "dummyBoxGeo", "dummyBox");
 
 	mOpaqueRitems[(int)RenderLayer::Enemy].push_back(dummy.get());
 	mAllRitems.push_back(std::move(dummy));
 
-	
+
 	//임시라인
 	auto lines = std::make_unique<GameObject>();
 	XMStoreFloat4x4(&lines->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
@@ -1834,30 +1841,30 @@ void MyScene::BuildGameObjects()
 	////////////////////////////////////////////////////////////////////////////////////////
 }
 
-void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vector<GameObject*>& ritems , const int itemState)
+void WaitScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vector<GameObject*>& ritems, const int itemState)
 {
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
-    UINT matCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
+	UINT matCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
 	UINT skinnedCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(SkinnedConstants));
 
 	auto objectCB = mCurrFrameResource->ObjectCB->Resource();
 	auto matCB = mCurrFrameResource->MaterialCB->Resource();
 	auto skinnedCB = mCurrFrameResource->SkinnedCB->Resource();
 
-    // For each render item...
-    for(size_t i = 0; i < ritems.size(); ++i)
-    {
+	// For each render item...
+	for (size_t i = 0; i < ritems.size(); ++i)
+	{
 		auto ri = ritems[i];
 
-        cmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());
-        cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
-        cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
+		cmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());
+		cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+		cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
 		CD3DX12_GPU_DESCRIPTOR_HANDLE tex(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 		tex.Offset(ri->Mat->DiffuseSrvHeapIndex, mCbvSrvUavDescriptorSize);
-		
-		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() +ri->ObjCBIndex*objCBByteSize;
-		D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = matCB->GetGPUVirtualAddress() +ri->Mat->MatCBIndex*matCBByteSize;
+
+		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->ObjCBIndex*objCBByteSize;
+		D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = matCB->GetGPUVirtualAddress() + ri->Mat->MatCBIndex*matCBByteSize;
 
 		//스킨 인스턴스 ( 플레이어이기도함 )
 		if (ri->SkinnedModelInst != nullptr)
@@ -1886,12 +1893,12 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
 			cmdList->SetGraphicsRootConstantBufferView(5, matCBAddress);
 		}
 
-        cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
-		
+		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+
 	}
 }
 
-void MyScene::DrawSceneToShadowMap()
+void WaitScene::DrawSceneToShadowMap()
 {
 	mCommandList->RSSetViewports(1, &mShadowMap->Viewport());
 	mCommandList->RSSetScissorRects(1, &mShadowMap->ScissorRect());
@@ -1915,7 +1922,7 @@ void MyScene::DrawSceneToShadowMap()
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCBAddress);
-	
+
 	mCommandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Opaque], (int)RenderLayer::Opaque);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Grid], (int)RenderLayer::Grid);
@@ -1928,7 +1935,7 @@ void MyScene::DrawSceneToShadowMap()
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
 }
 
-void MyScene::DrawFullscreenQuad(ID3D12GraphicsCommandList* cmdList)
+void WaitScene::DrawFullscreenQuad(ID3D12GraphicsCommandList* cmdList)
 {
 	// Null-out IA stage since we build the vertex off the SV_VertexID in the shader.
 	cmdList->IASetVertexBuffers(0, 1, nullptr);
@@ -1938,7 +1945,7 @@ void MyScene::DrawFullscreenQuad(ID3D12GraphicsCommandList* cmdList)
 	cmdList->DrawInstanced(6, 1, 0, 0);
 }
 
-std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> MyScene::GetStaticSamplers()
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> WaitScene::GetStaticSamplers()
 {
 	// Applications usually only need a handful of samplers.  So just define them all up front
 	// and keep them available as part of the root signature.  

@@ -14,6 +14,20 @@
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
 
+enum class RenderLayer : int
+{
+	Opaque = 0,
+	Grid,
+	Player,
+	Shadow,
+	Grass,
+	SkyBox,
+	Enemy,//Àû
+	CollBox,
+	Debug,
+	Count
+};
+
 class D3DApp
 {
 protected:

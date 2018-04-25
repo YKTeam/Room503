@@ -9,8 +9,7 @@ using namespace DirectX;
 
 LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	
-    return D3DApp::GetApp()->MsgProc(hwnd, msg, wParam, lParam);
+	return D3DApp::GetApp()->MsgProc(hwnd, msg, wParam, lParam);
 }
 
 D3DApp* D3DApp::mApp = nullptr;

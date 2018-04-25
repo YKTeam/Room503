@@ -16,15 +16,15 @@
     <Filter Include="Shader">
       <UniqueIdentifier>{988072ce-5881-4834-a889-661565dda585}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Scene">
+      <UniqueIdentifier>{3ebc053b-e73a-4f3a-b323-ab670b94e0b7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BlurFilter.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="Camera.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="d3dApp.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="d3dUtil.cpp">
@@ -51,9 +51,6 @@
     <ClCompile Include="RenderTarget.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="Scene01.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="SobelFilter.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
@@ -63,15 +60,24 @@
     <ClCompile Include="ShadowMap.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="Scene01.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="WaitScene.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="d3dApp.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BlurFilter.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Camera.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="d3dApp.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="d3dUtil.h">
@@ -115,6 +121,15 @@
     </ClInclude>
     <ClInclude Include="ShadowMap.h">
       <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="WaitScene.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene01.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dApp.h">
+      <Filter>Scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
