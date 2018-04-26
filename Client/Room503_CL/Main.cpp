@@ -16,22 +16,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 #endif
 	
 	//MyScene *scene01 = nullptr;// = new MyScene(hInstance);
-	WaitScene *waitScene = new WaitScene(hInstance);
+	//WaitScene *waitScene = new WaitScene(hInstance);
 	while (1)
 	{
 		try
 		{
 			if (gSceneIndex == 0) {
+				WaitScene *waitScene = new WaitScene(hInstance);
 				if (!waitScene->Initialize())
 					return 0;
 				waitScene->Run();
+				delete waitScene;
 			}
-			else if (gSceneIndex == 1) {
-				if (!waitScene->Initialize())
-					return 0;
-				waitScene->Run();
-			}
-
 			if (gIsChangeScene == false)
 				return 0;
 			else continue;
@@ -43,5 +39,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 			return 0;
 		}
 	}
-	delete waitScene;
+	
 }

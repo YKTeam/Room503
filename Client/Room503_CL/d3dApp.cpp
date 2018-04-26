@@ -86,7 +86,6 @@ int D3DApp::Run()
 				CalculateFrameStats();
 				Update(mTimer);	
                 Draw(mTimer);
-				//DrawMini(mTimer);
 			}
 			else
 			{

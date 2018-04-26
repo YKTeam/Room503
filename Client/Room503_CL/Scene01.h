@@ -19,7 +19,6 @@ using namespace DirectX::PackedVector;
 
 
 
-
 class MyScene : public D3DApp
 {
 public:
