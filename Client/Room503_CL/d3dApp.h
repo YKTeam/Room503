@@ -14,10 +14,30 @@
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
 
+enum class Scene : int
+{
+	Menu = 0,
+	Scene01 = 1,
+	Scene02 = 2,
+	Scene03 = 3,
+	Scene04 = 4,
+	Scene05 = 5,
+	Scene06 = 6,
+	Scene07 = 7,
+	Count
+};
+
 enum class RenderLayer : int
 {
 	Opaque = 0,
 	Grid,
+	Scene01_Map,
+	Scene02_Map,
+	Scene03_Map,
+	Scene04_Map,
+	Scene05_Map,
+	Scene06_Map,
+	Scene07_Map,
 	Player,
 	Shadow,
 	Grass,

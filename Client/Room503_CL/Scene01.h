@@ -41,14 +41,22 @@ private:
 	virtual void OnMouseMove(WPARAM btnState, int x, int y)override;
 
 	void OnKeyboardInput(const GameTimer& gt);
+
 	void AnimateMaterials(const GameTimer& gt);
-	//void UpdateInstanceData(const GameTimer& gt);
 	void UpdateSkinnedCBs(const GameTimer& gt);
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialBuffer(const GameTimer& gt);
 	void UpdateShadowTransform(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
 	void UpdateShadowPassCB(const GameTimer& gt);
+
+	void MenuSceneKeyboardInput(const GameTimer& gt);
+	void MenuSceneUpdate(const GameTimer& gt);
+	void MenuSceneRender(const GameTimer& gt);
+
+	void GameSceneKeyboardInput(const GameTimer& gt);
+	void GameSceneUpdate(const GameTimer& gt);
+	void GameSceneRender(const GameTimer& gt);
 
 	//void BuildConstantBuffers();
 	void LoadTextures();
@@ -103,9 +111,6 @@ private:
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mTreeSpriteInputLayout;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mSkinnedInputLayout;
-	//std::vector<D3D12_INPUT_ELEMENT_DESC> mFlareSpriteInputLayout;
-	//std::vector<D3D12_INPUT_ELEMENT_DESC> mSkyBoxInputLayout;
-	//std::vector<D3D12_INPUT_ELEMENT_DESC> mMinimapInputLayout;
 
 	// List of all the render items.
 	std::vector<std::unique_ptr<GameObject>> mAllRitems;
@@ -150,7 +155,12 @@ private:
 	vector<pair<std::string, int>> playerboneName;
 
 	bool mIsWireframe = false;
-	float mSunTheta = 205.917;
+	float mSunTheta = (float)205.917;
+
+	//블러 레벨 0~ 2
+	int blurLevel = 0;
+	//현재 씬 상태 (에 따라 업데이트, 입력, 렌더 [모든 데이터는 한번에 로딩])
+	int nowScene = (int)Scene::Menu;
 
 	//구조가 생성자로 생성되는구조임
 	ObjectConstants mPlayerInfo;
@@ -158,12 +168,7 @@ private:
 	int m_BlurCount = 0;
 	int m_CameraMoveLevel = 0;
 	float mx = 0, my = 0;
-
-
-	//Camera mCameraTmp;
+	
 	Camera mCamera;
-
 	POINT mLastMousePos;
-
-	//LoadModel* modelImport;
 };

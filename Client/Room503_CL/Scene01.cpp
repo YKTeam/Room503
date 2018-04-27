@@ -13,8 +13,8 @@ MyScene::~MyScene()
 
 bool MyScene::Initialize()
 {
-    //if(!D3DApp::Initialize())
-	//	return false;
+    if(!D3DApp::Initialize())
+		return false;
 		
 	// Reset the command list to prep for initialization commands.
 	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
@@ -55,10 +55,8 @@ bool MyScene::Initialize()
 	BuildFbxGeometry("Model/robotFree3.fbx", "robot_freeGeo", "robot_free", 1.0f, false , true);//angle  robotModel  robotIdle
 	BuildFbxGeometry("Model/Robot Kyle.fbx", "robotGeo", "robot" , 1.0f, false , false);
 	BuildFbxGeometry("Model/testmap2.obj", "map00Geo", "map00", 1, true, false);
-	//BuildAnimation("Model/robotidle2.fbx","idle", 1.0f, false);
 	BuildAnimation("Model/robotFree3.fbx","walk", 1.0f, false);//robotwalk
 	
-
 	BuildMaterials();
 	BuildGameObjects();
 	BuildFrameResources();
@@ -125,7 +123,6 @@ void MyScene::OnResize()
 
 void MyScene::Update(const GameTimer& gt)
 {
-	
 	OnKeyboardInput(gt);
 
 	// 순환적으로 자원 프레임 배열의 다음 원소에 접근한다
@@ -144,6 +141,85 @@ void MyScene::Update(const GameTimer& gt)
 		CloseHandle(eventHandle);
 	}
 	
+	if (nowScene == (int)Scene::Menu)
+		MenuSceneUpdate(gt);
+	if (nowScene != (int)Scene::Menu)
+		GameSceneUpdate(gt);
+}
+
+void MyScene::Draw(const GameTimer& gt)
+{
+	auto cmdListAlloc = mCurrFrameResource->CmdListAlloc;
+    // 명령 기록에 관련된 메모리의 재활용을 위해 명령 할당자를 재설정한다.
+    // 재설정은 GPU가 관련 명령 목ㅇ록들을 모두 처리한 후에 일어남
+	ThrowIfFailed(cmdListAlloc->Reset());
+
+	// 명령 목록을 ExecuteCommandList를 통해서 명령 대기열에
+	// 추가했다면 명령 목록을 재설정할 수 있다. 명령 목록을
+	// 재설정하면 메모리가 재활용된다
+	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
+
+	//게임상태일 때 렌더링
+	if (nowScene == (int)Scene::Menu)
+		MenuSceneRender(gt);
+	if(nowScene != (int)Scene::Menu)
+		GameSceneRender(gt);
+	
+	// Done recording commands.
+	ThrowIfFailed(mCommandList->Close());
+	// 명령 실행을 위해 명령 목록을 명령 대기열에 추가한다.
+	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+	// 후면 버퍼와 전면 버퍼 교환
+	ThrowIfFailed(mSwapChain->Present(0, 0));
+	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+	// 현재 울타리 지점까지의 명령들을 표시하도록 울타리 값을 전진시킨다.
+	mCurrFrameResource->Fence = ++mCurrentFence;
+
+	// 새 울타리 지점을 설정하는 명령을 명령 대기열에 추가한다.
+	// 지금 우리는 GPU 시간선 상에 있으므로, 새 울타리 지점은 GPU가
+	// 이 시크날 명령 이전까지의 모든 명령을 처리하기 전까지는 설정되지 않는다
+	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
+}
+
+void MyScene::MenuSceneKeyboardInput(const GameTimer& gt)
+{
+	if (GetAsyncKeyState('1') & 0x8000) nowScene = (int)Scene::Scene01;
+}
+void MyScene::MenuSceneUpdate(const GameTimer& gt)
+{
+
+}
+void MyScene::MenuSceneRender(const GameTimer& gt)
+{
+	mCommandList->RSSetViewports(1, &mScreenViewport);
+	mCommandList->RSSetScissorRects(1, &mScissorRect);
+
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::DarkBlue, 0, nullptr);
+	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+
+	auto passCB = mCurrFrameResource->PassCB->Resource();
+	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Grid], (int)RenderLayer::Grid);
+
+	// Indicate a state transition on the resource usage.
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+}
+
+void MyScene::GameSceneUpdate(const GameTimer& gt)
+{
 	mLightRotationAngle += 0.1f*gt.DeltaTime();
 	XMMATRIX R = XMMatrixRotationY(mLightRotationAngle);
 	for (int i = 0; i < 3; ++i)
@@ -162,18 +238,9 @@ void MyScene::Update(const GameTimer& gt)
 	UpdateShadowPassCB(gt);
 }
 
-void MyScene::Draw(const GameTimer& gt)
+
+void MyScene::GameSceneRender(const GameTimer& gt)
 {
-	auto cmdListAlloc = mCurrFrameResource->CmdListAlloc;
-    // 명령 기록에 관련된 메모리의 재활용을 위해 명령 할당자를 재설정한다.
-    // 재설정은 GPU가 관련 명령 목ㅇ록들을 모두 처리한 후에 일어남
-	ThrowIfFailed(cmdListAlloc->Reset());
-
-	// 명령 목록을 ExecuteCommandList를 통해서 명령 대기열에
-	// 추가했다면 명령 목록을 재설정할 수 있다. 명령 목록을
-	// 재설정하면 메모리가 재활용된다
-	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
-
 	/////////////////////////////////// 그림자 선 렌더링 ///////////////////////////////////////
 	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
@@ -184,44 +251,35 @@ void MyScene::Draw(const GameTimer& gt)
 	mCommandList->SetGraphicsRootConstantBufferView(3, matBuffer->GetGPUVirtualAddress());
 	// Bind null SRV for shadow map pass.
 	mCommandList->SetGraphicsRootDescriptorTable(7, mNullSrv);
-
 	DrawSceneToShadowMap();
-
 	mCommandList->SetGraphicsRootDescriptorTable(0, mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
 	///////////////////////////////////////////////////////////////////////////////////////////
 
-    // 뷰포트와 가위 직사각형 설정
+	// 뷰포트와 가위 직사각형 설정
 	// 명령 목록을 재설정할 때마다 재설정
-    mCommandList->RSSetViewports(1, &mScreenViewport);
-    mCommandList->RSSetScissorRects(1, &mScissorRect);
-
+	mCommandList->RSSetViewports(1, &mScreenViewport);
+	mCommandList->RSSetScissorRects(1, &mScissorRect);
 	// 자원 용도에 관련된 상태 전이를 Direct3D에 통지한다
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mOffscreenRT->Resource(),
 		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-    // 후면 버퍼와 깊이 버퍼를 지운다.
+	// 후면 버퍼와 깊이 버퍼를 지운다.
 	mCommandList->ClearRenderTargetView(mOffscreenRT->Rtv(), Colors::LightSteelBlue, 0, nullptr);
 	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	
-    // 렌더링 결과가 기록될 렌더 대상 버퍼들을 지정
+	// 렌더링 결과가 기록될 렌더 대상 버퍼들을 지정
 	mCommandList->OMSetRenderTargets(1, &mOffscreenRT->Rtv(), true, &DepthStencilView());
 
 	////////////////////////////////////////////////////////////
-	//mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
-
 	CD3DX12_GPU_DESCRIPTOR_HANDLE skyTexDescriptor(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-	skyTexDescriptor.Offset(mSkyTexHeapIndex+1, mCbvSrvUavDescriptorSize);
+	skyTexDescriptor.Offset(mSkyTexHeapIndex + 1, mCbvSrvUavDescriptorSize);
 	mCommandList->SetGraphicsRootDescriptorTable(7, skyTexDescriptor);
 
 	//mCommandList->SetPipelineState(mPSOs["debug"].Get());
 	//DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Debug], (int)RenderLayer::Debug);
-
-	
 	if (mIsWireframe)
 	{
 		mCommandList->SetPipelineState(mPSOs["opaque_wireframe"].Get());
@@ -235,18 +293,12 @@ void MyScene::Draw(const GameTimer& gt)
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Enemy], (int)RenderLayer::Enemy);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::CollBox], (int)RenderLayer::CollBox);
 	//
-	//플레이어..
-	//mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-	//mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
-	
+
 	if (mIsWireframe)
-	{
 		mCommandList->SetPipelineState(mPSOs["opaque_wireframe"].Get());
-	}
 	else
-	{
 		mCommandList->SetPipelineState(mPSOs["skinnedOpaque"].Get());
-	}
+
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Player], (int)RenderLayer::Player);
 
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mOffscreenRT->Resource(),
@@ -254,7 +306,7 @@ void MyScene::Draw(const GameTimer& gt)
 	mSobelFilter->Execute(mCommandList.Get(), mPostProcessSobelRootSignature.Get(),
 		mPSOs["sobel"].Get(), mOffscreenRT->Srv());
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
-	
+
 	mCommandList->SetGraphicsRootSignature(mPostProcessSobelRootSignature.Get());
 	mCommandList->SetPipelineState(mPSOs["composite"].Get());
 	mCommandList->SetGraphicsRootDescriptorTable(0, mOffscreenRT->Srv());
@@ -262,97 +314,18 @@ void MyScene::Draw(const GameTimer& gt)
 	DrawFullscreenQuad(mCommandList.Get());
 
 	//blur 
-	//int blurLevel = m_BlurCount;//+ m_CameraMoveLevel;
-	////if (m_BlurCount + m_CameraMoveLevel >= 2) blurLevel = 2;
-	//mBlurFilter->Execute(mCommandList.Get(), mPostProcessRootSignature.Get(),
-	//	mPSOs["horzBlur"].Get(), mPSOs["vertBlur"].Get(), CurrentBackBuffer(), blurLevel);
-	//// Prepare to copy blurred output to the back buffer.
-	//mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-	//	D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
-	//mCommandList->CopyResource(CurrentBackBuffer(), mBlurFilter->Output());
-
+	mBlurFilter->Execute(mCommandList.Get(), mPostProcessRootSignature.Get(),
+		mPSOs["horzBlur"].Get(), mPSOs["vertBlur"].Get(), CurrentBackBuffer(), blurLevel);
+	// Prepare to copy blurred output to the back buffer.
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
+	mCommandList->CopyResource(CurrentBackBuffer(), mBlurFilter->Output());
 	// Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
-	
-	
-	// Done recording commands.
-	ThrowIfFailed(mCommandList->Close());
-
-	// 명령 실행을 위해 명령 목록을 명령 대기열에 추가한다.
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-	// 후면 버퍼와 전면 버퍼 교환
-	ThrowIfFailed(mSwapChain->Present(0, 0));
-	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
-
-	// 현재 울타리 지점까지의 명령들을 표시하도록 울타리 값을 전진시킨다.
-	mCurrFrameResource->Fence = ++mCurrentFence;
-
-	// 새 울타리 지점을 설정하는 명령을 명령 대기열에 추가한다.
-	// 지금 우리는 GPU 시간선 상에 있으므로, 새 울타리 지점은 GPU가
-	// 이 시크날 명령 이전까지의 모든 명령을 처리하기 전까지는 설정되지 않는다
-	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
 }
 
-void MyScene::OnMouseDown(WPARAM btnState, int x, int y)
-{
-	if ((btnState & MK_LBUTTON) != 0)
-	{
-	}
-	SetCapture(mhMainWnd);
-}
-
-void MyScene::OnMouseUp(WPARAM btnState, int x, int y)
-{
-	m_CameraMoveLevel = 0;
-	ReleaseCapture();
-}
-
-void MyScene::OnMouseMove(WPARAM btnState, int x, int y)
-{
-	if ((btnState & MK_LBUTTON) != 0)
-	{
-		// Make each pixel correspond to a quarter of a degree.
-		float dx = XMConvertToRadians(0.25f*static_cast<float>(x - mLastMousePos.x));
-		float dy = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
-
-		mCamera.Pitch(dy);
-		mCamera.RotateY(dx);
-	}
-	if ((btnState & MK_RBUTTON) != 0)
-	{
-		float blurMx = 0.0f;
-		float blurMy = 0.0f;
-		mx = 0;
-		my = 0;
-		// Make each pixel correspond to a quarter of a degree.
-		mx = XMConvertToRadians(0.25f*static_cast<float>(x - mLastMousePos.x));
-		my = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
-		blurMx = 0.1f*static_cast<float>(x - mLastMousePos.x);
-		blurMy = 0.1f*static_cast<float>(y - mLastMousePos.y);
-		printf("%.2f, %.2f\n", mx,my);
-		if ( abs( blurMx ) <= 0.3f && abs(blurMy) <= 0.3f)
-			m_CameraMoveLevel = m_BlurCount;
-		else if (abs(blurMx) >= 0.7f || abs(blurMy) >= 0.7f) {
-			m_CameraMoveLevel = 2;
-		}
-		else if (abs(blurMx)  > 0.3f || abs(blurMy) > 0.3f)
-			m_CameraMoveLevel = 1+ m_BlurCount;
-		
-		
-	}
-
-	mLastMousePos.x = x;
-	mLastMousePos.y = y;
-	//mCamera.UpdateViewMatrix();
-	
-}
-
-
-void MyScene::OnKeyboardInput(const GameTimer& gt)
+void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 {
 	const float dt = gt.DeltaTime();
 
@@ -372,9 +345,11 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 	if (GetAsyncKeyState('1') & 0x8000) mIsWireframe = true;
 	else mIsWireframe = false;
 
+	if (GetAsyncKeyState('2') & 0x8000) blurLevel = 0;
+	if (GetAsyncKeyState('3') & 0x8000) blurLevel = 1;
+	if (GetAsyncKeyState('4') & 0x8000) blurLevel = 2;
+
 	if (GetAsyncKeyState('Q') & 0x8000) {
-		mSunTheta += gt.DeltaTime();
-		printf("%.3f\n", (mSunTheta));
 	}
 	if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
 		m_BlurCount = 1;
@@ -406,20 +381,20 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
 			eplayer[0]->SetLook3f(XMFLOAT3(1, 0, 0));
 			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
-			if ( !( GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN) ))
-			eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
+			if (!(GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN)))
+				eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
 		}
 		if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
 			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
 			eplayer[0]->SetLook3f(XMFLOAT3(-1, 0, 0));
 			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
-			if ( !(GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN) ))
-			eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
+			if (!(GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN)))
+				eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
 		}
 		if (GetAsyncKeyState(VK_UP) & 0x8000) {
 			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
-			XMFLOAT3 look = Vector3::Normalize( Vector3::Add( XMFLOAT3(0, 0, -1) , eplayer[0]->GetLook3f()));
-			
+			XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, -1), eplayer[0]->GetLook3f()));
+
 			eplayer[0]->SetLook3f(look);
 			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
 			eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
@@ -434,9 +409,49 @@ void MyScene::OnKeyboardInput(const GameTimer& gt)
 		}
 	}
 	else mSkinnedModelInst->SetNowAni("idle");
-	
+
 
 	mCamera.UpdateViewMatrix();
+}
+
+void MyScene::OnMouseDown(WPARAM btnState, int x, int y)
+{
+	SetCapture(mhMainWnd);
+}
+
+void MyScene::OnMouseUp(WPARAM btnState, int x, int y)
+{
+	ReleaseCapture();
+}
+
+void MyScene::OnMouseMove(WPARAM btnState, int x, int y)
+{
+	if ((btnState & MK_LBUTTON) != 0)
+	{
+		// Make each pixel correspond to a quarter of a degree.
+		float dx = XMConvertToRadians(0.25f*static_cast<float>(x - mLastMousePos.x));
+		float dy = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
+
+		mCamera.Pitch(dy);
+		mCamera.RotateY(dx);
+	}
+	if ((btnState & MK_RBUTTON) != 0)
+	{
+		// Make each pixel correspond to a quarter of a degree.
+		mx = XMConvertToRadians(0.25f*static_cast<float>(x - mLastMousePos.x));
+		my = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
+		
+	}
+	mLastMousePos.x = x;
+	mLastMousePos.y = y;
+}
+
+void MyScene::OnKeyboardInput(const GameTimer& gt)
+{
+	if (nowScene == (int)Scene::Menu)
+		MenuSceneKeyboardInput(gt);
+	if (nowScene != (int)Scene::Menu)
+		GameSceneKeyboardInput(gt);
 }
 
 void MyScene::AnimateMaterials(const GameTimer& gt)
@@ -642,8 +657,8 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
 	mMainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
 
-	mMainPassCB.gFogStart = 100.0f;
-	mMainPassCB.gFogRange = 700.0f;
+	mMainPassCB.gFogStart = 2000.0f;
+	mMainPassCB.gFogRange = 2010.0f;
 	
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);

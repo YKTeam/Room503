@@ -127,8 +127,8 @@ float4 PS(VertexOut pin) : SV_Target
 
 
 #ifdef FOG
-	/*float fogAmount = saturate((distToEye - gFogStart) / gFogRange);
-	litColor = lerp(litColor, gFogColor, fogAmount);*/
+	float fogAmount = saturate((distToEye - gFogStart) / gFogRange);
+	litColor = lerp(litColor, gFogColor, fogAmount);
 #endif
 	
     litColor.a = diffuseAlbedo.a;

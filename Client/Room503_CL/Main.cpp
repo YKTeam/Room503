@@ -22,11 +22,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 		try
 		{
 			if (gSceneIndex == 0) {
-				WaitScene *waitScene = new WaitScene(hInstance);
-				if (!waitScene->Initialize())
+				MyScene *myScene = new MyScene(hInstance);
+				if (!myScene->Initialize())
 					return 0;
-				waitScene->Run();
-				delete waitScene;
+				myScene->Run();
+				delete myScene;
 			}
 			if (gIsChangeScene == false)
 				return 0;
