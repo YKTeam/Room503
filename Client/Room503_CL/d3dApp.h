@@ -39,6 +39,7 @@ enum class RenderLayer : int
 	Scene06_Map,
 	Scene07_Map,
 	Player,
+	Friend,
 	Shadow,
 	Grass,
 	SkyBox,

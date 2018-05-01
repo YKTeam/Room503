@@ -59,7 +59,10 @@ cbuffer cbPass : register(b1)
 	float4 gFogColor;
 	float gFogStart;
 	float gFogRange;
-	float2 cbPerObjectPad3;
+	float2 cbPerObjectPad2;
+
+	float3 gPlayerPos;
+	float cbPerObjectPad3;
 
 	Light gLights[MaxLights];
 };

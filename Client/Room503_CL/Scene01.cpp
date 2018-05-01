@@ -290,7 +290,7 @@ void MyScene::GameSceneRender(const GameTimer& gt)
 	}
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Opaque], (int)RenderLayer::Opaque);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Grid], (int)RenderLayer::Grid);
-	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Enemy], (int)RenderLayer::Enemy);
+	
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::CollBox], (int)RenderLayer::CollBox);
 	//
 
@@ -300,6 +300,7 @@ void MyScene::GameSceneRender(const GameTimer& gt)
 		mCommandList->SetPipelineState(mPSOs["skinnedOpaque"].Get());
 
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Player], (int)RenderLayer::Player);
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Friend], (int)RenderLayer::Friend);
 
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mOffscreenRT->Resource(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -376,6 +377,7 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 
 	if (GetAsyncKeyState(VK_LEFT) || GetAsyncKeyState(VK_RIGHT) || GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN)) {
 		mSkinnedModelInst->SetNowAni("walk");
+		
 		float walkSpeed = -150;
 		if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
 			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
@@ -464,14 +466,22 @@ void MyScene::UpdateSkinnedCBs(const GameTimer& gt)
 	auto currSkinnedCB = mCurrFrameResource->SkinnedCB.get();
 
 	mSkinnedModelInst->UpdateSkinnedAnimation(gt.DeltaTime());
-
 	SkinnedConstants skinnedConstants;
 	std::copy(
 		std::begin(mSkinnedModelInst->FinalTransforms),
 		std::end(mSkinnedModelInst->FinalTransforms),
 		&skinnedConstants.BoneTransforms[0]);
-
 	currSkinnedCB->CopyData(0, skinnedConstants);
+
+	auto currFriendSkinnedCB = mCurrFrameResource->SkinnedCB.get();
+	SkinnedConstants skinnedFriendConstants;
+	mSkinnedFriendModelInst->UpdateSkinnedAnimation(gt.DeltaTime());
+	std::copy(
+		std::begin(mSkinnedFriendModelInst->FinalTransforms),
+		std::end(mSkinnedFriendModelInst->FinalTransforms),
+		&skinnedFriendConstants.BoneTransforms[0]);
+
+	currFriendSkinnedCB->CopyData(1, skinnedFriendConstants);
 }
 
 void MyScene::UpdateObjectCBs(const GameTimer& gt)
@@ -491,10 +501,10 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		else
 			e->SetPosition(XMFLOAT3(e->GetPosition().x, -50, e->GetPosition().z));
 
-		if (e->bounds.IsCollsionAABB(e->GetPosition(),&enemy[0]->bounds, enemy[0]->GetPosition()))
+		/*if (e->bounds.IsCollsionAABB(e->GetPosition(),&enemy[0]->bounds, enemy[0]->GetPosition()))
 			printf("충돌 \n");
 		else 
-			printf("NO \n");
+			printf("NO \n");*/
 
 		//회전초기화
 		mx = 0;
@@ -506,7 +516,7 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		//mCameraTmp = mCamera;
 	}
 	
-	for (auto& e : mOpaqueRitems[(int)RenderLayer::Enemy])
+	for (auto& e : mOpaqueRitems[(int)RenderLayer::Friend])
 	{
 
 		auto rand = mOpaqueRitems[(int)RenderLayer::Grid];
@@ -521,7 +531,7 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 	for (auto& e : mOpaqueRitems[(int)RenderLayer::CollBox])
 	{
 		auto player = mOpaqueRitems[(int)RenderLayer::Player];
-		auto enemy = mOpaqueRitems[(int)RenderLayer::Enemy];
+		auto enemy = mOpaqueRitems[(int)RenderLayer::Friend];
 		if (e->Geo->Name == "robot_freeBoxGeo") {
 			e->World = player[0]->World;
 		}
@@ -657,9 +667,16 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
 	mMainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
 
-	mMainPassCB.gFogStart = 2000.0f;
-	mMainPassCB.gFogRange = 2010.0f;
+	mMainPassCB.gFogStart = 600.0f;
+	mMainPassCB.gFogRange = 900.0f;
+
+	auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
+	mMainPassCB.PlayerPos = eplayer[0]->GetPosition();
+	mMainPassCB.PlayerPos.y += 200;
 	
+	printf("플레이어 : %.2f %.2f %.2f \n", mMainPassCB.PlayerPos.x, mMainPassCB.PlayerPos.y, mMainPassCB.PlayerPos.z);
+	printf("카메라   : %.2f %.2f %.2f \n", mMainPassCB.EyePosW.x, mMainPassCB.EyePosW.y, mMainPassCB.EyePosW.z);
+
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
 }
@@ -1062,8 +1079,15 @@ void MyScene::BuildAnimation(const std::string fileName,std::string clipNmae, fl
 	mSkinnedModelInst->FinalTransforms.resize(mSkinnedInfo.BoneCount());
 	mSkinnedModelInst->ClipName = clipNmae;
 	mSkinnedModelInst->TimePos = 0.0f;
-
 	mSkinnedModelInst->SetNowAni("Take001");
+
+	mSkinnedFriendModelInst = std::make_unique<SkinnedModelInstance>();
+	mSkinnedFriendModelInst->SkinnedInfo = &mSkinnedInfo;
+	mSkinnedFriendModelInst->FinalTransforms.resize(mSkinnedInfo.BoneCount());
+	mSkinnedFriendModelInst->ClipName = clipNmae;
+	mSkinnedFriendModelInst->TimePos = 0.0f;
+	mSkinnedFriendModelInst->SetNowAni("Take001");
+	//mSkinnedFriendModelInst->SetNowAni("idle");
 }
 
 void MyScene::BuildShapeGeometry()
@@ -1656,7 +1680,7 @@ void MyScene::BuildFrameResources()
 	for (int i = 0; i < gNumFrameResources; ++i)
 	{
 		mFrameResources.push_back(std::make_unique<FrameResource>(md3dDevice.Get(),
-			2, (UINT)mAllRitems.size(), 1, (UINT)mMaterials.size()));
+			2, (UINT)mAllRitems.size(), 2, (UINT)mMaterials.size()));
 	
 	}
 }
@@ -1803,16 +1827,20 @@ void MyScene::BuildGameObjects()
 	XMStoreFloat4x4(&dummy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
 	dummy->ObjCBIndex = objIndex++;
 	dummy->Mat = mMaterials["robot"].get();
-	dummy->Geo = mGeometries["robotGeo"].get();
+	dummy->Geo = mGeometries["robot_freeGeo"].get();
 	dummy->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	dummy->bounds = mBounds["robot"];
-	dummy->IndexCount = dummy->Geo->DrawArgs["robot"].IndexCount;
-	dummy->StartIndexLocation = dummy->Geo->DrawArgs["robot"].StartIndexLocation;
-	dummy->BaseVertexLocation = dummy->Geo->DrawArgs["robot"].BaseVertexLocation;
+	dummy->bounds = mBounds["robot_free"];
+	dummy->IndexCount = dummy->Geo->DrawArgs["robot_free"].IndexCount;
+	dummy->StartIndexLocation = dummy->Geo->DrawArgs["robot_free"].StartIndexLocation;
+	dummy->BaseVertexLocation = dummy->Geo->DrawArgs["robot_free"].BaseVertexLocation;
 
-	BuildCollBoxGeometry(dummy->bounds,"dummyBoxGeo","dummyBox");
+	dummy->SkinnedCBIndex = 1;
+	dummy->SkinnedModelInst = mSkinnedFriendModelInst.get();
+	mSkinnedFriendModelInst->SetNowAni("idle");
 
-	mOpaqueRitems[(int)RenderLayer::Enemy].push_back(dummy.get());
+	BuildCollBoxGeometry(dummy->bounds,"dummy_freeBoxGeo","dummy_freeBox");
+
+	mOpaqueRitems[(int)RenderLayer::Friend].push_back(dummy.get());
 	mAllRitems.push_back(std::move(dummy));
 
 	
@@ -1834,11 +1862,11 @@ void MyScene::BuildGameObjects()
 	XMStoreFloat4x4(&line->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
 	line->ObjCBIndex = objIndex++;
 	line->Mat = mMaterials["robot"].get();
-	line->Geo = mGeometries["dummyBoxGeo"].get();
+	line->Geo = mGeometries["dummy_freeBoxGeo"].get();
 	line->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
-	line->IndexCount = line->Geo->DrawArgs["dummyBox"].IndexCount;
-	line->StartIndexLocation = line->Geo->DrawArgs["dummyBox"].StartIndexLocation;
-	line->BaseVertexLocation = line->Geo->DrawArgs["dummyBox"].BaseVertexLocation;
+	line->IndexCount = line->Geo->DrawArgs["dummy_freeBox"].IndexCount;
+	line->StartIndexLocation = line->Geo->DrawArgs["dummy_freeBox"].StartIndexLocation;
+	line->BaseVertexLocation = line->Geo->DrawArgs["dummy_freeBox"].BaseVertexLocation;
 	mOpaqueRitems[(int)RenderLayer::CollBox].push_back(line.get());
 	mAllRitems.push_back(std::move(line));
 
@@ -1934,9 +1962,10 @@ void MyScene::DrawSceneToShadowMap()
 	mCommandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Opaque], (int)RenderLayer::Opaque);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Grid], (int)RenderLayer::Grid);
-	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Enemy], (int)RenderLayer::Enemy);
+	
 	mCommandList->SetPipelineState(mPSOs["shadow_skin_opaque"].Get());
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Player], (int)RenderLayer::Player);
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Friend], (int)RenderLayer::Friend);
 
 	// Change back to GENERIC_READ so we can read the texture in a shader.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),

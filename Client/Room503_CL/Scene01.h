@@ -146,6 +146,7 @@ private:
 
 	//스키닝 애니메이션데이터 
 	std::unique_ptr<SkinnedModelInstance> mSkinnedModelInst;
+	std::unique_ptr<SkinnedModelInstance> mSkinnedFriendModelInst;
 	SkinnedData mSkinnedInfo;
 	Subset mSkinnedSubsets;
 	//메쉬랑 본오프셋이랑 

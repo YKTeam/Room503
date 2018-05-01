@@ -109,6 +109,8 @@ float4 PS(VertexOut pin) : SV_Target
 	float distToEye = length(toEyeW);
 	toEyeW /= distToEye; // normalize
 
+	float distToPlayerW = length(gPlayerPos - pin.PosW);
+
     // Light terms.
     float4 ambient = gAmbientLight*diffuseAlbedo;
 
@@ -127,7 +129,7 @@ float4 PS(VertexOut pin) : SV_Target
 
 
 #ifdef FOG
-	float fogAmount = saturate((distToEye - gFogStart) / gFogRange);
+	float fogAmount = saturate((distToPlayerW - gFogStart) / gFogRange);
 	litColor = lerp(litColor, gFogColor, fogAmount);
 #endif
 	
