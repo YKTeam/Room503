@@ -91,8 +91,10 @@ float4 PS(VertexOut pin) : SV_Target
 	float4 normalMapSample = gNomalMap.Sample(gsamAnisotropicWrap, pin.TexC);
 	float3 bumpedNormalW = NormalSampleToWorldSpace(normalMapSample.rgb, pin.NormalW, pin.TangentW);
 	// 법선 매핑 온오프.
-	//bumpedNormalW = pin.NormalW;
-    
+#ifdef NOMAL
+	bumpedNormalW = pin.NormalW;
+#endif
+
 	float4 diffuseAlbedo =  saturate(base) * gDiffuseAlbedo;
 
 #ifdef ALPHA_TEST

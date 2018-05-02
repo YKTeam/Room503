@@ -56,6 +56,9 @@ public:
 				z = mesh.Vertices[i].Position.z;
 		}
 		_max = XMFLOAT3(x, y, z);
+		_max.x /= 2;
+		_max.y /= 2;
+		_max.z /= 2;
 		x = mesh.Vertices[0].Position.x;
 		y = mesh.Vertices[0].Position.y;
 		z = mesh.Vertices[0].Position.z;
@@ -69,7 +72,10 @@ public:
 			if (mesh.Vertices[i].Position.z < z)
 				z = mesh.Vertices[i].Position.z;
 		}
-		_min = XMFLOAT3(x, y, z);
+		_min = XMFLOAT3(x, y, z) ;
+		_min.x /= 2;
+		_min.y /= 2;
+		_min.z /= 2;
 
 		//박스갱신
 		_box[0].x = _min.x; _box[0].y = _max.y; _box[0].z = _max.z;

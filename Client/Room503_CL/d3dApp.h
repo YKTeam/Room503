@@ -31,6 +31,7 @@ enum class RenderLayer : int
 {
 	Opaque = 0,
 	Grid,
+	Menu,
 	Scene01_Map,
 	Scene02_Map,
 	Scene03_Map,
