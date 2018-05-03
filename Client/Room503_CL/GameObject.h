@@ -155,6 +155,7 @@ public:
 	// 월드 행렬을 기준으로 물체의 국소 공간을 서술하는 세계 행렬
 	// 이 행렬은 세계 공간 안에서의 물체의 위치와 방향, 크기를 결정
 	XMFLOAT4X4 World = MathHelper::Identity4x4();
+	
 	// 
 	XMFLOAT4X4	m_xmf4x4ToParentTransform = MathHelper::Identity4x4();
 	XMFLOAT4X4	m_xmf4x4ToRootTransform = MathHelper::Identity4x4();

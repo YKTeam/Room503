@@ -62,7 +62,7 @@ cbuffer cbPass : register(b1)
 	float2 cbPerObjectPad2;
 
 	float3 gPlayerPos;
-	float cbPerObjectPad3;
+	float gEnergy;
 
 	Light gLights[MaxLights];
 };

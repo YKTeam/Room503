@@ -39,10 +39,19 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-	float4 base = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) ;
+	float2 tex = pin.TexC;
+#ifdef MOVE
+	float energy = 1-saturate(gEnergy);
+	tex = pin.TexC;
+	clip(tex.y - energy);
+#endif
 
-	//float4 diffuseAlbedo = saturate(base) * gDiffuseAlbedo;
+	float4 base = gDiffuseMap.Sample(gsamLinearClamp, tex);
+
+	if (base.x < 0.05f && base.y < 0.05f && base.z < 0.05f) base.a = 0;
+#ifdef ALPHA_TEST
+	clip(base.a - 0.3f);
+#endif
 
 	return base;
-//float4 base = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC);
 }

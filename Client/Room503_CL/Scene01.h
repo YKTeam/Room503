@@ -54,6 +54,7 @@ private:
 	void MenuSceneUpdate(const GameTimer& gt);
 	void MenuSceneRender(const GameTimer& gt);
 
+	void InitGameScene();
 	void GameSceneKeyboardInput(const GameTimer& gt);
 	void GameSceneUpdate(const GameTimer& gt);
 	void GameSceneRender(const GameTimer& gt);
@@ -158,13 +159,16 @@ private:
 	bool mIsWireframe = false;
 	float mSunTheta = (float)205.917;
 
+	//게임(플레이어) 에너지
+	float mEnergy = 0.5f;
 	//블러 레벨 0~ 2
 	int blurLevel = 0;
 	//현재 씬 상태 (에 따라 업데이트, 입력, 렌더 [모든 데이터는 한번에 로딩])
 	int nowScene = (int)Scene::Menu;
-
+	//메뉴관련 
+	bool startMouseOnVal = false;
+	bool quitMouseOnVal = false;
 	//구조가 생성자로 생성되는구조임
-	ObjectConstants mPlayerInfo;
 	int m_ObjIndex = 0;
 	int m_BlurCount = 0;
 	int m_CameraMoveLevel = 0;

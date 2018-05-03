@@ -40,7 +40,7 @@ bool MyScene::Initialize()
 		mClientWidth, mClientHeight,
 		mBackBufferFormat);
 
-	mCamera.SetPosition(0.0f, 0.0f, -150.0f);
+	mCamera.SetPosition(0.0f, 0.0f, -800.0f);
 
 	mShadowMap = std::make_unique<ShadowMap>(
 		md3dDevice.Get(), 4096, 4096);
@@ -184,7 +184,10 @@ void MyScene::Draw(const GameTimer& gt)
 
 void MyScene::MenuSceneKeyboardInput(const GameTimer& gt)
 {
-	if (GetAsyncKeyState('1') & 0x8000) nowScene = (int)Scene::Scene01;
+	if (GetAsyncKeyState('1') & 0x8000) {
+		nowScene = (int)Scene::Scene01;
+		InitGameScene();
+	}
 }
 void MyScene::MenuSceneUpdate(const GameTimer& gt)
 {
@@ -215,12 +218,19 @@ void MyScene::MenuSceneRender(const GameTimer& gt)
 
 	
 	mCommandList->SetPipelineState(mPSOs["ui"].Get());
-	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Grid], (int)RenderLayer::Grid);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Menu], (int)RenderLayer::Menu);
-
+	mCommandList->SetPipelineState(mPSOs["uiAp"].Get());
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::MenuButton], (int)RenderLayer::MenuButton);
 	// Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+}
+
+void MyScene::InitGameScene()
+{
+	//카메라 초기화
+	//플레이어 초기화
+	//뭐뭐 초기화
 }
 
 void MyScene::GameSceneUpdate(const GameTimer& gt)
@@ -305,6 +315,11 @@ void MyScene::GameSceneRender(const GameTimer& gt)
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Player], (int)RenderLayer::Player);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Friend], (int)RenderLayer::Friend);
 
+	mCommandList->SetPipelineState(mPSOs["uiMove"].Get());
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::MoveUI], (int)RenderLayer::MoveUI);
+	mCommandList->SetPipelineState(mPSOs["uiAp"].Get());
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::BaseUI], (int)RenderLayer::BaseUI);
+
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mOffscreenRT->Resource(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
 	mSobelFilter->Execute(mCommandList.Get(), mPostProcessSobelRootSignature.Get(),
@@ -352,7 +367,14 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 	if (GetAsyncKeyState('2') & 0x8000) blurLevel = 0;
 	if (GetAsyncKeyState('3') & 0x8000) blurLevel = 1;
 	if (GetAsyncKeyState('4') & 0x8000) blurLevel = 2;
-
+	if (GetAsyncKeyState('5') & 0x8000) {
+		mEnergy -= 0.001f;
+		printf("%.2f\n", mEnergy);
+	}
+	if (GetAsyncKeyState('6') & 0x8000) {
+		mEnergy += 0.001f;
+		printf("%.2f\n", mEnergy);
+	}
 	if (GetAsyncKeyState('Q') & 0x8000) {
 	}
 	if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
@@ -421,6 +443,17 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 
 void MyScene::OnMouseDown(WPARAM btnState, int x, int y)
 {
+	if (nowScene == (int)Scene::Menu)
+	{
+		if ((btnState & MK_LBUTTON) != 0)
+		{
+			if (startMouseOnVal) {
+				nowScene = (int)Scene::Scene01;
+				InitGameScene();
+			}
+			else if (quitMouseOnVal) exit(0);
+		}
+	}
 	SetCapture(mhMainWnd);
 }
 
@@ -431,24 +464,45 @@ void MyScene::OnMouseUp(WPARAM btnState, int x, int y)
 
 void MyScene::OnMouseMove(WPARAM btnState, int x, int y)
 {
-	if ((btnState & MK_LBUTTON) != 0)
+	if (nowScene == (int)Scene::Menu)
 	{
-		// Make each pixel correspond to a quarter of a degree.
-		float dx = XMConvertToRadians(0.25f*static_cast<float>(x - mLastMousePos.x));
-		float dy = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
+		int buttonSize = mClientWidth / 3;
+		int buttonX = mClientWidth / 3 + mClientWidth / 2;
+		int startbuttonY = mClientHeight / 5 + mClientHeight / 2;
+		int quitbuttonY = mClientHeight / 3 + mClientHeight / 2 + mClientHeight / 30;
+		bool a = x >  buttonX - buttonSize / 3;
+		bool b = x <  buttonX + buttonSize / 3;
+		bool c = y > startbuttonY - buttonSize / 8;
+		bool d = y < startbuttonY + buttonSize / 8;
+		bool e = y > quitbuttonY - buttonSize / 8;
+		bool f = y < quitbuttonY + buttonSize / 8;
+		{
+			if (a && b && c && d)startMouseOnVal = true;
+			else startMouseOnVal = false;
+			if (a && b && e && f) quitMouseOnVal = true;
+			else quitMouseOnVal = false;
+		}
+	}
+	else if (nowScene != (int)Scene::Menu) {
+		if ((btnState & MK_LBUTTON) != 0)
+		{
+			// Make each pixel correspond to a quarter of a degree.
+			float dx = XMConvertToRadians(0.25f*static_cast<float>(x - mLastMousePos.x));
+			float dy = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
 
-		mCamera.Pitch(dy);
-		mCamera.RotateY(dx);
+			mCamera.Pitch(dy);
+			mCamera.RotateY(dx);
+		}
+		if ((btnState & MK_RBUTTON) != 0)
+		{
+			// Make each pixel correspond to a quarter of a degree.
+			mx = XMConvertToRadians(0.25f*static_cast<float>(x - mLastMousePos.x));
+			my = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
+
+		}
+		mLastMousePos.x = x;
+		mLastMousePos.y = y;
 	}
-	if ((btnState & MK_RBUTTON) != 0)
-	{
-		// Make each pixel correspond to a quarter of a degree.
-		mx = XMConvertToRadians(0.25f*static_cast<float>(x - mLastMousePos.x));
-		my = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
-		
-	}
-	mLastMousePos.x = x;
-	mLastMousePos.y = y;
 }
 
 void MyScene::OnKeyboardInput(const GameTimer& gt)
@@ -491,6 +545,35 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 {
 	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
 	
+	if (nowScene == (int)Scene::Menu)
+	{
+		auto menuButtons = mOpaqueRitems[(int)RenderLayer::MenuButton];
+		//버튼들 start 0,1  quit 2,3
+		if (startMouseOnVal == false) {
+			XMStoreFloat4x4(&menuButtons[0]->World, XMMatrixScaling(mClientWidth / 3, mClientWidth / 3, 1.0f) *XMMatrixTranslation(mClientWidth / 6, -mClientHeight / 8, 0.0f));
+			XMStoreFloat4x4(&menuButtons[1]->World, XMMatrixScaling(0,0,0));
+		}
+		else {
+			XMStoreFloat4x4(&menuButtons[1]->World, XMMatrixScaling(mClientWidth / 3, mClientWidth / 3, 1.0f)*XMMatrixTranslation(mClientWidth / 6, -mClientHeight / 8, 0.0f));
+			XMStoreFloat4x4(&menuButtons[0]->World, XMMatrixScaling(0, 0, 0));
+		}
+		if (quitMouseOnVal == false) {
+			XMStoreFloat4x4(&menuButtons[2]->World, XMMatrixScaling(mClientWidth / 3, mClientWidth / 3, 1.0f)*XMMatrixTranslation(mClientWidth / 6, -mClientHeight / 4, 0.0f));
+			XMStoreFloat4x4(&menuButtons[3]->World, XMMatrixScaling(0, 0, 0));
+		}
+		else {
+			XMStoreFloat4x4(&menuButtons[3]->World, XMMatrixScaling(mClientWidth / 3, mClientWidth / 3, 1.0f)*XMMatrixTranslation(mClientWidth / 6, -mClientHeight / 4, 0.0f));
+			XMStoreFloat4x4(&menuButtons[2]->World, XMMatrixScaling(0, 0, 0));
+		}
+		for (auto& e : mOpaqueRitems[(int)RenderLayer::Menu]) {
+			//메뉴창
+			XMStoreFloat4x4(&e->World, XMMatrixScaling(mClientWidth, mClientHeight, 1.0f)*XMMatrixTranslation(-mClientWidth / 2, mClientHeight / 2, 0.0f));
+			e->NumFramesDirty = gNumFrameResources;
+		}
+		for (auto& e : mOpaqueRitems[(int)RenderLayer::MenuButton]) {
+			e->NumFramesDirty = gNumFrameResources;
+		}
+	}
 
 	for (auto& e : mOpaqueRitems[(int)RenderLayer::Player])
 	{
@@ -505,10 +588,10 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		else
 			e->SetPosition(XMFLOAT3(e->GetPosition().x, -50, e->GetPosition().z));
 
-		if (e->bounds.IsCollsionAABB(e->GetPosition(),&mfriend[0]->bounds, mfriend[0]->GetPosition()))
+		/*if (e->bounds.IsCollsionAABB(e->GetPosition(),&mfriend[0]->bounds, mfriend[0]->GetPosition()))
 			printf("충돌 \n");
 		else 
-			printf("NO \n");
+			printf("NO \n");*/
 
 		//회전초기화
 		mx = 0;
@@ -543,6 +626,30 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		e->NumFramesDirty = gNumFrameResources;
 	}
 	
+	if (nowScene != (int)Scene::Menu)
+	{
+		//UIs
+		for (auto& e : mOpaqueRitems[(int)RenderLayer::BaseUI]) {
+
+			e->SetLook3f(mCamera.GetLook3f());
+			e->SetRight3f(mCamera.GetRight3f());
+			e->SetUp3f(mCamera.GetUp3f());
+			e->SetPosition(Vector3::Add( mCamera.GetPosition3f(),  Vector3::ScalarProduct(mCamera.GetLook3f(), 5, false) ));
+			e->SetPosition(Vector3::Add(e->GetPosition(), Vector3::ScalarProduct(e->GetRight3f(), - 3.0f , false)));
+			e->SetPosition(Vector3::Add(e->GetPosition(), Vector3::ScalarProduct(e->GetUp3f(), -0.5, false)));
+			e->NumFramesDirty = gNumFrameResources;
+		}
+		for (auto& e : mOpaqueRitems[(int)RenderLayer::MoveUI]) {
+			e->SetLook3f(mCamera.GetLook3f());
+			e->SetRight3f(mCamera.GetRight3f());
+			e->SetUp3f(mCamera.GetUp3f());
+			e->SetPosition(Vector3::Add(mCamera.GetPosition3f(), Vector3::ScalarProduct(mCamera.GetLook3f(), 5, false)));
+			e->SetPosition(Vector3::Add(e->GetPosition(), Vector3::ScalarProduct(e->GetRight3f(), -3.0f, false)));
+			e->SetPosition(Vector3::Add(e->GetPosition(), Vector3::ScalarProduct(e->GetUp3f(), -0.5, false)));
+			e->NumFramesDirty = gNumFrameResources;
+		}
+	}
+
 	for (auto& e : mAllRitems)
 	{
 		if (e->NumFramesDirty > 0)
@@ -673,6 +780,8 @@ void MyScene::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.PlayerPos = eplayer[0]->GetPosition();
 	mMainPassCB.PlayerPos.y += 200;
 
+	mMainPassCB.Energy = mEnergy;
+
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
 }
@@ -718,7 +827,13 @@ void MyScene::LoadTextures()
 		"robotTex",
 		"robot_nomalTex",
 		"skyCubeMap",
-		"menuTex"
+		"menuTex",
+		"startTex",
+		"start_clickTex",
+		"quitTex",
+		"quit_clickTex",
+		"ui01Tex",
+		"ui02Tex"
 	};
 
 	std::vector<std::wstring> texFilenames =
@@ -731,7 +846,13 @@ void MyScene::LoadTextures()
 		L"Textures/monster.dds",
 		L"Textures/monster_nomal.dds",
 		L"Textures/desertcube1024.dds",
-		L"Textures/menu.dds"
+		L"Textures/menu.dds",
+		L"Textures/start.dds",
+		L"Textures/start_click.dds",
+		L"Textures/quit.dds",
+		L"Textures/quit_click.dds",
+		L"Textures/ui01.dds",
+		L"Textures/ui02.dds"
 	};
 
 	for (int i = 0; i < (int)texNames.size(); ++i)
@@ -882,14 +1003,12 @@ void MyScene::BuildDescriptorHeaps()
 {
 	int rtvOffset = SwapChainBufferCount;
 
-	const int textureDescriptorCount = 9;
+	const int textureDescriptorCount = 15;
 	const int blurDescriptorCount = 4;
 
 	int srvOffset = textureDescriptorCount;
 	int sobelSrvOffset = srvOffset + blurDescriptorCount;
 	int offscreenSrvOffset = sobelSrvOffset + mSobelFilter->DescriptorCount(); // +1
-
-	
 
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
 	srvHeapDesc.NumDescriptors = textureDescriptorCount + blurDescriptorCount +
@@ -909,7 +1028,13 @@ void MyScene::BuildDescriptorHeaps()
 		mTextures["enemyDetailTex"]->Resource,
 		mTextures["robotTex"]->Resource,
 		mTextures["robot_nomalTex"]->Resource,
-		mTextures["menuTex"]->Resource
+		mTextures["menuTex"]->Resource,
+		mTextures["startTex"]->Resource,
+		mTextures["start_clickTex"]->Resource,
+		mTextures["quitTex"]->Resource,
+		mTextures["quit_clickTex"]->Resource,
+		mTextures["ui01Tex"]->Resource ,
+		mTextures["ui02Tex"]->Resource
 	};
 	auto skyCubeMap = mTextures["skyCubeMap"]->Resource;
 
@@ -992,8 +1117,14 @@ void MyScene::BuildShadersAndInputLayout()
 
 	const D3D_SHADER_MACRO uis[] =
 	{
-		"FOG", "1",
-		"NOMAL", "1",
+		"ALPHA_TEST", "1",
+		NULL, NULL
+	};
+
+	const D3D_SHADER_MACRO moveui[] =
+	{
+		"ALPHA_TEST", "1",
+		"MOVE", "1",
 		NULL, NULL
 	};
 
@@ -1014,8 +1145,10 @@ void MyScene::BuildShadersAndInputLayout()
 	mShaders["skinnedVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", skinnedDefines, "VS", "vs_5_1");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", defines, "PS", "ps_5_1");
 
-	mShaders["uiVS"] = d3dUtil::CompileShader(L"Shaders\\Ui.hlsl", uis, "VS", "vs_5_1");
-	mShaders["uiPS"] = d3dUtil::CompileShader(L"Shaders\\Ui.hlsl", uis, "PS", "ps_5_1");
+	mShaders["uiVS"] = d3dUtil::CompileShader(L"Shaders\\Ui.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["uiPS"] = d3dUtil::CompileShader(L"Shaders\\Ui.hlsl", nullptr, "PS", "ps_5_1");
+	mShaders["uiAlphaTestPS"] = d3dUtil::CompileShader(L"Shaders\\Ui.hlsl", uis, "PS", "ps_5_1");
+	mShaders["uiMovePS"] = d3dUtil::CompileShader(L"Shaders\\Ui.hlsl", moveui, "PS", "ps_5_1");
 
 	mShaders["shadowVS"] = d3dUtil::CompileShader(L"Shaders\\Shadows.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["shadowSkinVS"] = d3dUtil::CompileShader(L"Shaders\\Shadows.hlsl", skinnedDefines, "VS", "vs_5_1");
@@ -1391,7 +1524,6 @@ void MyScene::BuildFbxGeometry(const std::string fileName, const std::string geo
 	mBounds[meshName] = dummy->bounds;
 }
 
-
 void MyScene::BuildPSOs()
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
@@ -1509,6 +1641,21 @@ void MyScene::BuildPSOs()
 	};
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&uiPsoDesc, IID_PPV_ARGS(&mPSOs["ui"])));
 
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC uiApPsoDesc = uiPsoDesc;
+	uiApPsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["uiAlphaTestPS"]->GetBufferPointer()),
+		mShaders["uiAlphaTestPS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&uiApPsoDesc, IID_PPV_ARGS(&mPSOs["uiAp"]))); 
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC uiMovePsoDesc = uiPsoDesc;
+	uiMovePsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["uiMovePS"]->GetBufferPointer()),
+		mShaders["uiMovePS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&uiMovePsoDesc, IID_PPV_ARGS(&mPSOs["uiMove"])));
 	//
 	// PSO for transparent objects
 	//
@@ -1764,11 +1911,7 @@ void MyScene::BuildMaterials()
 	menu->MatCBIndex = matIndex;
 	menu->DiffuseSrvHeapIndex = matIndex++;
 
-	auto sky = std::make_unique<Material>();
-	sky->Name = "sky";
-	sky->MatCBIndex = matIndex;
-	sky->DiffuseSrvHeapIndex = matIndex++;
-	/*auto start = std::make_unique<Material>();
+	auto start = std::make_unique<Material>();
 	start->Name = "start";
 	start->MatCBIndex = matIndex;
 	start->DiffuseSrvHeapIndex = matIndex++;
@@ -1783,7 +1926,21 @@ void MyScene::BuildMaterials()
 	auto quit_click = std::make_unique<Material>();
 	quit_click->Name = "quit_click";
 	quit_click->MatCBIndex = matIndex;
-	quit_click->DiffuseSrvHeapIndex = matIndex++;*/
+	quit_click->DiffuseSrvHeapIndex = matIndex++;
+
+	auto ui01 = std::make_unique<Material>();
+	ui01->Name = "ui01";
+	ui01->MatCBIndex = matIndex;
+	ui01->DiffuseSrvHeapIndex = matIndex++;
+	auto ui02 = std::make_unique<Material>();
+	ui02->Name = "ui02";
+	ui02->MatCBIndex = matIndex;
+	ui02->DiffuseSrvHeapIndex = matIndex++;
+
+	auto sky = std::make_unique<Material>();
+	sky->Name = "sky";
+	sky->MatCBIndex = matIndex;
+	sky->DiffuseSrvHeapIndex = matIndex++;
 
 	mMaterials["rand"] = std::move(rand);
 	mMaterials["rand_nomal"] = std::move(gu);
@@ -1792,153 +1949,234 @@ void MyScene::BuildMaterials()
 	mMaterials["enemyDetail"] = std::move(enemyDetail);
 	mMaterials["robot"] = std::move(robot);
 	mMaterials["robot_nomal"] = std::move(robot_nomal);
-	mMaterials["sky"] = std::move(sky);
-
+	
 	mMaterials["menu"] = std::move(menu);
-	/*mMaterials["start"] = std::move(sky);
-	mMaterials["start_click"] = std::move(sky);
-	mMaterials["quit"] = std::move(sky);
-	mMaterials["quit_click"] = std::move(sky);*/
+	mMaterials["start"] = std::move(start);
+	mMaterials["start_click"] = std::move(start_click);
+	mMaterials["quit"] = std::move(quit);
+	mMaterials["quit_click"] = std::move(quit_click);
+	mMaterials["ui01"] = std::move(ui01);
+	mMaterials["ui02"] = std::move(ui02);
+
+	mMaterials["sky"] = std::move(sky);
 }
 
 void MyScene::BuildGameObjects()
 {
 	int objIndex = 0;
+	//--------------------------------- MENU OBJs -----------------------------------//
+	{
+		auto menu = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&menu->World, XMMatrixScaling(mClientWidth, mClientHeight, 1.0f)*XMMatrixTranslation(-mClientWidth / 2, mClientHeight / 2, 0.0f));
+		menu->TexTransform = MathHelper::Identity4x4();
+		menu->ObjCBIndex = objIndex++;
+		menu->Mat = mMaterials["menu"].get();
+		menu->Geo = mGeometries["shapeGeo"].get();
+		menu->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		menu->IndexCount = menu->Geo->DrawArgs["quad"].IndexCount;
+		menu->StartIndexLocation = menu->Geo->DrawArgs["quad"].StartIndexLocation;
+		menu->BaseVertexLocation = menu->Geo->DrawArgs["quad"].BaseVertexLocation;
+		mOpaqueRitems[(int)RenderLayer::Menu].push_back(menu.get());
+		mAllRitems.push_back(std::move(menu));
 
-	auto menu = std::make_unique<GameObject>();
-	XMStoreFloat4x4(&menu->World, XMMatrixScaling(100.0f, 100.0f, 1.0f)*XMMatrixTranslation(-10.0f, 10.0f, 0.0f));
-	menu->TexTransform = MathHelper::Identity4x4();
-	menu->ObjCBIndex = objIndex++;
-	menu->Mat = mMaterials["menu"].get();
-	menu->Geo = mGeometries["shapeGeo"].get();
-	menu->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	menu->IndexCount = menu->Geo->DrawArgs["quad"].IndexCount;
-	menu->StartIndexLocation = menu->Geo->DrawArgs["quad"].StartIndexLocation;
-	menu->BaseVertexLocation = menu->Geo->DrawArgs["quad"].BaseVertexLocation;
-	
-	mOpaqueRitems[(int)RenderLayer::Menu].push_back(menu.get());
-	mAllRitems.push_back(std::move(menu));
+		auto start = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&start->World, XMMatrixScaling(1, 1, 1.0f));
+		start->TexTransform = MathHelper::Identity4x4();
+		start->ObjCBIndex = objIndex++;
+		start->Mat = mMaterials["start"].get();
+		start->Geo = mGeometries["shapeGeo"].get();
+		start->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		start->IndexCount = start->Geo->DrawArgs["quad"].IndexCount;
+		start->StartIndexLocation = start->Geo->DrawArgs["quad"].StartIndexLocation;
+		start->BaseVertexLocation = start->Geo->DrawArgs["quad"].BaseVertexLocation;
+		mOpaqueRitems[(int)RenderLayer::MenuButton].push_back(start.get());
+		mAllRitems.push_back(std::move(start));
 
-	auto skyRitem = std::make_unique<GameObject>();
-	XMStoreFloat4x4(&skyRitem->World, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
-	skyRitem->TexTransform = MathHelper::Identity4x4();
-	skyRitem->ObjCBIndex = objIndex++;
-	skyRitem->Mat = mMaterials["sky"].get();
-	skyRitem->Geo = mGeometries["shapeGeo"].get();
-	skyRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	skyRitem->IndexCount = skyRitem->Geo->DrawArgs["sphere"].IndexCount;
-	skyRitem->StartIndexLocation = skyRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
-	skyRitem->BaseVertexLocation = skyRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+		auto start_click = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&start_click->World, XMMatrixScaling(1, 1, 1.0f));
+		start_click->TexTransform = MathHelper::Identity4x4();
+		start_click->ObjCBIndex = objIndex++;
+		start_click->Mat = mMaterials["start_click"].get();
+		start_click->Geo = mGeometries["shapeGeo"].get();
+		start_click->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		start_click->IndexCount = start_click->Geo->DrawArgs["quad"].IndexCount;
+		start_click->StartIndexLocation = start_click->Geo->DrawArgs["quad"].StartIndexLocation;
+		start_click->BaseVertexLocation = start_click->Geo->DrawArgs["quad"].BaseVertexLocation;
+		mOpaqueRitems[(int)RenderLayer::MenuButton].push_back(start_click.get());
+		mAllRitems.push_back(std::move(start_click));
 
-	mOpaqueRitems[(int)RenderLayer::SkyBox].push_back(skyRitem.get());
-	mAllRitems.push_back(std::move(skyRitem));
+		auto quit = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&quit->World, XMMatrixScaling(1, 1, 1.0f));
+		quit->TexTransform = MathHelper::Identity4x4();
+		quit->ObjCBIndex = objIndex++;
+		quit->Mat = mMaterials["quit"].get();
+		quit->Geo = mGeometries["shapeGeo"].get();
+		quit->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		quit->IndexCount = quit->Geo->DrawArgs["quad"].IndexCount;
+		quit->StartIndexLocation = quit->Geo->DrawArgs["quad"].StartIndexLocation;
+		quit->BaseVertexLocation = quit->Geo->DrawArgs["quad"].BaseVertexLocation;
+		mOpaqueRitems[(int)RenderLayer::MenuButton].push_back(quit.get());
+		mAllRitems.push_back(std::move(quit));
 
-	auto quadRitem = std::make_unique<GameObject>();
-	quadRitem->World = MathHelper::Identity4x4();
-	quadRitem->TexTransform = MathHelper::Identity4x4();
-	quadRitem->ObjCBIndex = objIndex++;
-	quadRitem->Mat = mMaterials["rand"].get();
-	quadRitem->Geo = mGeometries["shapeGeo"].get();
-	quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
-	quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
-	quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
+		auto quit_click = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&quit_click->World, XMMatrixScaling(1, 1, 1.0f));
+		quit_click->TexTransform = MathHelper::Identity4x4();
+		quit_click->ObjCBIndex = objIndex++;
+		quit_click->Mat = mMaterials["quit_click"].get();
+		quit_click->Geo = mGeometries["shapeGeo"].get();
+		quit_click->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		quit_click->IndexCount = quit_click->Geo->DrawArgs["quad"].IndexCount;
+		quit_click->StartIndexLocation = quit_click->Geo->DrawArgs["quad"].StartIndexLocation;
+		quit_click->BaseVertexLocation = quit_click->Geo->DrawArgs["quad"].BaseVertexLocation;
+		mOpaqueRitems[(int)RenderLayer::MenuButton].push_back(quit_click.get());
+		mAllRitems.push_back(std::move(quit_click));
+	}
+	//-----------------------------------  UIs  ------------------------------------//
+	{
+		auto baseUi = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&baseUi->World, XMMatrixScaling(1, 1, 1.0f));
+		baseUi->TexTransform = MathHelper::Identity4x4();
+		baseUi->ObjCBIndex = objIndex++;
+		baseUi->Mat = mMaterials["ui01"].get();
+		baseUi->Geo = mGeometries["shapeGeo"].get();
+		baseUi->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		baseUi->IndexCount = baseUi->Geo->DrawArgs["quad"].IndexCount;
+		baseUi->StartIndexLocation = baseUi->Geo->DrawArgs["quad"].StartIndexLocation;
+		baseUi->BaseVertexLocation = baseUi->Geo->DrawArgs["quad"].BaseVertexLocation;
+		mOpaqueRitems[(int)RenderLayer::BaseUI].push_back(baseUi.get());
+		mAllRitems.push_back(std::move(baseUi));
 
-	mOpaqueRitems[(int)RenderLayer::Debug].push_back(quadRitem.get());
-	mAllRitems.push_back(std::move(quadRitem));
+		auto moveUi = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&moveUi->World, XMMatrixScaling(1, 1, 1.0f));
+		moveUi->TexTransform = MathHelper::Identity4x4();
+		moveUi->ObjCBIndex = objIndex++;
+		moveUi->Mat = mMaterials["ui02"].get();
+		moveUi->Geo = mGeometries["shapeGeo"].get();
+		moveUi->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		moveUi->IndexCount = moveUi->Geo->DrawArgs["quad"].IndexCount;
+		moveUi->StartIndexLocation = moveUi->Geo->DrawArgs["quad"].StartIndexLocation;
+		moveUi->BaseVertexLocation = moveUi->Geo->DrawArgs["quad"].BaseVertexLocation;
+		mOpaqueRitems[(int)RenderLayer::MoveUI].push_back(moveUi.get());
+		mAllRitems.push_back(std::move(moveUi));
+	}
+	//-----------------------------------  Games  ------------------------------------//
+	{
+		auto skyRitem = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&skyRitem->World, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
+		skyRitem->TexTransform = MathHelper::Identity4x4();
+		skyRitem->ObjCBIndex = objIndex++;
+		skyRitem->Mat = mMaterials["sky"].get();
+		skyRitem->Geo = mGeometries["shapeGeo"].get();
+		skyRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		skyRitem->IndexCount = skyRitem->Geo->DrawArgs["sphere"].IndexCount;
+		skyRitem->StartIndexLocation = skyRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
+		skyRitem->BaseVertexLocation = skyRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
 
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////
-	auto gridRitem = std::make_unique<GameObject>();
+		mOpaqueRitems[(int)RenderLayer::SkyBox].push_back(skyRitem.get());
+		mAllRitems.push_back(std::move(skyRitem));
 
-	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, -40.0f, 0.0f));
-	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-	gridRitem->ObjCBIndex = objIndex++;
-	gridRitem->Mat = mMaterials["rand"].get();
-	gridRitem->Geo = mGeometries["map00Geo"].get();
-	gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	gridRitem->bounds = mBounds["map00"];
-	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["map00"].IndexCount;
-	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["map00"].StartIndexLocation;
-	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["map00"].BaseVertexLocation;
+		auto quadRitem = std::make_unique<GameObject>();
+		quadRitem->World = MathHelper::Identity4x4();
+		quadRitem->TexTransform = MathHelper::Identity4x4();
+		quadRitem->ObjCBIndex = objIndex++;
+		quadRitem->Mat = mMaterials["rand"].get();
+		quadRitem->Geo = mGeometries["shapeGeo"].get();
+		quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
+		quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
+		quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
 
-	mOpaqueRitems[(int)RenderLayer::Grid].push_back(gridRitem.get());
-	mAllRitems.push_back(std::move(gridRitem));
+		mOpaqueRitems[(int)RenderLayer::Debug].push_back(quadRitem.get());
+		mAllRitems.push_back(std::move(quadRitem));
 
-	///////////////////////////플레이어////////////////////////////////
-	//BuildHelicopterGeometry(*m_gunShip.get());
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////
+		auto gridRitem = std::make_unique<GameObject>();
 
-	auto player = std::make_unique<GameObject>();
-	XMStoreFloat4x4(&player->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-	mPlayerInfo.World = player->World;
-	mPlayerInfo.TexTransform = player->TexTransform;
+		XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, -40.0f, 0.0f));
+		XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+		gridRitem->ObjCBIndex = objIndex++;
+		gridRitem->Mat = mMaterials["rand"].get();
+		gridRitem->Geo = mGeometries["map00Geo"].get();
+		gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		gridRitem->bounds = mBounds["map00"];
+		gridRitem->IndexCount = gridRitem->Geo->DrawArgs["map00"].IndexCount;
+		gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["map00"].StartIndexLocation;
+		gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["map00"].BaseVertexLocation;
 
-	player->World = Matrix4x4::Multiply(player->m_xmf4x4ToParentTransform, mPlayerInfo.World);
-	player->ObjCBIndex = objIndex++;
-	player->Mat = mMaterials["robot"].get();
-	player->Geo = mGeometries["robot_freeGeo"].get();
-	player->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	player->bounds = mBounds["robot_free"];
-	player->IndexCount = player->Geo->DrawArgs["robot_free"].IndexCount;
-	player->StartIndexLocation = player->Geo->DrawArgs["robot_free"].StartIndexLocation;
-	player->BaseVertexLocation = player->Geo->DrawArgs["robot_free"].BaseVertexLocation;
+		mOpaqueRitems[(int)RenderLayer::Grid].push_back(gridRitem.get());
+		mAllRitems.push_back(std::move(gridRitem));
 
-	player->SkinnedCBIndex = 0;
-	player->SkinnedModelInst = mSkinnedModelInst.get();
+		///////////////////////////플레이어////////////////////////////////
+		//BuildHelicopterGeometry(*m_gunShip.get());
 
-	//플레이어 충돌박스
-	BuildCollBoxGeometry(player->bounds, "robot_freeBoxGeo", "robot_freeBox");
+		auto player = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&player->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+		player->ObjCBIndex = objIndex++;
+		player->Mat = mMaterials["robot"].get();
+		player->Geo = mGeometries["robot_freeGeo"].get();
+		player->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		player->bounds = mBounds["robot_free"];
+		player->IndexCount = player->Geo->DrawArgs["robot_free"].IndexCount;
+		player->StartIndexLocation = player->Geo->DrawArgs["robot_free"].StartIndexLocation;
+		player->BaseVertexLocation = player->Geo->DrawArgs["robot_free"].BaseVertexLocation;
 
-	mOpaqueRitems[(int)RenderLayer::Player].push_back(player.get());
-	mAllRitems.push_back(std::move(player));
+		player->SkinnedCBIndex = 0;
+		player->SkinnedModelInst = mSkinnedModelInst.get();
 
-	auto dummy = std::make_unique<GameObject>();
-	XMStoreFloat4x4(&dummy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-	dummy->ObjCBIndex = objIndex++;
-	dummy->Mat = mMaterials["robot"].get();
-	dummy->Geo = mGeometries["robot_freeGeo"].get();
-	dummy->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	dummy->bounds = mBounds["robot_free"];
-	dummy->IndexCount = dummy->Geo->DrawArgs["robot_free"].IndexCount;
-	dummy->StartIndexLocation = dummy->Geo->DrawArgs["robot_free"].StartIndexLocation;
-	dummy->BaseVertexLocation = dummy->Geo->DrawArgs["robot_free"].BaseVertexLocation;
+		//플레이어 충돌박스
+		BuildCollBoxGeometry(player->bounds, "robot_freeBoxGeo", "robot_freeBox");
 
-	dummy->SkinnedCBIndex = 1;
-	dummy->SkinnedModelInst = mSkinnedFriendModelInst.get();
-	mSkinnedFriendModelInst->SetNowAni("idle");
+		mOpaqueRitems[(int)RenderLayer::Player].push_back(player.get());
+		mAllRitems.push_back(std::move(player));
 
-	BuildCollBoxGeometry(dummy->bounds,"dummy_freeBoxGeo","dummy_freeBox");
+		auto dummy = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&dummy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+		dummy->ObjCBIndex = objIndex++;
+		dummy->Mat = mMaterials["robot"].get();
+		dummy->Geo = mGeometries["robot_freeGeo"].get();
+		dummy->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		dummy->bounds = mBounds["robot_free"];
+		dummy->IndexCount = dummy->Geo->DrawArgs["robot_free"].IndexCount;
+		dummy->StartIndexLocation = dummy->Geo->DrawArgs["robot_free"].StartIndexLocation;
+		dummy->BaseVertexLocation = dummy->Geo->DrawArgs["robot_free"].BaseVertexLocation;
 
-	mOpaqueRitems[(int)RenderLayer::Friend].push_back(dummy.get());
-	mAllRitems.push_back(std::move(dummy));
+		dummy->SkinnedCBIndex = 1;
+		dummy->SkinnedModelInst = mSkinnedFriendModelInst.get();
+		mSkinnedFriendModelInst->SetNowAni("idle");
 
-	
-	//임시라인
-	auto lines = std::make_unique<GameObject>();
-	XMStoreFloat4x4(&lines->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-	lines->ObjCBIndex = objIndex++;
-	lines->Mat = mMaterials["robot"].get();
-	lines->Geo = mGeometries["robot_freeBoxGeo"].get();
-	lines->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
-	lines->IndexCount = lines->Geo->DrawArgs["robot_freeBox"].IndexCount;
-	lines->StartIndexLocation = lines->Geo->DrawArgs["robot_freeBox"].StartIndexLocation;
-	lines->BaseVertexLocation = lines->Geo->DrawArgs["robot_freeBox"].BaseVertexLocation;
-	mOpaqueRitems[(int)RenderLayer::CollBox].push_back(lines.get());
-	mAllRitems.push_back(std::move(lines));
+		BuildCollBoxGeometry(dummy->bounds, "dummy_freeBoxGeo", "dummy_freeBox");
+
+		mOpaqueRitems[(int)RenderLayer::Friend].push_back(dummy.get());
+		mAllRitems.push_back(std::move(dummy));
 
 
-	auto line = std::make_unique<GameObject>();
-	XMStoreFloat4x4(&line->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-	line->ObjCBIndex = objIndex++;
-	line->Mat = mMaterials["robot"].get();
-	line->Geo = mGeometries["dummy_freeBoxGeo"].get();
-	line->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
-	line->IndexCount = line->Geo->DrawArgs["dummy_freeBox"].IndexCount;
-	line->StartIndexLocation = line->Geo->DrawArgs["dummy_freeBox"].StartIndexLocation;
-	line->BaseVertexLocation = line->Geo->DrawArgs["dummy_freeBox"].BaseVertexLocation;
-	mOpaqueRitems[(int)RenderLayer::CollBox].push_back(line.get());
-	mAllRitems.push_back(std::move(line));
+		//임시라인
+		auto lines = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&lines->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+		lines->ObjCBIndex = objIndex++;
+		lines->Mat = mMaterials["robot"].get();
+		lines->Geo = mGeometries["robot_freeBoxGeo"].get();
+		lines->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+		lines->IndexCount = lines->Geo->DrawArgs["robot_freeBox"].IndexCount;
+		lines->StartIndexLocation = lines->Geo->DrawArgs["robot_freeBox"].StartIndexLocation;
+		lines->BaseVertexLocation = lines->Geo->DrawArgs["robot_freeBox"].BaseVertexLocation;
+		mOpaqueRitems[(int)RenderLayer::CollBox].push_back(lines.get());
+		mAllRitems.push_back(std::move(lines));
 
-	XMMATRIX brickTexTransform = XMMatrixScaling(1.5f, 2.0f, 1.0f);
+
+		auto line = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&line->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+		line->ObjCBIndex = objIndex++;
+		line->Mat = mMaterials["robot"].get();
+		line->Geo = mGeometries["dummy_freeBoxGeo"].get();
+		line->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+		line->IndexCount = line->Geo->DrawArgs["dummy_freeBox"].IndexCount;
+		line->StartIndexLocation = line->Geo->DrawArgs["dummy_freeBox"].StartIndexLocation;
+		line->BaseVertexLocation = line->Geo->DrawArgs["dummy_freeBox"].BaseVertexLocation;
+		mOpaqueRitems[(int)RenderLayer::CollBox].push_back(line.get());
+		mAllRitems.push_back(std::move(line));
+
+	}
 
 	m_ObjIndex = objIndex;
 
@@ -1994,7 +2232,7 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
 		else {
 			cmdList->SetGraphicsRootDescriptorTable(0, tex);
 			cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
-			cmdList->SetGraphicsRootConstantBufferView(5, matCBAddress);
+			cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
 		}
 
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);

@@ -25,6 +25,7 @@ void GameObject::SetScale(float x, float y, float z)
 	m_xmf4x4ToParentTransform = Matrix4x4::Multiply(mtxScale, m_xmf4x4ToParentTransform);
 }
 
+
 XMFLOAT3 GameObject::GetPosition()
 {
 	return(XMFLOAT3(World._41, World._42, World._43));

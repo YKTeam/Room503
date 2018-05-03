@@ -32,6 +32,9 @@ enum class RenderLayer : int
 	Opaque = 0,
 	Grid,
 	Menu,
+	MenuButton,
+	BaseUI,
+	MoveUI,
 	Scene01_Map,
 	Scene02_Map,
 	Scene03_Map,
@@ -165,7 +168,7 @@ protected:
     DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	
-	int mClientWidth = 800;
-	int mClientHeight = 600;
+	int mClientWidth = 1200;
+	int mClientHeight = 800;
 };
 
