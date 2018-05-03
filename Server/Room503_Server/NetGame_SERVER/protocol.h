@@ -1,3 +1,4 @@
+
 #define WM_SOCKET		WM_USER+1
 
 #define SERVERPORT		4000
@@ -16,6 +17,7 @@
 #define CS_DOWN		2
 #define CS_LEFT		3
 #define CS_RIGHT	4
+#define CS_NONE		5
 
 #define SC_POS		1
 #define SC_MOVE		2
@@ -48,39 +50,33 @@
 struct cs_position_packet {
 	BYTE size;
 	BYTE type;
-	float x;
-	float y;
-	float z;
+	DirectX::XMFLOAT3 pos;
+	DirectX::XMFLOAT4X4 world_pos;
 };
 
-struct cs_position {
-	BYTE size;
-	BYTE type;
-	int id;
-	float x;
-	float y;
-	float z;
-};
+//struct cs_position {
+//	BYTE size;
+//	BYTE type;
+//	int id;
+//	DirectX::XMFLOAT3 pos;
+//};
 
-struct sc_position_packet {
+struct sc_position_packet{
 	BYTE size;
 	BYTE type;
 	WORD id;
-	float x;
-	float y;
-	float z;
-
-
+	DirectX::XMFLOAT3 pos;
+	BYTE anistate;
+	DirectX::XMFLOAT4X4 world_pos;
 };
 
 struct sc_move_packet {
 	BYTE size;
 	BYTE type;
 	WORD id;
-	float x;
-	float y;
-	float z;
-
+	DirectX::XMFLOAT3 pos;
+	BYTE anistate;
+	DirectX::XMFLOAT4X4 world_pos;
 
 };
 

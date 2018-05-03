@@ -5,6 +5,7 @@ class CIocpMgr;
 class CMainServer
 {
 private:
+	float preTime = timeGetTime() *0.001f;
 	SOCKET m_listenSock;
 	CIocpMgr m_hiocp;
 
@@ -18,17 +19,11 @@ public:
 	void Accept_Process();
 	void Work_Process();
 	void Packet_Process(int, UCHAR[]);
-	void Timer_Process();
+	
 
 	void SendPositionPacket(int, int);
 	void SendMovePacket(int, int);
 	void SendPacket(int, void*);
-
-	void NPC_Initialize();
-	void NPC_SetPos(int);
-	void NPC_Process();
-	void NPC_Move(int);
-
 
 	void error_display(char *msg, int err_no);
 

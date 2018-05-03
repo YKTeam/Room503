@@ -1,5 +1,5 @@
 #pragma once
-
+#include <DirectXMath.h>
 
 struct IoContextEx
 {
@@ -12,9 +12,9 @@ struct IoContextEx
 
 struct Client
 {
-	float m_ix;
-	float m_iy;
-	float m_iz;
+	DirectX::XMFLOAT3 pos;
+	int anistate;
+	DirectX::XMFLOAT4X4 m_WorldPos;
 
 	bool m_bConnect;
 	eBulletDir m_eDir;

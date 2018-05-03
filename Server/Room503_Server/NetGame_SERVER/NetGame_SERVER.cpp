@@ -15,7 +15,6 @@ int main()
 		vWork_thread.push_back(new thread{ [&]() {MS->Work_Process(); } });
 
 	thread accept_thread{ [&]() {MS->Accept_Process(); } };
-
 	accept_thread.join();
 
 	for (auto pthread : vWork_thread) {

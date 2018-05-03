@@ -3,8 +3,8 @@
 #include "MainServer.h"
 
 
+float preTime = timeGetTime() *0.001f;
 
-////  B L A
 
 void CMainServer::SendPacket(int client, void* packet)
 {
@@ -54,88 +54,8 @@ void CMainServer::Initi()
 
 	for (int i = 0; i < MAX_USER; ++i)
 		m_tClient[i].m_bConnect = false;
-	NPC_Initialize();
+
 	std::cout << "Initi Complete()\n";
-}
-
-void CMainServer::NPC_Initialize()
-{
-	for (int i = NPC_START; i < NPC_END; ++i)
-	{
-		m_tClient[i].m_bConnect = false;
-		m_tClient[i].m_eDir = SetDir(rand() % DIR_END);
-		Sleep(10);
-		NPC_SetPos(i);
-	}
-}
-
-void CMainServer::NPC_SetPos(int npc_id)
-{
-	//m_tClient[npc_id].m_ix = (RIGHT_POS + LEFT_POS) / 2;
-	//m_tClient[npc_id].m_iy = (UP_POS + DOWN_POS) / 2;
-	switch (m_tClient[npc_id].m_eDir)
-	{
-	case DIR_LEFT:
-		m_tClient[npc_id].m_ix = 80 + rand() % 10;
-		m_tClient[npc_id].m_iy = 20 + rand() % 20;
-		break;
-	case DIR_RIGHT:
-		m_tClient[npc_id].m_ix = -10 + rand() % 10;
-		m_tClient[npc_id].m_iy = 20 + rand() % 20;
-		break;
-	case DIR_DOWN:
-		m_tClient[npc_id].m_ix = 25 + rand() % 15;
-		m_tClient[npc_id].m_iy = -20 + rand() % 15;
-		break;
-	case DIR_UP:
-		m_tClient[npc_id].m_ix = 25 + rand() % 15;
-		m_tClient[npc_id].m_iy = 45 + rand() % 15;
-		break;
-	}
-}
-
-void CMainServer::NPC_Move(int id)
-{
-	switch (m_tClient[id].m_eDir)
-	{
-	case DIR_LEFT:
-		if (m_tClient[id].m_ix > 0)
-			m_tClient[id].m_ix -= 1;
-		else
-			NPC_SetPos(id);
-		break;
-	case DIR_RIGHT:
-		if (m_tClient[id].m_ix < 60)
-			m_tClient[id].m_ix += 1;
-		else
-			NPC_SetPos(id);
-		break;
-	case DIR_UP:
-		if (m_tClient[id].m_iy > 0)
-			m_tClient[id].m_iy -= 1;
-		else
-			NPC_SetPos(id);
-		break;
-	case DIR_DOWN:
-		if (m_tClient[id].m_iy < 45)
-			m_tClient[id].m_iy += 1;
-		else
-			NPC_SetPos(id);
-		break;
-	}
-
-
-	for (int i = 0; i < MAX_USER; ++i)
-	{
-		if (m_tClient[i].m_bConnect)
-		{
-			m_tClient[i].m_lock.lock();
-			SendPositionPacket(i, id);
-			//SendMovePacket(i, id);
-			m_tClient[i].m_lock.unlock();
-		}
-	}
-
 }
 
 
@@ -177,9 +97,15 @@ void CMainServer::Accept_Process()
 			= reinterpret_cast<CHAR*> (m_tClient[log_id].m_IoEx.m_szIoBuf);
 		m_tClient[log_id].m_IoEx.m_wsabuf.len
 			= sizeof(m_tClient[log_id].m_IoEx.m_szIoBuf);
-		m_tClient[log_id].m_ix = 0;
-		m_tClient[log_id].m_iy = -50;
-		m_tClient[log_id].m_iz = 0;
+		m_tClient[log_id].pos.x = 0;
+		m_tClient[log_id].pos.y = -50;
+		m_tClient[log_id].pos.z = 0;
+		m_tClient[log_id].anistate = 0;
+		m_tClient[log_id].m_WorldPos = {
+			1.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, 1.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f, 0.0f,
+			0.0f, 0.0f, 0.0f, 1.0f };
 
 		DWORD dwflag = 0;
 		m_hiocp.CreateIO(log_client, log_id);
@@ -188,7 +114,7 @@ void CMainServer::Accept_Process()
 
 		m_tClient[log_id].m_Timer = GetTickCount();
 
-		cout << m_tClient[log_id].m_ix << ", " << m_tClient[log_id].m_iy << ", " << m_tClient[log_id].m_iz << endl;
+		cout << m_tClient[log_id].pos.x << ", " << m_tClient[log_id].pos.y << ", " << m_tClient[log_id].pos.z << endl;
 
 		SendPositionPacket(log_id, log_id);
 
@@ -271,12 +197,6 @@ void CMainServer::Work_Process()
 			}
 			delete IoEx;
 		}
-		else if (e_AI == IoEx->m_eType)
-		{
-			NPC_Move(cur_id);
-			//		cout << "NPC ID : " << cur_id << endl;
-			delete IoEx;
-		}
 		else
 		{
 			cout << "Unknown GQCS\n";
@@ -293,79 +213,53 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 
 	if (GetTickCount() - m_tClient[cur_id].m_Timer < FrameTime)
 		return;
+
+//	m_tClient[cur_id].anistate = 1;
 	switch (packet[1]) {
+	case CS_NONE:
+		m_tClient[cur_id].anistate = 0;
+		break;
 	case CS_UP:
-		//if (m_tClient[cur_id].m_iy > UP_POS)
-		//	m_tClient[cur_id].m_iy--;
-		break;
 	case CS_DOWN:
-		//if (m_tClient[cur_id].m_iy < DOWN_POS)
-		//	m_tClient[cur_id].m_iy++;
-		break;
 	case CS_LEFT:
-		//if (m_tClient[cur_id].m_ix > LEFT_POS)
-		//	m_tClient[cur_id].m_ix--;
-		break;
 	case CS_RIGHT:
-		//if (m_tClient[cur_id].m_ix < RIGHT_POS)
-		//	m_tClient[cur_id].m_ix++;
+		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		m_tClient[cur_id].anistate = 1;
 		break;
+
 	default:
 		cout << "UnKnown Packet Type Cur_ID : " << cur_id << endl;
 		while (true);
 	}
-	m_tClient[cur_id].m_ix = *(float*)&packet[2];
-	m_tClient[cur_id].m_iy = *(float*)&packet[2+sizeof(float)];
-	m_tClient[cur_id].m_iz = *(float*)&packet[2 + 2*sizeof(float)];
 
-	SendMovePacket(cur_id, cur_id);
-	cout << m_tClient[cur_id].m_ix << ", " << m_tClient[cur_id].m_iy << ", " << m_tClient[cur_id].m_iz << endl;
+	m_tClient[cur_id].m_WorldPos = *(DirectX::XMFLOAT4X4*)&packet[2 + sizeof(DirectX::XMFLOAT3)];
 
-	for (int i = 0; i < MAX_USER; ++i)
+	/*cout << m_tClient[cur_id].m_WorldPos._11 << ' ' << m_tClient[cur_id].m_WorldPos._12
+		<< m_tClient[cur_id].m_WorldPos._13 << m_tClient[cur_id].m_WorldPos._14 << endl;
+	cout << m_tClient[cur_id].m_WorldPos._21 << m_tClient[cur_id].m_WorldPos._22
+		<< m_tClient[cur_id].m_WorldPos._23 << m_tClient[cur_id].m_WorldPos._24 << endl;
+	cout << m_tClient[cur_id].m_WorldPos._31 << m_tClient[cur_id].m_WorldPos._32
+		<< m_tClient[cur_id].m_WorldPos._33 << m_tClient[cur_id].m_WorldPos._34 << endl;
+	cout << m_tClient[cur_id].m_WorldPos._41 << m_tClient[cur_id].m_WorldPos._42
+		<< m_tClient[cur_id].m_WorldPos._43 << m_tClient[cur_id].m_WorldPos._44 << endl;*/
+
+
+	if (timeGetTime() * 0.001f - preTime > 0.2f)
 	{
-		if (i != cur_id)
-			if (m_tClient[i].m_bConnect) {
-				SendMovePacket(i, cur_id);
-				SendMovePacket(cur_id, i);
-			}
-	}
-	m_tClient[cur_id].m_Timer = GetTickCount();
-}
-
-void CMainServer::Timer_Process()
-{
-	while (true)
-	{
-		Sleep(10);
-		while (true)
+		preTime = timeGetTime() * 0.001f;
+		SendMovePacket(cur_id, cur_id);
+		for (int i = 0; i < MAX_USER; ++i)
 		{
-		}
-	}
-}
-
-void CMainServer::NPC_Process()
-{
-	while (true)
-	{
-		auto preTick = chrono::high_resolution_clock::now();
-		for (int i = NPC_START; i < NPC_END; ++i)
-			for (int j = 0; j < MAX_USER; ++j)
-			{
-				if (m_tClient[j].m_bConnect)
-				{
-					IoContextEx* IoEx = new IoContextEx;
-					IoEx->m_eType = e_AI;
-					m_hiocp.PostQCompleteState(i, &*IoEx);
-					break;
+			if (i != cur_id)
+				if (m_tClient[i].m_bConnect) {
+					SendMovePacket(i, cur_id);
+					SendMovePacket(cur_id, i);
 				}
-			}
-		auto lateTick = chrono::high_resolution_clock::now() - preTick;
-		int s_time = chrono::duration_cast<chrono::microseconds>(lateTick).count();
-		if (FrameTime > s_time) Sleep(FrameTime - s_time);
-
+		}
+		m_tClient[cur_id].m_Timer = GetTickCount();
 	}
-
 }
+
 
 
 
@@ -375,27 +269,39 @@ void CMainServer::SendPositionPacket(int client, int object)
 	packet.id = object;
 	packet.size = sizeof(packet);
 	packet.type = SC_POS;
-	packet.x = m_tClient[object].m_ix;
-	packet.y = m_tClient[object].m_iy;
-	packet.z = m_tClient[object].m_iz;
-
+	packet.pos = m_tClient[object].pos;
+	packet.anistate = m_tClient[object].anistate;
+	packet.world_pos = m_tClient[object].m_WorldPos;
 	SendPacket(client, &packet);
-	//cout << object << "가 " << client << " 에게 " << packet.x << " " << packet.y << endl;
+
+	//cout << object << "가 " << client << " 에게 " << packet.pos.x << " " << packet.pos.y << " " << packet.pos.z << endl;
+
 
 }
 
 void CMainServer::SendMovePacket(int client, int object)
 {
+
 	sc_move_packet packet;
 	packet.id = object;
 	packet.size = sizeof(packet);
 	packet.type = SC_MOVE;
-	packet.x = m_tClient[object].m_ix;
-	packet.y = m_tClient[object].m_iy;
-	packet.z = m_tClient[object].m_iz;
+	packet.pos = m_tClient[object].pos;
+	packet.anistate = m_tClient[object].anistate;
+	packet.world_pos = m_tClient[object].m_WorldPos;
+
+
+	/*	cout << packet.world_pos._11 << packet.world_pos._12
+			<< packet.world_pos._13 << packet.world_pos._14 << endl;
+		cout << packet.world_pos._21 << packet.world_pos._22
+			<< packet.world_pos._23 << packet.world_pos._24 << endl;
+		cout << packet.world_pos._31 << packet.world_pos._32
+			<< packet.world_pos._33 << packet.world_pos._34 << endl;
+		cout << packet.world_pos._41 << packet.world_pos._42
+			<< packet.world_pos._43 << packet.world_pos._44 << endl;*/
 
 	SendPacket(client, &packet);
-	//cout << client << " 에게 " << packet.x << " " << packet.y << endl;
+	cout << object << "가 " << client << " 에게 " << packet.pos.x << " " << packet.pos.y << " " << packet.pos.z << endl;
 }
 
 void CMainServer::error_display(char * msg, int err_no)

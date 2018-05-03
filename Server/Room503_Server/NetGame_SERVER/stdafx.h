@@ -3,7 +3,7 @@
 // 들어 있는 포함 파일입니다.
 #pragma once
 #pragma comment(lib, "ws2_32")
-
+#pragma comment(lib, "winmm.lib")
 #include <WinSock2.h>
 #include <Windows.h>
 #include <windowsx.h>
@@ -11,6 +11,7 @@
 #include <iostream>
 #include <crtdbg.h>
 
+#include <mmsystem.h>
 #include "targetver.h"
 
 #include <stdlib.h>
@@ -22,7 +23,7 @@
 #include <vector>
 #include <mutex>
 #include <chrono>
-
+#include <DirectXMath.h>
 using namespace std;
 
 #include "protocol.h"
