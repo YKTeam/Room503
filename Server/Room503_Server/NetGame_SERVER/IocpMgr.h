@@ -3,18 +3,19 @@ class CIocpMgr
 {
 private:
 	HANDLE m_hiocp;
-public:	
+public:
 	BOOL Initi();
-	
+
 	/////	GQCS
-	BOOL GetQCompleteState(LPDWORD,PULONG_PTR,LPOVERLAPPED*, int*);
+	BOOL GetQCompleteState(LPDWORD, PULONG_PTR, LPOVERLAPPED*, int*);
 	/////	CICP
-	BOOL CreateIO(SOCKET&,int);
+	BOOL CreateIO(SOCKET&, int);
 	BOOL CreateIO();
 
 	///// PQCS
 	BOOL PostQCompleteState(ULONG pKey, IoContextEx*);
 
+	HANDLE getHandle() { return& m_hiocp; };
 
 	void CloseHD();
 public:

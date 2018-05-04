@@ -5,7 +5,8 @@ enum eClientType
 {
 	e_SEND,
 	e_RECV,
-	e_AI,
+	e_UPDATE,
+
 	e_END
 };
 

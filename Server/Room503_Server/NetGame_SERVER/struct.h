@@ -7,6 +7,7 @@ struct IoContextEx
 	WSABUF m_wsabuf;
 	UCHAR m_szIoBuf[MAX_BUFSIZE];
 	eClientType m_eType;
+	int m_itarget;
 };
 
 
@@ -15,6 +16,7 @@ struct Client
 	DirectX::XMFLOAT3 pos;
 	int anistate;
 	DirectX::XMFLOAT4X4 m_WorldPos;
+	WORD m_PlayerState;
 
 	bool m_bConnect;
 	eBulletDir m_eDir;

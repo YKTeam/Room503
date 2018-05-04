@@ -28,6 +28,9 @@
     <Filter Include="01. IOCP">
       <UniqueIdentifier>{97383d9e-cd2d-4400-b6d4-129e68569099}</UniqueIdentifier>
     </Filter>
+    <Filter Include="03. Timer">
+      <UniqueIdentifier>{ac016bf6-0b86-4343-b01e-b8938f67aefc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -54,6 +57,12 @@
     <ClInclude Include="struct.h">
       <Filter>98. ETC</Filter>
     </ClInclude>
+    <ClInclude Include="XMHelper12.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="GameTimer.h">
+      <Filter>03. Timer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainServer.cpp">
@@ -67,6 +76,9 @@
     </ClCompile>
     <ClCompile Include="IocpMgr.cpp">
       <Filter>01. IOCP</Filter>
+    </ClCompile>
+    <ClCompile Include="GameTimer.cpp">
+      <Filter>03. Timer</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

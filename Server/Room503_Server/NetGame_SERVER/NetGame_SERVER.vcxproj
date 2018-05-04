@@ -142,14 +142,17 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="enum.h" />
+    <ClInclude Include="GameTimer.h" />
     <ClInclude Include="IocpMgr.h" />
     <ClInclude Include="MainServer.h" />
     <ClInclude Include="protocol.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="struct.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="XMHelper12.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="IocpMgr.cpp" />
     <ClCompile Include="MainServer.cpp" />
     <ClCompile Include="NetGame_SERVER.cpp" />

@@ -19,6 +19,7 @@
 #define CS_RIGHT	4
 #define CS_NONE		5
 
+
 #define SC_POS		1
 #define SC_MOVE		2
 #define SC_REMOVE	3
@@ -77,7 +78,7 @@ struct sc_move_packet {
 	DirectX::XMFLOAT3 pos;
 	BYTE anistate;
 	DirectX::XMFLOAT4X4 world_pos;
-
+	WORD player_state;
 };
 
 
