@@ -48,7 +48,10 @@ enum class RenderLayer : int
 	Grass,
 	SkyBox,
 	Enemy,//적
-	CollBox,
+	MoveTile,
+	Item,
+	MapCollision, //정적인 맵 콜리젼박스 (노가다)
+	CollBox, //디버깅용
 	Debug,
 	Count
 };

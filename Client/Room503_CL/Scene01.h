@@ -68,7 +68,7 @@ private:
 	void BuildShadersAndInputLayout();
 
 	void BuildShapeGeometry();
-	void BuildCollBoxGeometry(Aabb colbox, const std::string geoName, const std::string meshName);
+	void BuildCollBoxGeometry(Aabb colbox, const std::string geoName, const std::string meshName, bool isTile);
 	void BuildFbxGeometry(const std::string fileName, const std::string geoName, const std::string meshName, float loadScale, bool isMap, bool hasAniBone); //본갯수리턴
 	void BuildAnimation(const std::string fileName, const std::string clipName, float loadScale, bool isMap);
 
@@ -163,6 +163,7 @@ private:
 	float mEnergy = 0.5f;
 	//블러 레벨 0~ 2
 	int blurLevel = 0;
+	float startDeathTime = 0.0f;
 	//현재 씬 상태 (에 따라 업데이트, 입력, 렌더 [모든 데이터는 한번에 로딩])
 	int nowScene = (int)Scene::Menu;
 	//메뉴관련 
@@ -170,7 +171,6 @@ private:
 	bool quitMouseOnVal = false;
 	//구조가 생성자로 생성되는구조임
 	int m_ObjIndex = 0;
-	int m_BlurCount = 0;
 	int m_CameraMoveLevel = 0;
 	float mx = 0, my = 0;
 	

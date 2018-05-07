@@ -39,6 +39,12 @@ class Aabb
 
 public:
 	XMFLOAT3* GetAabbBox() { return _box; }
+	//맵 콜리전씌우기
+	void SetMaxMin(XMFLOAT3 max, XMFLOAT3 min)
+	{
+		_max = XMFLOAT3(max.x, max.y, max.z);
+		_min = XMFLOAT3(min.x, min.y, min.z);
+	}
 	//최대 최소값 (회전시 갱신?)
 	void GetMaxMin(GeometryGenerator::SkinnedMeshData mesh)
 	{
@@ -56,9 +62,7 @@ public:
 				z = mesh.Vertices[i].Position.z;
 		}
 		_max = XMFLOAT3(x, y, z);
-		_max.x /= 2;
-		_max.y /= 2;
-		_max.z /= 2;
+		
 		x = mesh.Vertices[0].Position.x;
 		y = mesh.Vertices[0].Position.y;
 		z = mesh.Vertices[0].Position.z;
@@ -73,9 +77,7 @@ public:
 				z = mesh.Vertices[i].Position.z;
 		}
 		_min = XMFLOAT3(x, y, z) ;
-		_min.x /= 2;
-		_min.y /= 2;
-		_min.z /= 2;
+		
 
 		//박스갱신
 		_box[0].x = _min.x; _box[0].y = _max.y; _box[0].z = _max.z;
@@ -122,12 +124,16 @@ public :
 		NowAniName = aniName;
 		//ClipName = aniName;
 		if (NowAniName == "idle") {
-			StartTime = 0.0f;
-			EndTime = 3.0f;//0.05f * 51;// SkinnedInfo->GetClipEndTime(ClipName);//0.05f * 51;
+			StartTime = 0;
+			EndTime = 3.00f;//0.05f * 51;// SkinnedInfo->GetClipEndTime(ClipName);//0.05f * 51;
 		}
 		else if (NowAniName == "walk") {
 			StartTime = 3.05f; //0;//3.05f;
 			EndTime = 4.55f; //SkinnedInfo->GetClipEndTime(ClipName);//4.55f;
+		}
+		else if (NowAniName == "die") {
+			StartTime = 21.0f;
+			EndTime = 23.0f;
 		}
 	}
 
@@ -136,8 +142,10 @@ public :
 		if (TimePos < StartTime) TimePos = StartTime;
 		TimePos += dt;
 
-		// Loop animation  0.05 -> 60 / 530   4.55 3.05   3.0  0
-		if (TimePos > EndTime)//SkinnedInfo->GetClipEndTime(ClipName) )
+		if (NowAniName == "die" && TimePos > EndTime)
+			TimePos = EndTime;
+		//루프
+		else if (TimePos > EndTime )//SkinnedInfo->GetClipEndTime(ClipName) )
 			TimePos = StartTime;
 
 		// Compute the final transforms for this time position.
