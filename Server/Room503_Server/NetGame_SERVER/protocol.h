@@ -13,17 +13,30 @@
 #define MAX_NPC			1000
 
 
-#define CS_UP		1
-#define CS_DOWN		2
-#define CS_LEFT		3
-#define CS_RIGHT	4
-#define CS_NONE		5
+#define CS_UP			1
+#define CS_DOWN			2
+#define CS_LEFT			3
+#define CS_RIGHT		4
+
+#define CS_RIGHT_UP		5
+#define CS_RIGHT_DOWN	6
+
+#define CS_LEFT_UP		7
+#define CS_LEFT_DOWN	8
+
+
+#define CS_ITEM			9
+
+#define CS_NONE			99
+
+
+
 
 
 #define SC_POS		1
 #define SC_MOVE		2
 #define SC_REMOVE	3
-
+#define SC_ITEM		4
 #define NPC_START	100
 #define NPC_END		125
 
@@ -55,14 +68,7 @@ struct cs_position_packet {
 	DirectX::XMFLOAT4X4 world_pos;
 };
 
-//struct cs_position {
-//	BYTE size;
-//	BYTE type;
-//	int id;
-//	DirectX::XMFLOAT3 pos;
-//};
-
-struct sc_position_packet{
+struct sc_position_packet {
 	BYTE size;
 	BYTE type;
 	WORD id;
@@ -81,5 +87,18 @@ struct sc_move_packet {
 	WORD player_state;
 };
 
+struct cs_item_packet {
+	BYTE size;
+	BYTE type;
+	DirectX::XMFLOAT3 pos;
+};
+
+
+struct sc_item_packet {
+	BYTE size;
+	BYTE type;
+	WORD id;
+	DirectX::XMFLOAT3 pos;
+};
 
 #pragma pack (pop)

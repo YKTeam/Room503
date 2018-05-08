@@ -2,7 +2,7 @@
 #include "MainServer.h"
 
 
-float preTime = timeGetTime() *0.001f;
+
 float updateTime = timeGetTime()*0.001f;
 
 void CMainServer::SendMovePacket2(int client, int object)
@@ -56,10 +56,22 @@ void CMainServer::SendPacket(int client, void* packet)
 
 }
 
+void CMainServer::SendItemPacket(int cl, int obj)
+{
+	sc_item_packet packet;
+	packet.id = obj;
+	packet.size = sizeof(sc_item_packet);
+	packet.type = SC_ITEM;
+	packet.pos = m_tItem[obj].pos;
+
+	SendPacket(cl, &packet);
+
+}
+
 void CMainServer::Update_Thread()
 {
 	while (1) {
-		if (timeGetTime() * 0.001f - updateTime > 0.05f) 
+		if (timeGetTime() * 0.001f - updateTime > 0.025)
 		{
 			updateTime = timeGetTime() * 0.001f;
 			for (int i = 0; i < MAX_USER; ++i) {
@@ -76,41 +88,83 @@ void CMainServer::Update_Thread()
 
 void CMainServer::Player_Process(int id)
 {
-	const float dt =0.05f;
+	const float dt = 0.025f;
 	//cout << dt << endl;
-
+	//const float dt = gt.DeltaTime();
+	float walkSpeed = -300;
 	if (m_tClient[id].m_PlayerState == CS_LEFT) {
 		DirectX::XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(1, 0, 0), getLook3f(id)));
 		SetLook3f(look, id);
 		SetRight3f(Vector3::CrossProduct(GetUp3f(id), getLook3f(id), true), id);
-		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), -150 * dt, false)), id);
+		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), walkSpeed * dt, false)), id);
 	}
-
 	if (m_tClient[id].m_PlayerState == CS_RIGHT) {
 		DirectX::XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(-1, 0, 0), getLook3f(id)));
 		SetLook3f(look, id);
 		SetRight3f(Vector3::CrossProduct(GetUp3f(id), getLook3f(id), true), id);
-		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), -150 * dt, false)), id);
+		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), walkSpeed * dt, false)), id);
 	}
-
 	if (m_tClient[id].m_PlayerState == CS_UP) {
 		DirectX::XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, -1), getLook3f(id)));
 		SetLook3f(look, id);
 		SetRight3f(Vector3::CrossProduct(GetUp3f(id), getLook3f(id), true), id);
-		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), -150 * dt, false)), id);
+		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), walkSpeed * dt, false)), id);
 	}
-
 	if (m_tClient[id].m_PlayerState == CS_DOWN) {
 		DirectX::XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, 1), getLook3f(id)));
 		SetLook3f(look, id);
 		SetRight3f(Vector3::CrossProduct(GetUp3f(id), getLook3f(id), true), id);
-		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), -150 * dt, false)), id);
+		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), walkSpeed * dt, false)), id);
 	}
+	if (m_tClient[id].m_PlayerState == CS_RIGHT_UP) {
+		DirectX::XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(-1, 0, 0), getLook3f(id)));
+		SetLook3f(look, id);
+		SetRight3f(Vector3::CrossProduct(GetUp3f(id), getLook3f(id), true), id);
+
+		DirectX::XMFLOAT3 look2 = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, -1), getLook3f(id)));
+		SetLook3f(look2, id);
+		SetRight3f(Vector3::CrossProduct(GetUp3f(id), getLook3f(id), true), id);
+		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), walkSpeed * dt, false)), id);
+
+	}
+	if (m_tClient[id].m_PlayerState == CS_RIGHT_DOWN) {
+		DirectX::XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(-1, 0, 0), getLook3f(id)));
+		SetLook3f(look, id);
+		SetRight3f(Vector3::CrossProduct(GetUp3f(id), getLook3f(id), true), id);
+
+		DirectX::XMFLOAT3 look2 = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, 1), getLook3f(id)));
+		SetLook3f(look2, id);
+		SetRight3f(Vector3::CrossProduct(GetUp3f(id), getLook3f(id), true), id);
+		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), walkSpeed * dt, false)), id);
+	}
+	if (m_tClient[id].m_PlayerState == CS_LEFT_UP) {
+		DirectX::XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(1, 0, 0), getLook3f(id)));
+		SetLook3f(look, id);
+		SetRight3f(Vector3::CrossProduct(GetUp3f(id), getLook3f(id), true), id);
+
+		DirectX::XMFLOAT3 look2 = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, -1), getLook3f(id)));
+		SetLook3f(look2, id);
+		SetRight3f(Vector3::CrossProduct(GetUp3f(id), getLook3f(id), true), id);
+		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), walkSpeed * dt, false)), id);
+	}
+	if (m_tClient[id].m_PlayerState == CS_LEFT_DOWN) {
+		DirectX::XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(1, 0, 0), getLook3f(id)));
+		SetLook3f(look, id);
+		SetRight3f(Vector3::CrossProduct(GetUp3f(id), getLook3f(id), true), id);
+
+
+		DirectX::XMFLOAT3 look2 = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, 1), getLook3f(id)));
+		SetLook3f(look2, id);
+		SetRight3f(Vector3::CrossProduct(GetUp3f(id), getLook3f(id), true), id);
+		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), walkSpeed * dt, false)), id);
+	}
+
+
 
 	for (int i = 0; i < MAX_USER; ++i) {
 		if (m_tClient[i].m_bConnect && i != id) {
 			SendMovePacket2(i, id);
-		
+
 
 			//m_lock.unlock();
 		}
@@ -336,13 +390,36 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_RIGHT;
 		break;
+	case CS_RIGHT_UP:
+		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		m_tClient[cur_id].anistate = 1;
+		m_tClient[cur_id].m_PlayerState = CS_RIGHT_UP;
+		break;
+	case CS_RIGHT_DOWN:
+		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		m_tClient[cur_id].anistate = 1;
+		m_tClient[cur_id].m_PlayerState = CS_RIGHT_DOWN;
+		break;
+	case CS_LEFT_UP:
+		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		m_tClient[cur_id].anistate = 1;
+		m_tClient[cur_id].m_PlayerState = CS_LEFT_UP;
+		break;
+	case CS_LEFT_DOWN:
+		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		m_tClient[cur_id].anistate = 1;
+		m_tClient[cur_id].m_PlayerState = CS_LEFT_DOWN;
+		break;
 
+	case CS_ITEM:
+		m_tItem[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+
+		break;
 	default:
 		cout << "UnKnown Packet Type Cur_ID : " << cur_id << endl;
 		while (true);
 	}
 
-	m_tClient[cur_id].m_WorldPos = *(DirectX::XMFLOAT4X4*)&packet[2 + sizeof(DirectX::XMFLOAT3)];
 
 	/*cout << m_tClient[cur_id].m_WorldPos._11 << ' ' << m_tClient[cur_id].m_WorldPos._12
 		<< m_tClient[cur_id].m_WorldPos._13 << m_tClient[cur_id].m_WorldPos._14 << endl;
@@ -354,9 +431,10 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 		<< m_tClient[cur_id].m_WorldPos._43 << m_tClient[cur_id].m_WorldPos._44 << endl;*/
 
 
-	//if (timeGetTime() * 0.001f - preTime > 0.2f)
-	{
-		preTime = timeGetTime() * 0.001f;
+		//if (timeGetTime() * 0.001f - preTime > 0.2f)
+
+	if (CS_ITEM != packet[1]) {
+		m_tClient[cur_id].m_WorldPos = *(DirectX::XMFLOAT4X4*)&packet[2 + sizeof(DirectX::XMFLOAT3)];
 		SendMovePacket(cur_id, cur_id);
 		for (int i = 0; i < MAX_USER; ++i)
 		{
@@ -369,6 +447,19 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 		}
 		m_tClient[cur_id].m_Timer = GetTickCount();
 	}
+	else if (CS_ITEM == packet[1])
+	{
+		SendItemPacket(cur_id, cur_id);
+		for (int i = 0; i < MAX_USER; ++i)
+		{
+			if (i != cur_id)
+				if (m_tClient[i].m_bConnect) {
+					SendItemPacket(i, cur_id);
+					SendItemPacket(cur_id, i);
+				}
+		}
+	}
+
 }
 
 
@@ -401,8 +492,8 @@ void CMainServer::SendMovePacket(int client, int object)
 	packet.anistate = m_tClient[object].anistate;
 	packet.world_pos = m_tClient[object].m_WorldPos;
 	packet.player_state = m_tClient[object].m_PlayerState;
-	
-	
+
+
 
 	SendPacket(client, &packet);
 	//cout << object << "°¡ " << client << " ¿¡°Ô " << packet.pos.x << " " << packet.pos.y << " " << packet.pos.z << endl;

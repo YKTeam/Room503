@@ -14,6 +14,7 @@ private:
 	CIocpMgr m_hiocp;
 
 	Client m_tClient[MAX_NPC];
+	Client m_tItem[MAX_NPC];
 
 	vector<thread*> m_vThread;
 	mutex m_lock;
@@ -32,6 +33,7 @@ public:
 	void SendMovePacket2(int, int);
 	void SendPacket(int, void*);
 
+	void SendItemPacket(int, int);
 
 	void Update_Thread();
 	void Player_Process(int);
