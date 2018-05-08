@@ -50,6 +50,7 @@ enum class RenderLayer : int
 	Enemy,//적
 	MoveTile,
 	Item,
+	Lever,  //무빙 레버
 	MapCollision, //정적인 맵 콜리젼박스 (노가다)
 	CollBox, //디버깅용
 	Debug,

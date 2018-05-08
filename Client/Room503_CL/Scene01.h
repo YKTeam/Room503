@@ -161,6 +161,9 @@ private:
 
 	//게임(플레이어) 에너지
 	float mEnergy = 0.5f;
+	bool isPlayerMove = true;
+	//트리거 관련
+	bool isLeverOn = false;
 	//블러 레벨 0~ 2
 	int blurLevel = 0;
 	float startDeathTime = 0.0f;

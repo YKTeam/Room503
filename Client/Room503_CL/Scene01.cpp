@@ -53,6 +53,7 @@ bool MyScene::Initialize()
 	BuildShadersAndInputLayout();
 	BuildShapeGeometry();
 	BuildFbxGeometry("Model/HandLight.fbx", "handLightGeo", "handLight", 1.0f, false, false);
+	BuildFbxGeometry("Model/SplitMetalBall.fbx", "leverGeo", "lever", 1.0f, false, false);
 	BuildFbxGeometry("Model/moveingTile.obj", "tileGeo", "tile00", 1, true, false);
 	BuildFbxGeometry("Model/robotFree3.fbx", "robot_freeGeo", "robot_free", 1.0f, false , true);//angle  robotModel  robotIdle
 	BuildFbxGeometry("Model/tutorial.obj", "map00Geo", "map00", 1, true, false);
@@ -146,7 +147,6 @@ void MyScene::Update(const GameTimer& gt)
 
 		//게임오버시
 		if (mEnergy <= 0) {
-			startDeathTime = gt.TotalTime();
 			mSkinnedModelInst->SetNowAni("die");
 			blurLevel = 2;
 		}
@@ -236,6 +236,7 @@ void MyScene::InitGameScene()
 {
 	auto player = mOpaqueRitems[(int)RenderLayer::Player];
 	auto items = mOpaqueRitems[(int)RenderLayer::Item];
+	auto lever = mOpaqueRitems[(int)RenderLayer::Lever];
 	
 	//플레이어 초기화
 	//뭐뭐 초기화
@@ -246,8 +247,9 @@ void MyScene::InitGameScene()
 		mCamera.SetPosition(player[0]->GetPosition().x, player[0]->GetPosition().y + 2000, player[0]->GetPosition().z - 500);
 		mCamera.LookAt(mCamera.GetPosition3f(), player[0]->GetPosition(), XMFLOAT3(0, 1, 0));
 
-		player[0]->SetPosition(XMFLOAT3(-200, player[0]->GetPosition().y, -1300));
+		player[0]->SetPosition(XMFLOAT3(-200, 300.0f, -1300));
 		items[0]->SetPosition(XMFLOAT3(-1500, items[0]->GetPosition().y, -580));
+		lever[0]->SetPosition(XMFLOAT3(1500, lever[0]->GetPosition().y, -600));
 	}
 	else if (nowScene == (int)Scene::Menu) {
 		mCamera.SetPosition(0.0f, 0.0f, -800.0f);
@@ -326,10 +328,11 @@ void MyScene::GameSceneRender(const GameTimer& gt)
 	{
 		mCommandList->SetPipelineState(mPSOs["grid"].Get());
 	}
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Lever], (int)RenderLayer::Lever);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Item], (int)RenderLayer::Item);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Grid], (int)RenderLayer::Grid);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::MoveTile], (int)RenderLayer::MoveTile);
-	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::CollBox], (int)RenderLayer::CollBox);
+	//DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::CollBox], (int)RenderLayer::CollBox);
 	//
 	if (mIsWireframe)
 		mCommandList->SetPipelineState(mPSOs["opaque_wireframe"].Get());
@@ -433,40 +436,39 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 	}
 
 	//게임오버 전에
-	if (mEnergy > 0)
+	auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
+	if (mEnergy > 0 )
 	if (GetAsyncKeyState(VK_LEFT) || GetAsyncKeyState(VK_RIGHT) || GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN)) {
-		mSkinnedModelInst->SetNowAni("walk");
-		
+
 		float walkSpeed = -300;
-		if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
-			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
-			eplayer[0]->SetLook3f(XMFLOAT3(1, 0, 0));
-			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
-			if (!(GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN)))
-				eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
-		}
-		if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
-			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
-			eplayer[0]->SetLook3f(XMFLOAT3(-1, 0, 0));
-			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
-			if (!(GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN)))
-				eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
-		}
-		if (GetAsyncKeyState(VK_UP) & 0x8000) {
-			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
-			XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, -1), eplayer[0]->GetLook3f()));
+		if (eplayer[0]->isOnGround == true) {
+			mSkinnedModelInst->SetNowAni("walk");
+			if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
+				eplayer[0]->SetLook3f(XMFLOAT3(1, 0, 0));
+				eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
+				if (!(GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN)))
+					eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
+			}
+			if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
+				eplayer[0]->SetLook3f(XMFLOAT3(-1, 0, 0));
+				eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
+				if (!(GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN)))
+					eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
+			}
+			if (GetAsyncKeyState(VK_UP) & 0x8000) {
+				XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, -1), eplayer[0]->GetLook3f()));
 
-			eplayer[0]->SetLook3f(look);
-			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
-			eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
-		}
-		if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
-			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
-			XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, 1), eplayer[0]->GetLook3f()));
+				eplayer[0]->SetLook3f(look);
+				eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
+				eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
+			}
+			if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+				XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(0, 0, 1), eplayer[0]->GetLook3f()));
 
-			eplayer[0]->SetLook3f(look);
-			eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
-			eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
+				eplayer[0]->SetLook3f(look);
+				eplayer[0]->SetRight3f(Vector3::CrossProduct(eplayer[0]->GetUp3f(), eplayer[0]->GetLook3f(), true));
+				eplayer[0]->SetPosition(Vector3::Add(eplayer[0]->GetPosition(), Vector3::ScalarProduct(eplayer[0]->GetLook3f(), walkSpeed *dt, false)));
+			}
 		}
 	}
 	else mSkinnedModelInst->SetNowAni("idle");
@@ -619,54 +621,115 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		for (auto& e : mOpaqueRitems[(int)RenderLayer::Player])
 		{
 			auto item = mOpaqueRitems[(int)RenderLayer::Item];
-			auto tile = mOpaqueRitems[(int)RenderLayer::MoveTile];
+			auto lever = mOpaqueRitems[(int)RenderLayer::Lever];
 			auto mfriend = mOpaqueRitems[(int)RenderLayer::Friend];
 			auto rand = mOpaqueRitems[(int)RenderLayer::Grid];
 			auto cols = mOpaqueRitems[(int)RenderLayer::MapCollision];
 
 			//땅 -값
-			if (e->GetPosition().y > 40 )//모델키는 로드시 스케일로 맞춰서 일단 상수로
+			//if (e->GetPosition().y > 40 )//모델키는 로드시 스케일로 맞춰서 일단 상수로
+			if (e->isOnGround == false)
 				e->GravityUpdate(gt);
-			else
-				e->SetPosition(XMFLOAT3(e->GetPosition().x, 40, e->GetPosition().z));
+			//else
+			//	e->SetPosition(XMFLOAT3(e->GetPosition().x, 40, e->GetPosition().z));
 
-			for(int i = 0; i<cols.size(); i++)
-			if (e->bounds.IsCollsionAABB(e->GetPosition(), &cols[i]->bounds, cols[i]->GetPosition()))
-				printf("맵 %d 과 충돌 \n",i);
+			printf("%.2f %.2f %.2f\n", e->GetPosition().x, e->GetPosition().y, e->GetPosition().z);
+			//정적인 맵과의 충돌에서 움직일 때만 처리
+			//e->isOnGround = false;
+			for (int i = 0; i < cols.size(); i++) {
+				//온그라운드가 true일 경우 또 true인지 검사한다?
+				if (e->bounds.IsCollsionAABB(e->GetPosition(), &cols[i]->bounds, cols[i]->GetPosition()))
+				{
+					//충돌체 검사가 통과되면 보정 후, 온 그라운드를 활성화 시킨다.
+					//보정안함
+					e->isOnGround = true;
+					break;
+				}
+				else {
+					mSkinnedModelInst->SetNowAni("idle");
+					e->isOnGround = false;
+				}
+			}
 
-			if (e->bounds.IsCollsionAABB(e->GetPosition(), &tile[0]->bounds, tile[0]->GetPosition()))
-				printf("타일과 충돌 \n");
+			//그리드와의 충돌은 float끼리만 계산하면 된다 평면이니까
+			if(e->isOnGround == false)
+			if (e->GetPosition().y - e->bounds.GetMin().y < -250.0f) {
+				e->isOnGround = true;
+				mEnergy = 0.0f;
+				printf("떨어져 죽음 \n");
+			}
 
-			if (e->bounds.IsCollsionAABB(e->GetPosition(), &item[0]->bounds, item[0]->GetPosition()))
+			if (e->bounds.IsCollsionAABB(e->GetPosition(), &item[0]->bounds, item[0]->GetPosition())) {
 				printf("아이템과 충돌 \n");
+				mEnergy += gt.DeltaTime() * 0.9f;
+				if (mEnergy >= 1.0f) mEnergy = 1.0f;
+			}
 
 			if (e->bounds.IsCollsionAABB(e->GetPosition(), &mfriend[0]->bounds, mfriend[0]->GetPosition()))
 				printf("플레이어간 충돌 \n");
 
-			
-
 			//회전초기화
-
-
 			e->NumFramesDirty = gNumFrameResources;
 
 		}
-
+		//동료
 		for (auto& e : mOpaqueRitems[(int)RenderLayer::Friend])
 		{
-			auto rand = mOpaqueRitems[(int)RenderLayer::Grid];
-			if (e->GetPosition().y > 40)//모델키는 로드시 스케일로 맞춰서 일단 상수로
-				e->GravityUpdate(gt);
-			else
-				e->SetPosition(XMFLOAT3(e->GetPosition().x, 40, e->GetPosition().z));
 
 			e->NumFramesDirty = gNumFrameResources;
 		}
 
+		//움직이는 발판 
+		for (auto& e : mOpaqueRitems[(int)RenderLayer::MoveTile])
+		{
+			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
+
+			//레버에 한명 서있으면..움직이는데 상수로 때려박음 (속도 20)
+			if (isLeverOn == false){
+				if (e->GetPosition().y > -250)
+					e->SetPosition(XMFLOAT3(e->GetPosition().x, e->GetPosition().y - 20 * gt.DeltaTime(), e->GetPosition().z));
+				else e->SetPosition(XMFLOAT3(e->GetPosition().x, -250, e->GetPosition().z));
+			}
+			else {
+				if (e->GetPosition().y < -100)
+					e->SetPosition(XMFLOAT3(e->GetPosition().x, e->GetPosition().y + 20 * gt.DeltaTime(), e->GetPosition().z));
+				else e->SetPosition(XMFLOAT3(e->GetPosition().x, -100, e->GetPosition().z));
+			}
+
+			//플레이어가 발판에 서있으면
+			if (e->bounds.IsCollsionAABB(e->GetPosition(), &eplayer[0]->bounds, eplayer[0]->GetPosition()))
+			{
+				eplayer[0]->isOnGround = true;
+				if (isLeverOn == false) mEnergy = 0.0f; //플레이어 죽음
+				else if (isLeverOn == true) {
+					//플레이어도 같이 움직임
+					eplayer[0]->SetPosition(XMFLOAT3(eplayer[0]->GetPosition().x, eplayer[0]->GetPosition().y + 20 * gt.DeltaTime(), eplayer[0]->GetPosition().z));
+				}
+			}
+			e->NumFramesDirty = gNumFrameResources;
+		}
+		//아이템
 		for (auto& e : mOpaqueRitems[(int)RenderLayer::Item])
 		{
 			//회전
 			e->RotateY(gt.DeltaTime() * 1);
+			e->NumFramesDirty = gNumFrameResources;
+		}
+		for (auto& e : mOpaqueRitems[(int)RenderLayer::Lever])
+		{
+			auto eplayer = mOpaqueRitems[(int)RenderLayer::Player];
+			
+			//충돌되면 일단 활성화 
+			if (e->bounds.IsCollsionAABB(e->GetPosition(), &eplayer[0]->bounds, eplayer[0]->GetPosition()))
+			{
+				e->RotateY(gt.DeltaTime() * 25);
+				isLeverOn = true; //임시변수임
+			}
+			//비활성화일 경우 어떤 변수
+			else
+			{
+				isLeverOn = false;
+			}
 			e->NumFramesDirty = gNumFrameResources;
 		}
 
@@ -908,7 +971,8 @@ void MyScene::LoadTextures()
 		"ui01Tex",
 		"ui02Tex",
 		"handLightTex",
-		"handLightNomalTex"
+		"handLightNomalTex",
+		"leverTex"
 	};
 
 	std::vector<std::wstring> texFilenames =
@@ -926,7 +990,8 @@ void MyScene::LoadTextures()
 		L"Textures/ui01.dds",
 		L"Textures/ui02.dds",
 		L"Textures/handLight.dds",
-		L"Textures/handLightNomal.dds"
+		L"Textures/handLightNomal.dds",
+		L"Textures/gu.dds" //레버
 	};
 
 	for (int i = 0; i < (int)texNames.size(); ++i)
@@ -946,9 +1011,9 @@ void MyScene::BuildRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE texTable[4];
 	texTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); //기본텍스처
-	texTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); //디테일
-	texTable[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3); //스카이박스
-	texTable[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);//그림자용 널값
+	texTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); //텍스처2
+	texTable[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3); //텍스처3
+	texTable[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);//null용 텍스처(슬롯7)
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[8];
 
@@ -956,7 +1021,7 @@ void MyScene::BuildRootSignature()
 	slotRootParameter[0].InitAsDescriptorTable(1, &texTable[0], D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[5].InitAsDescriptorTable(1, &texTable[1], D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[6].InitAsDescriptorTable(1, &texTable[2], D3D12_SHADER_VISIBILITY_PIXEL);
-	slotRootParameter[7].InitAsDescriptorTable(1, &texTable[3], D3D12_SHADER_VISIBILITY_PIXEL); //슬롯 7번
+	slotRootParameter[7].InitAsDescriptorTable(1, &texTable[3], D3D12_SHADER_VISIBILITY_PIXEL); 
 
 	slotRootParameter[1].InitAsConstantBufferView(0); //버텍스상수
 	slotRootParameter[2].InitAsConstantBufferView(1); //상수
@@ -1077,7 +1142,7 @@ void MyScene::BuildDescriptorHeaps()
 {
 	int rtvOffset = SwapChainBufferCount;
 
-	const int textureDescriptorCount = 14;
+	const int textureDescriptorCount = 15;
 	const int blurDescriptorCount = 4;
 
 	int srvOffset = textureDescriptorCount;
@@ -1107,7 +1172,8 @@ void MyScene::BuildDescriptorHeaps()
 		mTextures["ui01Tex"]->Resource ,
 		mTextures["ui02Tex"]->Resource,
 		mTextures["handLightTex"]->Resource,
-		mTextures["handLightNomalTex"]->Resource
+		mTextures["handLightNomalTex"]->Resource,
+		mTextures["leverTex"]->Resource
 	};
 	auto skyCubeMap = mTextures["skyCubeMap"]->Resource;
 
@@ -1235,9 +1301,9 @@ void MyScene::BuildShadersAndInputLayout()
 	mShaders["treeSpriteGS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "GS", "gs_5_0");
 	mShaders["treeSpritePS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", alphaTestDefines, "PS", "ps_5_0");
 
-	mShaders["flareSpriteVS"] = d3dUtil::CompileShader(L"Shaders\\flareSprite.hlsl", nullptr, "VS", "vs_5_0");
+	/*mShaders["flareSpriteVS"] = d3dUtil::CompileShader(L"Shaders\\flareSprite.hlsl", nullptr, "VS", "vs_5_0");
 	mShaders["flareSpriteGS"] = d3dUtil::CompileShader(L"Shaders\\flareSprite.hlsl", nullptr, "GS", "gs_5_0");
-	mShaders["flareSpritePS"] = d3dUtil::CompileShader(L"Shaders\\flareSprite.hlsl", alphaTestDefines, "PS", "ps_5_0");
+	mShaders["flareSpritePS"] = d3dUtil::CompileShader(L"Shaders\\flareSprite.hlsl", alphaTestDefines, "PS", "ps_5_0");*/
 
 	mShaders["SkyBoxVS"] = d3dUtil::CompileShader(L"Shaders\\SkyBox.hlsl", nullptr, "VS", "vs_5_0");
 	mShaders["SkyBoxPS"] = d3dUtil::CompileShader(L"Shaders\\SkyBox.hlsl", nullptr, "PS", "ps_5_0");
@@ -1795,7 +1861,7 @@ void MyScene::BuildPSOs()
 	//
 	// PSO for flare sprites
 	//
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC flareSpritePsoDesc = opaquePsoDesc;
+	/*D3D12_GRAPHICS_PIPELINE_STATE_DESC flareSpritePsoDesc = opaquePsoDesc;
 	flareSpritePsoDesc.VS =
 	{
 		reinterpret_cast<BYTE*>(mShaders["flareSpriteVS"]->GetBufferPointer()),
@@ -1815,7 +1881,7 @@ void MyScene::BuildPSOs()
 	flareSpritePsoDesc.InputLayout = { mTreeSpriteInputLayout.data(), (UINT)mTreeSpriteInputLayout.size() };
 	flareSpritePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&flareSpritePsoDesc, IID_PPV_ARGS(&mPSOs["flareSprites"])));
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&flareSpritePsoDesc, IID_PPV_ARGS(&mPSOs["flareSprites"])));*/
 
 	//
 	// PSO for horizontal blur
@@ -2000,6 +2066,10 @@ void MyScene::BuildMaterials()
 	handLightNomal->Name = "handLightNomal";
 	handLightNomal->MatCBIndex = matIndex;
 	handLightNomal->DiffuseSrvHeapIndex = matIndex++;
+	auto lever = std::make_unique<Material>();
+	lever->Name = "lever";
+	lever->MatCBIndex = matIndex;
+	lever->DiffuseSrvHeapIndex = matIndex++;
 
 	auto sky = std::make_unique<Material>();
 	sky->Name = "sky";
@@ -2021,6 +2091,7 @@ void MyScene::BuildMaterials()
 
 	mMaterials["handLight"] = std::move(handLight);
 	mMaterials["handLightNomal"] = std::move(handLightNomal);
+	mMaterials["lever"] = std::move(lever);
 
 	mMaterials["sky"] = std::move(sky);
 }
@@ -2190,12 +2261,11 @@ void MyScene::BuildGameObjects()
 		//BuildHelicopterGeometry(*m_gunShip.get());
 
 		auto player = std::make_unique<GameObject>();
-		XMStoreFloat4x4(&player->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+		XMStoreFloat4x4(&player->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 300.0f, 0.0f));
 		player->ObjCBIndex = objIndex++;
 		player->Mat = mMaterials["robot"].get();
 		player->Geo = mGeometries["robot_freeGeo"].get();
 		player->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		player->bounds = mBounds["robot_free"];
 		player->IndexCount = player->Geo->DrawArgs["robot_free"].IndexCount;
 		player->StartIndexLocation = player->Geo->DrawArgs["robot_free"].StartIndexLocation;
 		player->BaseVertexLocation = player->Geo->DrawArgs["robot_free"].BaseVertexLocation;
@@ -2204,18 +2274,18 @@ void MyScene::BuildGameObjects()
 		player->SkinnedModelInst = mSkinnedModelInst.get();
 
 		//플레이어 충돌박스
+		player->bounds.SetMaxMin(XMFLOAT3(50, 150, 50), XMFLOAT3(-50, 0, -50));
 		BuildCollBoxGeometry(player->bounds, "robot_freeBoxGeo", "robot_freeBox", false);
 
 		mOpaqueRitems[(int)RenderLayer::Player].push_back(player.get());
 		mAllRitems.push_back(std::move(player));
 
 		auto dummy = std::make_unique<GameObject>();
-		XMStoreFloat4x4(&dummy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+		XMStoreFloat4x4(&dummy->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 300.0f, 0.0f));
 		dummy->ObjCBIndex = objIndex++;
 		dummy->Mat = mMaterials["robot"].get();
 		dummy->Geo = mGeometries["robot_freeGeo"].get();
 		dummy->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		dummy->bounds = mBounds["robot_free"];
 		dummy->IndexCount = dummy->Geo->DrawArgs["robot_free"].IndexCount;
 		dummy->StartIndexLocation = dummy->Geo->DrawArgs["robot_free"].StartIndexLocation;
 		dummy->BaseVertexLocation = dummy->Geo->DrawArgs["robot_free"].BaseVertexLocation;
@@ -2224,25 +2294,43 @@ void MyScene::BuildGameObjects()
 		dummy->SkinnedModelInst = mSkinnedFriendModelInst.get();
 		mSkinnedFriendModelInst->SetNowAni("idle");
 
+		dummy->bounds.SetMaxMin(XMFLOAT3(50, 150, 50), XMFLOAT3(-50, 0, -50));
 		BuildCollBoxGeometry(dummy->bounds, "dummy_freeBoxGeo", "dummy_freeBox", false);
 
 		mOpaqueRitems[(int)RenderLayer::Friend].push_back(dummy.get());
 		mAllRitems.push_back(std::move(dummy));
 
+		//아이템
 		auto items = std::make_unique<GameObject>();
 		XMStoreFloat4x4(&items->World, XMMatrixScaling(0.7f, 0.7f, 0.7f)*XMMatrixTranslation(0.0f, 200.0f, 0.0f) * XMMatrixRotationRollPitchYaw(0,0,-0.3));
 		items->ObjCBIndex = objIndex++;
 		items->Mat = mMaterials["handLight"].get();
 		items->Geo = mGeometries["handLightGeo"].get();
 		items->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		items->bounds = mBounds["handLight"];
 		items->IndexCount = items->Geo->DrawArgs["handLight"].IndexCount;
 		items->StartIndexLocation = items->Geo->DrawArgs["handLight"].StartIndexLocation;
 		items->BaseVertexLocation = items->Geo->DrawArgs["handLight"].BaseVertexLocation;
+
+		items->bounds.SetMaxMin(XMFLOAT3(100, 100, 100), XMFLOAT3(-100, -100, -100));
 		BuildCollBoxGeometry(items->bounds, "handLightBoxGeo", "handLightBox", false);
 		mOpaqueRitems[(int)RenderLayer::Item].push_back(items.get());
 		mAllRitems.push_back(std::move(items));
 
+		auto lever = std::make_unique<GameObject>();
+		XMStoreFloat4x4(&lever->World, XMMatrixScaling(30, 30, 30)*XMMatrixTranslation(0.0f, 200.0f, 0.0f) );
+		lever->ObjCBIndex = objIndex++;
+		lever->Mat = mMaterials["lever"].get();
+		lever->Geo = mGeometries["leverGeo"].get();
+		lever->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		lever->IndexCount = lever->Geo->DrawArgs["lever"].IndexCount;
+		lever->StartIndexLocation = lever->Geo->DrawArgs["lever"].StartIndexLocation;
+		lever->BaseVertexLocation = lever->Geo->DrawArgs["lever"].BaseVertexLocation;
+
+		lever->bounds.SetMaxMin(XMFLOAT3(100, 100, 100), XMFLOAT3(-100, -100, -100));
+		mOpaqueRitems[(int)RenderLayer::Lever].push_back(lever.get());
+		mAllRitems.push_back(std::move(lever));
+
+		//움직이는 타일
 		auto tiles = std::make_unique<GameObject>();
 		XMStoreFloat4x4(&tiles->World, XMMatrixScaling(1, 1, 1)*XMMatrixTranslation(0.0f, -250.0f, 300.0f));
 		tiles->ObjCBIndex = objIndex++;
@@ -2262,6 +2350,7 @@ void MyScene::BuildGameObjects()
 			auto col00 = std::make_unique<GameObject>();
 			XMStoreFloat4x4(&col00->World, XMMatrixScaling(1, 1, 1)*XMMatrixTranslation(0.0f, -100.0f, 0.0f));
 			col00->ObjCBIndex = objIndex++;
+			//모델좌표계상의 충돌체를 만들어준다.
 			if( i == 0 )col00->bounds.SetMaxMin(XMFLOAT3(150, 150, -150), XMFLOAT3(-150, -150, -1050));
 			else if (i == 1)col00->bounds.SetMaxMin(XMFLOAT3(450, 150, -1050), XMFLOAT3(-450, -150, -1650));
 			else if (i == 2)col00->bounds.SetMaxMin(XMFLOAT3(1050, 150, 150), XMFLOAT3(-1350, -150, -150));

@@ -218,7 +218,7 @@ struct Light
     float SpotPower = 64.0f;                            // 점적광만 사용
 };
 
-#define MaxLights 16
+#define MaxLights 8
 
 struct MaterialConstants
 {

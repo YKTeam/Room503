@@ -30,10 +30,6 @@ cbuffer cbPerObject : register(b0)
 {
 	float4x4 gWorld;
 	float4x4 gTexTransform;
-	uint gTextureAniIndex;
-	uint Pad0;
-	uint Pad1;
-	uint Pad2;
 };
 
 // Constant data that varies per material.
@@ -78,7 +74,7 @@ cbuffer cbMaterial : register(b2)
 
 cbuffer cbSkinned : register(b3)
 {
-	float4x4 gBoneTransforms[96];
+	float4x4 gBoneTransforms[64];
 };
 
 //---------------------------------------------------------------------------------------

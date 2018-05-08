@@ -40,10 +40,25 @@ class Aabb
 public:
 	XMFLOAT3* GetAabbBox() { return _box; }
 	//맵 콜리전씌우기
+	XMFLOAT3 GetMax() { return _max; };
+	XMFLOAT3 GetMin() { return _min; };
 	void SetMaxMin(XMFLOAT3 max, XMFLOAT3 min)
 	{
 		_max = XMFLOAT3(max.x, max.y, max.z);
 		_min = XMFLOAT3(min.x, min.y, min.z);
+
+		//박스갱신
+		_box[0].x = _min.x; _box[0].y = _max.y; _box[0].z = _max.z;
+		_box[1].x = _max.x; _box[1].y = _max.y; _box[1].z = _max.z;
+
+		_box[2].x = _min.x; _box[2].y = _max.y; _box[2].z = _min.z;
+		_box[3].x = _max.x; _box[3].y = _max.y; _box[3].z = _min.z;
+
+		_box[4].x = _min.x; _box[4].y = _min.y; _box[4].z = _max.z;
+		_box[5].x = _max.x; _box[5].y = _min.y; _box[5].z = _max.z;
+
+		_box[6].x = _min.x; _box[6].y = _min.y; _box[6].z = _min.z;
+		_box[7].x = _max.x; _box[7].y = _min.y; _box[7].z = _min.z;
 	}
 	//최대 최소값 (회전시 갱신?)
 	void GetMaxMin(GeometryGenerator::SkinnedMeshData mesh)
@@ -186,6 +201,8 @@ public:
 	MeshGeometry* Geo = nullptr;
 	SkinnedModelInstance* SkinnedModelInst = nullptr;
 	Aabb bounds;
+	float mGravity = 500.0f;
+	bool isOnGround = false;
 
 	// Primitive topology.
 	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -213,6 +230,7 @@ public:
 	XMFLOAT3 GetLook3f();
 	XMFLOAT3 GetRight3f();
 	XMFLOAT3 GetUp3f();
+	float GetGravity() { return mGravity; }
 	void SetScaleWorld3f(XMFLOAT3 f) ;
 	void SetLook3f(XMFLOAT3 f) { World._31 = f.x; World._32 = f.y; World._33 = f.z;};
 	void SetUp3f(XMFLOAT3 f) { World._21 = f.x; World._22 = f.y; World._23 = f.z; };

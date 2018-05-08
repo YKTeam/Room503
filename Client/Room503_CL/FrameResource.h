@@ -8,15 +8,11 @@ struct ObjectConstants
 {
 	DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
 	DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
-	UINT TextureAniIndex;
-	UINT Pad0;
-	UINT Pad1;
-	UINT Pad2;
 };
 
 struct SkinnedConstants
 {
-	DirectX::XMFLOAT4X4 BoneTransforms[96];
+	DirectX::XMFLOAT4X4 BoneTransforms[64];
 };
 
 struct PassConstants
@@ -29,14 +25,9 @@ struct PassConstants
     DirectX::XMFLOAT4X4 InvViewProj = MathHelper::Identity4x4();
 
 	DirectX::XMFLOAT4X4 ShadowTransform = MathHelper::Identity4x4();
-	/*DirectX::XMFLOAT4X4 ViewMini = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 ProjMini = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 ViewProjMini = MathHelper::Identity4x4();*/
-
     DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
     float cbPerObjectPad1 = 0.0f;
-	//DirectX::XMFLOAT3 EyePosWMini = { 0.0f, 0.0f, 0.0f };
-	//float cbPerObjectPad2 = 0.0f;
+
     DirectX::XMFLOAT2 RenderTargetSize = { 0.0f, 0.0f };
     DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
     float NearZ = 0.0f;
@@ -54,10 +45,6 @@ struct PassConstants
 	DirectX::XMFLOAT3 PlayerPos;
 	float Energy;
 
-	// Indices [0, NUM_DIR_LIGHTS) are directional lights;
-	// indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
-	// indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
-	// are spot lights for a maximum of MaxLights per object.
 	Light Lights[MaxLights];
 };
 

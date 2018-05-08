@@ -142,9 +142,6 @@
     <FxCompile Include="Shaders\Default.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\flareSprite.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\LightingUtil.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>

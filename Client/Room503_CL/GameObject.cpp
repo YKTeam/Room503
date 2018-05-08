@@ -720,7 +720,7 @@ void GameObject::ReadBoneKeyframes( UINT numBones, BoneAnimation& boneAnimation,
 
 void GameObject::GravityUpdate(const GameTimer& gt)
 {
-	SetPosition(World._41, World._42 - gt.DeltaTime() * 100, World._43);
+	SetPosition(World._41, World._42 - gt.DeltaTime() * mGravity, World._43);
 }
 
 //////////////////////////////////////////////////////////////////////

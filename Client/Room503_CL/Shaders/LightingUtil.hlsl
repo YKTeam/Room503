@@ -1,5 +1,5 @@
 
-#define MaxLights 16
+#define MaxLights 8
 
 
 
