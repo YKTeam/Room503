@@ -71,7 +71,7 @@ void CMainServer::SendItemPacket(int cl, int obj)
 void CMainServer::Update_Thread()
 {
 	while (1) {
-		if (timeGetTime() * 0.001f - updateTime > 0.025)
+		if (timeGetTime() * 0.001f - updateTime > 0.025f)
 		{
 			updateTime = timeGetTime() * 0.001f;
 			for (int i = 0; i < MAX_USER; ++i) {
@@ -91,7 +91,7 @@ void CMainServer::Player_Process(int id)
 	const float dt = 0.025f;
 	//cout << dt << endl;
 	//const float dt = gt.DeltaTime();
-	float walkSpeed = -300;
+	float walkSpeed = -150;
 	if (m_tClient[id].m_PlayerState == CS_LEFT) {
 		DirectX::XMFLOAT3 look = Vector3::Normalize(Vector3::Add(XMFLOAT3(1, 0, 0), getLook3f(id)));
 		SetLook3f(look, id);
@@ -159,6 +159,7 @@ void CMainServer::Player_Process(int id)
 		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), walkSpeed * dt, false)), id);
 	}
 
+	SendMovePacket2(id, id);
 
 
 	for (int i = 0; i < MAX_USER; ++i) {
