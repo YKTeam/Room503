@@ -26,7 +26,7 @@ struct PassConstants
 
 	DirectX::XMFLOAT4X4 ShadowTransform = MathHelper::Identity4x4();
     DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
-    float cbPerObjectPad1 = 0.0f;
+    float gTimer = 0.0f;
 
     DirectX::XMFLOAT2 RenderTargetSize = { 0.0f, 0.0f };
     DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
@@ -40,7 +40,7 @@ struct PassConstants
 	DirectX::XMFLOAT4 FogColor = { 0.1f, 0.1f, 0.1f, 1.0f };
 	float gFogStart = 0.0f;
 	float gFogRange = 0.0f;
-	DirectX::XMFLOAT2 cbPerObjectPad2;
+	DirectX::XMFLOAT2 cbPerObjectPad1;
 
 	DirectX::XMFLOAT3 PlayerPos;
 	float Energy;

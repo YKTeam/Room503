@@ -2,7 +2,10 @@
 
 #pragma once
 
-#include <windows.h>
+
+#include <WinSock2.h>
+#include <windows.h> 
+#include <windowsx.h>
 #include <wrl.h>
 #include <dxgi1_4.h>
 #include <d3d12.h>
@@ -24,6 +27,9 @@
 #include "d3dx12.h"
 #include "DDSTextureLoader.h"
 #include "MathHelper.h"
+#include "NetWork.h"
+#include "../Room503_Server/NetGame_SERVER/protocol.h"
+
 
 extern const int gNumFrameResources;
 

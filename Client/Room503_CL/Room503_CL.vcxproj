@@ -153,6 +153,7 @@
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MathHelper.cpp" />
+    <ClCompile Include="NetWork.cpp" />
     <ClCompile Include="RenderTarget.cpp" />
     <ClCompile Include="Scene01.cpp" />
     <ClCompile Include="ShadowMap.cpp" />
@@ -172,6 +173,7 @@
     <ClInclude Include="GameTimer.h" />
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="MathHelper.h" />
+    <ClInclude Include="NetWork.h" />
     <ClInclude Include="RenderTarget.h" />
     <ClInclude Include="Scene01.h" />
     <ClInclude Include="ShadowMap.h" />

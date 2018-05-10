@@ -43,7 +43,7 @@ cbuffer cbPass : register(b1)
 	float4x4 gInvViewProj;
 	float4x4 gShadowTransform;
 	float3 gEyePosW;
-	float cbPerObjectPad1;
+	float gTimer;
 	float2 gRenderTargetSize;
 	float2 gInvRenderTargetSize;
 	float gNearZ;
@@ -55,7 +55,7 @@ cbuffer cbPass : register(b1)
 	float4 gFogColor;
 	float gFogStart;
 	float gFogRange;
-	float2 cbPerObjectPad2;
+	float2 cbPerObjectPad1;
 
 	float3 gPlayerPos;
 	float gEnergy;

@@ -43,7 +43,9 @@ float4 PS(VertexOut pin) : SV_Target
 #ifdef MOVE
 	float energy = 1-saturate(gEnergy);
 	tex = pin.TexC;
-	clip(tex.y - energy);
+
+	clip(tex.y - sin((tex.x + gTimer) *3)*0.03f - energy);
+	//clip(tex.y - energy);
 #endif
 
 	float4 base = gDiffuseMap.Sample(gsamLinearClamp, tex);
