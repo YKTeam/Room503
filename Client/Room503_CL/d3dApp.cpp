@@ -1,7 +1,9 @@
 #pragma comment (lib, "ws2_32.lib")
+#pragma comment(lib, "winmm.lib") 
 
 #include "d3dApp.h"
 #include <WindowsX.h>
+#include <windows.h> 
 
 using Microsoft::WRL::ComPtr;
 using namespace std;
@@ -67,7 +69,7 @@ void D3DApp::Set4xMsaaState(bool value)
 
 int D3DApp::Run()
 {
-	float StartTick = 0.0f;
+	float StartTick = (float)timeGetTime() * 0.001f;
 	MSG msg = { 0 };
 
 	mTimer.Reset();
@@ -84,22 +86,25 @@ int D3DApp::Run()
 		// 없으면 게임 작업 수행
 		else
 		{
-			mTimer.Tick();
 			
-			//if (!mAppPaused)
+			if (!mAppPaused)
 			{
-				//printf("%.2f\n", mTimer.TotalTime() - 1);
-				//if (mTimer.TotalTime() - StartTick >= 0)
+				
+				if ((float)timeGetTime() * 0.001f - StartTick >= 0.0166f)
 				{
-					StartTick = mTimer.TotalTime() + 0.016f;
+					printf("%.4f\n", mTimer.DeltaTime());
+
+					mTimer.Tick();
+					StartTick = (float)timeGetTime() * 0.001f;
+
 					CalculateFrameStats();
 					Update(mTimer);
 					Draw(mTimer);
 				}
 			}
-			//else
+			else
 			{
-				//Sleep(100);
+				Sleep(100);
 			}
 		}
 	}

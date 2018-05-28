@@ -154,6 +154,7 @@ void MyScene::Update(const GameTimer& gt)
 
 		//게임오버시
 		if (mEnergy <= 0) {
+			NetWork::getInstance()->SendMsg(CS_DIE, NetWork::getInstance()->GetPlayerPosition(), NetWork::getInstance()->getWorldPos(ePlayer));
 			mSkinnedModelInst->SetNowAni("die");
 			blurLevel = 2;
 		}
@@ -260,8 +261,11 @@ void MyScene::InitGameScene()
 		items[0]->SetPosition(XMFLOAT3(-1500, items[0]->GetPosition().y, -580));
 		lever[0]->SetPosition(XMFLOAT3(1500, lever[0]->GetPosition().y, -600));
 		lever[1]->SetPosition(XMFLOAT3(-300, lever[1]->GetPosition().y, 1500));
-
+		player[0]->isOnGround = false;
+		NetWork::getInstance()->setPlayerState(CS_NONE);
 		NetWork::getInstance()->SetItemPosition({ 0.0f, -250.0f, 300.0f });
+		NetWork::getInstance()->SendMsg(CS_NONE, XMFLOAT3(-200, 300.0f, -1300), player[0]->World);
+		mSkinnedModelInst->SetNowAni("idle");
 
 	}
 	else if (nowScene == (int)Scene::Menu) {
@@ -406,13 +410,13 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 	if (GetAsyncKeyState('4') & 0x8000) blurLevel = 2;
 	if (GetAsyncKeyState('5') & 0x8000) {
 		mEnergy -= 0.001f;
-		printf("%.2f\n", mEnergy);
+	//	printf("%.2f\n", mEnergy);
 	}
 	if (GetAsyncKeyState('6') & 0x8000) {
 		mEnergy += 0.001f;
 
 		auto& player = mOpaqueRitems[(int)RenderLayer::Player];
-		printf("%.2f  %.2f  %.2f\n", player[0]->GetPosition().x, player[0]->GetPosition().y, player[0]->GetPosition().z);
+		//printf("%.2f  %.2f  %.2f\n", player[0]->GetPosition().x, player[0]->GetPosition().y, player[0]->GetPosition().z);
 	}
 	if (GetAsyncKeyState('7') & 0x8000)
 	{
@@ -453,12 +457,12 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 	auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
 	if (mEnergy > 0)
 		if (GetAsyncKeyState(VK_LEFT) || GetAsyncKeyState(VK_RIGHT) || GetAsyncKeyState(VK_UP) || GetAsyncKeyState(VK_DOWN)) {
-			
+
 			mSkinnedModelInst->SetNowAni("walk");
 			if (eplayer[0]->isOnGround == true)
 			{
-				if ( (GetAsyncKeyState(VK_UP) && GetAsyncKeyState(VK_RIGHT) ) ) {
-					if (NetWork::getInstance()->getPlayerState() != CS_RIGHT_UP ) {
+				if ((GetAsyncKeyState(VK_UP) && GetAsyncKeyState(VK_RIGHT))) {
+					if (NetWork::getInstance()->getPlayerState() != CS_RIGHT_UP) {
 						NetWork::getInstance()->setPlayerState(CS_RIGHT_UP);
 						NetWork::getInstance()->SendMsg(CS_RIGHT_UP, eplayer[0]->GetPosition(), eplayer[0]->World);
 					}
@@ -482,7 +486,7 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 					}
 				}
 				else if (GetAsyncKeyState(VK_UP) & 0x8000) {
-					if (NetWork::getInstance()->getPlayerState() != CS_UP ) {
+					if (NetWork::getInstance()->getPlayerState() != CS_UP) {
 						NetWork::getInstance()->setPlayerState(CS_UP);
 						NetWork::getInstance()->SendMsg(CS_UP, eplayer[0]->GetPosition(), eplayer[0]->World);
 					}
@@ -663,23 +667,25 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		{
 			auto item = mOpaqueRitems[(int)RenderLayer::Item];
 			auto lever = mOpaqueRitems[(int)RenderLayer::Lever];
+			auto mt = mOpaqueRitems[(int)RenderLayer::MoveTile];
 			auto mfriend = mOpaqueRitems[(int)RenderLayer::Friend];
 			auto rand = mOpaqueRitems[(int)RenderLayer::Grid];
 			auto cols = mOpaqueRitems[(int)RenderLayer::MapCollision];
 
+			//printf("전 %.2f %.2f %.2f\n", e->GetPosition().x, e->GetPosition().y, e->GetPosition().z);
 
+			if (e->isOnGround == false) {
+				e->GravityUpdate(gt);
+				NetWork::getInstance()->SetWorldPotision(ePlayer, e->World);
+				NetWork::getInstance()->setPlayerState(CS_NONE);
+				NetWork::getInstance()->SendMsg(CS_NONE, { 0,0,0 }, NetWork::getInstance()->getWorldPos(ePlayer));
+			}
 			e->World = (NetWork::getInstance()->getWorldPos(ePlayer));
 
-			printf("전 %.2f %.2f %.2f\n", e->GetPosition().x, e->GetPosition().y, e->GetPosition().z);
+			if (NetWork::getInstance()->getAniState(ePlayer) == 0)		mSkinnedModelInst->SetNowAni("idle");
+			else if (NetWork::getInstance()->getAniState(ePlayer) == 1)	mSkinnedModelInst->SetNowAni("walk");
+			else if (NetWork::getInstance()->getAniState(ePlayer) == 2)	mSkinnedModelInst->SetNowAni("die");
 
-			//if (e->isOnGround == false)
-			//	e->GravityUpdate(gt);
-
-			if (NetWork::getInstance()->getAniState(ePlayer) == 0)
-				mSkinnedModelInst->SetNowAni("idle");
-			else mSkinnedModelInst->SetNowAni("walk");
-
-			
 			//정적인 맵과의 충돌에서 움직일 때만 처리
 			e->isOnGround = false;
 			for (int i = 0; i < cols.size(); i++) {
@@ -702,30 +708,56 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 				if (e->GetPosition().y - e->bounds.GetMin().y < -250.0f) {
 					e->isOnGround = true;
 					mEnergy = 0.0f;
-					printf("떨어져 죽음 \n");
+					//printf("떨어져 죽음 \n");
 				}
 
 			if (e->bounds.IsCollsionAABB(e->GetPosition(), &item[0]->bounds, item[0]->GetPosition())) {
-				printf("아이템과 충돌 \n");
+				//printf("아이템과 충돌 \n");
 				mEnergy += gt.DeltaTime() * 0.9f;
 				if (mEnergy >= 1.0f) mEnergy = 1.0f;
 			}
 
-			if (e->bounds.IsCollsionAABB(e->GetPosition(), &mfriend[0]->bounds, mfriend[0]->GetPosition()))
-				printf("플레이어간 충돌 \n");
+			//if (e->bounds.IsCollsionAABB(e->GetPosition(), &mfriend[0]->bounds, mfriend[0]->GetPosition()))
+				//printf("플레이어간 충돌 \n");
 
-			//회전초기화
+			//레버와 충돌시
+			if (e->bounds.IsCollsionAABB(e->GetPosition(), &lever[0]->bounds, lever[0]->GetPosition()))
+			{
+				lever[0]->RotateY(gt.DeltaTime() * 25);
+				isLeverOn = true; //임시변수임
+				NetWork::getInstance()->setLever(isLeverOn);
+				if (NetWork::getInstance()->getItemState() != CS_ITEM_ON)
+					NetWork::getInstance()->SendItemState(CS_ITEM_ON, mt[0]->GetPosition());
+			}
+			else if (e->bounds.IsCollsionAABB(e->GetPosition(), &lever[1]->bounds, lever[1]->GetPosition()))
+			{
+				lever[1]->RotateY(gt.DeltaTime() * 25);
+				isLeverOn = true; //임시변수임
+				NetWork::getInstance()->setLever(isLeverOn);
+				if (NetWork::getInstance()->getItemState() != CS_ITEM_ON)
+					NetWork::getInstance()->SendItemState(CS_ITEM_ON, mt[0]->GetPosition());
+			}
+			//비활성화일 경우
+			else
+			{
+				isLeverOn = false;
+				NetWork::getInstance()->setLever(isLeverOn);
+				if (NetWork::getInstance()->getItemState() == CS_ITEM_ON)
+					NetWork::getInstance()->SendItemState(CS_ITEM_OFF, mt[0]->GetPosition());
+
+			}
+
+			//플레이어 갱신
 			e->NumFramesDirty = gNumFrameResources;
-
 		}
 
 		//동료
 		for (auto& e : mOpaqueRitems[(int)RenderLayer::Friend])
 		{
 			//cout << NetWork::getInstance()->getAniState(eFriend) << endl;
-			if (0 == NetWork::getInstance()->getAniState(eFriend))
-				mSkinnedFriendModelInst->SetNowAni("idle");
-			else mSkinnedFriendModelInst->SetNowAni("walk");
+			if (0 == NetWork::getInstance()->getAniState(eFriend))		 mSkinnedFriendModelInst->SetNowAni("idle");
+			else if (1 == NetWork::getInstance()->getAniState(eFriend))  mSkinnedFriendModelInst->SetNowAni("walk");
+			else if (2 == NetWork::getInstance()->getAniState(eFriend))  mSkinnedFriendModelInst->SetNowAni("die");
 
 			if (CS_UP <= NetWork::getInstance()->getFriendState() && NetWork::getInstance()->getFriendState() <= CS_NONE) {
 				e->World = (NetWork::getInstance()->getWorldPos(eFriend));
@@ -742,37 +774,53 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 
 			e->SetPosition(XMFLOAT3(NetWork::getInstance()->GetItemPosition()));
 
+			//cout << e->GetPosition().x << ' ' << e->GetPosition().y << e->GetPosition().z << endl;
 			//cout << NetWork::getInstance()->GetItemPosition().x << ' ' << NetWork::getInstance()->GetItemPosition().y << NetWork::getInstance()->GetItemPosition().z << endl;
-/*
-			if (NetWork::getInstance()->GetItemPosition().y > -200)
-				isLeverOn = true;*/
-			//레버에 한명 서있으면..움직이는데 상수로 때려박음 (속도 20)
-			if (isLeverOn == false) {
+
+			/*if (isLeverOn == false) {
 				if (e->GetPosition().y > -250) {
 					e->SetPosition(XMFLOAT3(e->GetPosition().x, e->GetPosition().y - 80 * gt.DeltaTime(), e->GetPosition().z));
-					//NetWork::getInstance()->SendItemState(CS_ITEM, e->GetPosition());
+					NetWork::getInstance()->SendItemState(CS_ITEM_ON, e->GetPosition());
 				}
 				else e->SetPosition(XMFLOAT3(e->GetPosition().x, -250, e->GetPosition().z));
 			}
 			else {
 				if (e->GetPosition().y < -100) {
 					e->SetPosition(XMFLOAT3(e->GetPosition().x, e->GetPosition().y + 80 * gt.DeltaTime(), e->GetPosition().z));
-					//NetWork::getInstance()->SendItemState(CS_ITEM, e->GetPosition());
+					NetWork::getInstance()->SendItemState(CS_ITEM_OFF, e->GetPosition());
 				}
 				else e->SetPosition(XMFLOAT3(e->GetPosition().x, -100, e->GetPosition().z));
-			}
+			}*/
 
+			if (NetWork::getInstance()->GetItemPosition().y > -150)
+				NetWork::getInstance()->setLever(true);			//레버에 한명 서있으면..움직이는데 상수로 때려박음 (속도 20)
+
+			isLeverOn = NetWork::getInstance()->getLever();
+			if (isLeverOn == false)
+			{
+				if (NetWork::getInstance()->getItemState() != CS_ITEM_OFF)
+					NetWork::getInstance()->SendItemState(CS_ITEM_OFF, e->GetPosition());
+			}
+			else {
+				if (NetWork::getInstance()->getItemState() != CS_ITEM_ON)
+					NetWork::getInstance()->SendItemState(CS_ITEM_ON, e->GetPosition());
+			}
 
 			//플레이어가 발판에 서있으면
 			if (e->bounds.IsCollsionAABB(e->GetPosition(), &eplayer[0]->bounds, eplayer[0]->GetPosition()))
 			{
 				eplayer[0]->isOnGround = true;
-				if (isLeverOn == false) mEnergy = 0.0f; //플레이어 죽음
+				if (isLeverOn == false) {
+					NetWork::getInstance()->SendMsg(CS_DIE, NetWork::getInstance()->GetPlayerPosition(), NetWork::getInstance()->getWorldPos(ePlayer));
+					mEnergy = 0.0f; //플레이어 죽음
+				}
 				else if (isLeverOn == true) {
 					//플레이어도 같이 움직임
 					eplayer[0]->SetPosition(XMFLOAT3(eplayer[0]->GetPosition().x, eplayer[0]->GetPosition().y + 20 * gt.DeltaTime(), eplayer[0]->GetPosition().z));
 				}
 			}
+
+
 			e->NumFramesDirty = gNumFrameResources;
 		}
 		//아이템
@@ -782,21 +830,13 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 			e->RotateY(gt.DeltaTime() * 1);
 			e->NumFramesDirty = gNumFrameResources;
 		}
+		//상수오브젝트
+		for (auto& e : mOpaqueRitems[(int)RenderLayer::Opaque])
+		{
+			e->NumFramesDirty = gNumFrameResources;
+		}
 		for (auto& e : mOpaqueRitems[(int)RenderLayer::Lever])
 		{
-			auto eplayer = mOpaqueRitems[(int)RenderLayer::Player];
-
-			//충돌되면 일단 활성화 
-			if (e->bounds.IsCollsionAABB(e->GetPosition(), &eplayer[0]->bounds, eplayer[0]->GetPosition()))
-			{
-				e->RotateY(gt.DeltaTime() * 25);
-				isLeverOn = true; //임시변수임
-			}
-			//비활성화일 경우 어떤 변수
-			else
-			{
-				isLeverOn = false;
-			}
 			e->NumFramesDirty = gNumFrameResources;
 		}
 
@@ -2154,6 +2194,7 @@ void MyScene::BuildMaterials()
 	statueNomal->MatCBIndex = matIndex;
 	statueNomal->DiffuseSrvHeapIndex = matIndex++;
 
+
 	auto sky = std::make_unique<Material>();
 	sky->Name = "sky";
 	sky->MatCBIndex = matIndex;
@@ -2551,8 +2592,6 @@ void MyScene::BuildGameObjects()
 	}
 
 	m_ObjIndex = objIndex;
-
-	////////////////////////////////////////////////////////////////////////////////////////
 }
 
 void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vector<GameObject*>& ritems, const int itemState)

@@ -52,6 +52,7 @@ void NetWork::Initialize(HWND& hwnd)
 	ServerAddr.sin_port = htons(4000);
 	//ServerAddr.sin_addr.s_addr = inet_addr("192.168.35.227");
 	ServerAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	//ServerAddr.sin_addr.s_addr = inet_addr("192.168.35.58");
 	int ret = WSAConnect(mMainSocket, (sockaddr*)&ServerAddr, sizeof(ServerAddr),
 		NULL, NULL, NULL, NULL);
 
@@ -85,10 +86,7 @@ void NetWork::ProcessPacket(char *ptr)
 		}
 		else {
 			mPlayer[eFriend].pos = my_packet->pos;
-			if (0 == my_packet->anistate)
-				mPlayer[eFriend].ani_state = 0;
-			else
-				mPlayer[eFriend].ani_state = 1;
+			mPlayer[eFriend].ani_state = my_packet->anistate;
 			mPlayer[eFriend].world = my_packet->world_pos;
 		}
 
@@ -108,17 +106,19 @@ void NetWork::ProcessPacket(char *ptr)
 			mPlayer[eFriend].ani_state = my_packet->anistate;
 			mPlayer[eFriend].world = my_packet->world_pos;
 			mPlayer[eFriend].player_state = my_packet->player_state;
-
-
-			
 		}
 		break;
 	}
-	case SC_ITEM:
+	case SC_ITEM_ON:
+	case SC_ITEM_OFF:
 		sc_item_packet * packet = reinterpret_cast<sc_item_packet*>(ptr);
 		mItem.pos = packet->pos;
-		break;
+		mItem.type = packet->type;
+		mItem.lever = packet->lever;
 
+		if (mItem.pos.y > -150)
+			setLever(true);
+		break;
 	}
 
 
@@ -158,6 +158,7 @@ void NetWork::SendItemState(int type, DirectX::XMFLOAT3 pos)
 	DWORD iobyte;
 	packet->pos = pos;
 	packet->type = type;
+	packet->lever = mItem.lever;
 
 	packet->size = sizeof(cs_item_packet);
 	mSendWsaBuf.len = sizeof(cs_item_packet);

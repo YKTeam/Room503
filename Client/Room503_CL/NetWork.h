@@ -5,6 +5,8 @@
 
 #define BUF_SIZE	1024
 
+using namespace DirectX;
+
 enum eObj {
 	ePlayer, eFriend, eEnd
 };
@@ -19,6 +21,8 @@ struct PlayerInfo {
 struct ItemInfo
 {
 	DirectX::XMFLOAT3 pos;
+	BYTE type;
+	bool lever = false;
 };
 
 class NetWork
@@ -56,7 +60,8 @@ public:
 	int getAniState(eObj type) const { return mPlayer[type].ani_state; }
 	DirectX::XMFLOAT4X4 getWorldPos(eObj type) const { return mPlayer[type].world; }
 
-
+	bool getLever() { return mItem.lever; }
+	void setLever(bool value) { mItem.lever = value; }
 	int getFriendState() const { return mPlayer[eFriend].player_state; }
 	void setFriendState(int n) { mPlayer[eFriend].player_state = n; }
 
@@ -64,11 +69,14 @@ public:
 	int getPlayerState() const { return mPlayer[ePlayer].player_state; }
 	void setPlayerState(int n) { mPlayer[ePlayer].player_state = n; }
 
+	void SetWorldPotision(eObj type, XMFLOAT4X4 world) { mPlayer[type].world = world; }
 
 	DirectX::XMFLOAT3 GetItemPosition() { return mItem.pos; }
 	void SetItemPosition(DirectX::XMFLOAT3 pos) {
 		mItem.pos = pos;
 	};
+
+	int getItemState() const { return mItem.type; }
 
 public:
 	void ReadPacket(SOCKET);
@@ -79,6 +87,7 @@ public:
 
 	void SendMsg(int, DirectX::XMFLOAT3, DirectX::XMFLOAT4X4);
 	void SendItemState(int, DirectX::XMFLOAT3);
+
 private:
 	static NetWork* Instance;
 public:

@@ -2,6 +2,7 @@
 
 #include <windows.h>
 #include "GameTimer.h"
+#include <stdio.h>
 
 //성능 타이머의 주파수를 조회해서 틱당 초 수를 설정한다
 GameTimer::GameTimer()
@@ -112,6 +113,7 @@ void GameTimer::Tick()
 	mCurrTime = currTime;
 
 	//이번 프레임의 시간과 이전 프레임의 시간의 차이를 구한다.
+	//printf("%.4f %.4f\n", mCurrTime, mSecondsPerCount);
 	mDeltaTime = (mCurrTime - mPrevTime)*mSecondsPerCount;
 
 	//다음 프레임을 준비한다.
