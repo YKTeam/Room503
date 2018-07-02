@@ -1,0 +1,156 @@
+fileFormatVersion: 2
+guid: 1937709df5aad34499cf5f14fdd2a27c
+timeCreated: 1481289241
+licenseType: Store
+ModelImporter:
+  serializedVersion: 19
+  fileIDToRecycleName:
+    100000: Chestflap_Joint
+    100002: Clavicle_L_Joint
+    100004: Clavicle_R_Joint
+    100006: Elbow_L_Joint
+    100008: Elbow_R_Joint
+    100010: Hand_L_Joint
+    100012: Hand_R_Joint
+    100014: Head_Joint
+    100016: Heel_L_Joint
+    100018: Heel_R_Joint
+    100020: Hip_Joint
+    100022: Index_01_Joint
+    100024: Index_01_Joint 1
+    100026: Index_02_Joint
+    100028: Index_02_Joint 1
+    100030: Knee_L_Joint
+    100032: Knee_R_Joint
+    100034: Leg_L_Joint
+    100036: Leg_R_Joint
+    100038: Middle_01_Joint
+    100040: Middle_01_Joint 1
+    100042: Middle_02_Joint
+    100044: Middle_02_Joint 1
+    100046: Neck_Joint
+    100048: Pink_01_Joint
+    100050: Pink_01_Joint 1
+    100052: Pink_02_Joint
+    100054: Pink_02_Joint 1
+    100056: //RootNode
+    100058: Robotboy
+    100060: Root_Joint
+    100062: Shoulder_L_Joint
+    100064: Shoulder_R_Joint
+    100066: Spine_1_Joint
+    100068: Spine_2_Joint
+    100070: Thumb_01_Joint
+    100072: Thumb_01_Joint 1
+    100074: Thumb_02_Joint
+    100076: Thumb_02_Joint 1
+    100078: Toe_L_Joint
+    100080: Toe_R_Joint
+    400000: Chestflap_Joint
+    400002: Clavicle_L_Joint
+    400004: Clavicle_R_Joint
+    400006: Elbow_L_Joint
+    400008: Elbow_R_Joint
+    400010: Hand_L_Joint
+    400012: Hand_R_Joint
+    400014: Head_Joint
+    400016: Heel_L_Joint
+    400018: Heel_R_Joint
+    400020: Hip_Joint
+    400022: Index_01_Joint
+    400024: Index_01_Joint 1
+    400026: Index_02_Joint
+    400028: Index_02_Joint 1
+    400030: Knee_L_Joint
+    400032: Knee_R_Joint
+    400034: Leg_L_Joint
+    400036: Leg_R_Joint
+    400038: Middle_01_Joint
+    400040: Middle_01_Joint 1
+    400042: Middle_02_Joint
+    400044: Middle_02_Joint 1
+    400046: Neck_Joint
+    400048: Pink_01_Joint
+    400050: Pink_01_Joint 1
+    400052: Pink_02_Joint
+    400054: Pink_02_Joint 1
+    400056: //RootNode
+    400058: Robotboy
+    400060: Root_Joint
+    400062: Shoulder_L_Joint
+    400064: Shoulder_R_Joint
+    400066: Spine_1_Joint
+    400068: Spine_2_Joint
+    400070: Thumb_01_Joint
+    400072: Thumb_01_Joint 1
+    400074: Thumb_02_Joint
+    400076: Thumb_02_Joint 1
+    400078: Toe_L_Joint
+    400080: Toe_R_Joint
+    4300000: Robotboy
+    9500000: //RootNode
+    13700000: Robotboy
+  materials:
+    importMaterials: 1
+    materialName: 0
+    materialSearch: 1
+  animations:
+    legacyGenerateAnimations: 4
+    bakeSimulation: 0
+    resampleCurves: 1
+    optimizeGameObjects: 0
+    motionNodeName: 
+    animationImportErrors: 
+    animationImportWarnings: 
+    animationRetargetingWarnings: 
+    animationDoRetargetingWarnings: 0
+    animationCompression: 1
+    animationRotationError: 0.5
+    animationPositionError: 0.5
+    animationScaleError: 0.5
+    animationWrapMode: 0
+    extraExposedTransformPaths: []
+    clipAnimations: []
+    isReadable: 1
+  meshes:
+    lODScreenPercentages: []
+    globalScale: 1
+    meshCompression: 0
+    addColliders: 0
+    importBlendShapes: 1
+    swapUVChannels: 0
+    generateSecondaryUV: 0
+    useFileUnits: 1
+    optimizeMeshForGPU: 1
+    keepQuads: 0
+    weldVertices: 1
+    secondaryUVAngleDistortion: 8
+    secondaryUVAreaDistortion: 15.000001
+    secondaryUVHardAngle: 88
+    secondaryUVPackMargin: 4
+    useFileScale: 1
+  tangentSpace:
+    normalSmoothAngle: 60
+    normalImportMode: 0
+    tangentImportMode: 3
+  importAnimation: 1
+  copyAvatar: 0
+  humanDescription:
+    human: []
+    skeleton: []
+    armTwist: 0.5
+    foreArmTwist: 0.5
+    upperLegTwist: 0.5
+    legTwist: 0.5
+    armStretch: 0.05
+    legStretch: 0.05
+    feetSpacing: 0
+    rootMotionBoneName: 
+    hasTranslationDoF: 0
+  lastHumanDescriptionAvatarSource: {instanceID: 0}
+  animationType: 2
+  humanoidOversampling: 1
+  additionalBone: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
