@@ -6,6 +6,7 @@
 
 int main()
 {
+	
 	vector<thread*> vWork_thread;
 	CMainServer* MS = new CMainServer();
 
@@ -26,6 +27,8 @@ int main()
 	}
 
 	MS->~CMainServer();
+
+	
 
 	return 0;
 }

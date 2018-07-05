@@ -69,11 +69,13 @@ void D3DApp::Set4xMsaaState(bool value)
 
 int D3DApp::Run()
 {
-	float StartTick = (float)timeGetTime() * 0.001f;
+	int StartTick = timeGetTime();
 	MSG msg = { 0 };
 
 	mTimer.Reset();
 	NetWork::getInstance()->Initialize(mhMainWnd);
+
+	timeBeginPeriod(1);
 
 	while (msg.message != WM_QUIT)
 	{
@@ -89,17 +91,17 @@ int D3DApp::Run()
 			
 			if (!mAppPaused)
 			{
-				
-				if ((float)timeGetTime() * 0.001f - StartTick >= 0.0166f)
+				if ( timeGetTime()  - StartTick >= 32)
 				{
-					printf("%.4f\n", mTimer.DeltaTime());
-
+					//printf("%.4f  %.4f\n", mTimer.DeltaTime(),  timeGetTime() );
+					
 					mTimer.Tick();
-					StartTick = (float)timeGetTime() * 0.001f;
-
+					
 					CalculateFrameStats();
 					Update(mTimer);
 					Draw(mTimer);
+
+					StartTick = timeGetTime() ;
 				}
 			}
 			else
@@ -108,6 +110,8 @@ int D3DApp::Run()
 			}
 		}
 	}
+
+	timeEndPeriod(1);
 
 	return (int)msg.wParam;
 }

@@ -63,9 +63,11 @@ bool MyScene::Initialize()
 	BuildFbxGeometry("Model/door.obj", "doorGeo", "door", 1.0f, false, false);
 	BuildFbxGeometry("Model/moveingTile.obj", "tileGeo", "tile00", 1, true, false);
 	BuildFbxGeometry("Model/robotFree3.fbx", "robot_freeGeo", "robot_free", 1.0f, false, true);//angle  robotModel  robotIdle
+	//BuildFbxGeometry("Model/TestModel.fbx", "robot_freeGeo", "robot_free", 1.0f, false, true);
 	BuildFbxGeometry("Model/tutorial.obj", "map00Geo", "map00", 1, true, false);
 	BuildAnimation("Model/robotFree3.fbx", "walk", 1.0f, false);//robotwalk
-
+	
+		//BuildAnimation("Model/TestIdle.fbx", "walk", 1.0f, false);
 	BuildMaterials();
 	BuildGameObjects();
 	BuildFrameResources();

@@ -17,6 +17,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 	
 	//MyScene *scene01 = nullptr;// = new MyScene(hInstance);
 	//WaitScene *waitScene = new WaitScene(hInstance);
+
 	while (1)
 	{
 		try

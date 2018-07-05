@@ -24,8 +24,11 @@
 #define CS_LEFT_UP		7
 #define CS_LEFT_DOWN	8
 
+#define CS_DIE			9
 
-#define CS_ITEM			9
+#define CS_ITEM_ON		100
+#define CS_ITEM_OFF		101
+
 
 #define CS_NONE			99
 
@@ -35,8 +38,11 @@
 
 #define SC_POS		1
 #define SC_MOVE		2
-#define SC_REMOVE	3
-#define SC_ITEM		4
+#define SC_DIE		3
+#define SC_ITEM_ON	100
+#define SC_ITEM_OFF	101
+
+
 #define NPC_START	100
 #define NPC_END		125
 
@@ -56,17 +62,12 @@
 #define UP_POS		16
 #define DOWN_POS	32
 
-#define FrameTime	165.f
+#define FrameTime	60.f
 
 #pragma pack (push,1)
 
 
-struct cs_position_packet {
-	BYTE size;
-	BYTE type;
-	DirectX::XMFLOAT3 pos;
-	DirectX::XMFLOAT4X4 world_pos;
-};
+
 
 struct sc_position_packet {
 	BYTE size;
@@ -87,10 +88,18 @@ struct sc_move_packet {
 	WORD player_state;
 };
 
+struct cs_position_packet {
+	BYTE size;
+	BYTE type;
+	DirectX::XMFLOAT3 pos;
+	DirectX::XMFLOAT4X4 world_pos;
+};
+
 struct cs_item_packet {
 	BYTE size;
 	BYTE type;
 	DirectX::XMFLOAT3 pos;
+	bool lever;
 };
 
 
@@ -98,6 +107,7 @@ struct sc_item_packet {
 	BYTE size;
 	BYTE type;
 	WORD id;
+	bool lever;
 	DirectX::XMFLOAT3 pos;
 };
 
