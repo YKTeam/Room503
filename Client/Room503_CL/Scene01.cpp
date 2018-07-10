@@ -64,7 +64,12 @@ bool MyScene::Initialize()
 	BuildFbxGeometry("Model/moveingTile.obj", "tileGeo", "tile00", 1, true, false);
 	BuildFbxGeometry("Model/robotFree3.fbx", "robot_freeGeo", "robot_free", 1.0f, false, true);//angle  robotModel  robotIdle
 	//BuildFbxGeometry("Model/TestModel.fbx", "robot_freeGeo", "robot_free", 1.0f, false, true);
+	//튜토리얼 맵
 	BuildFbxGeometry("Model/tutorial.obj", "map00Geo", "map00", 1, true, false);
+	//스테이지 2
+	BuildFbxGeometry("Model/Map02.obj", "map02Geo", "map02", 1, true, false);
+	BuildFbxGeometry("Model/Map02_lope.obj", "map02_00Geo", "map02_00", 1, true, false); //다리
+
 	BuildAnimation("Model/robotFree3.fbx", "walk", 1.0f, false);//robotwalk
 	
 		//BuildAnimation("Model/TestIdle.fbx", "walk", 1.0f, false);
@@ -204,6 +209,10 @@ void MyScene::MenuSceneKeyboardInput(const GameTimer& gt)
 		nowScene = (int)Scene::Scene01;
 		InitGameScene();
 	}
+	if (GetAsyncKeyState('2') & 0x8000) {
+		nowScene = (int)Scene::Scene02;
+		InitGameScene();
+	}
 }
 void MyScene::MenuSceneUpdate(const GameTimer& gt)
 {
@@ -252,7 +261,7 @@ void MyScene::InitGameScene()
 
 	//플레이어 초기화
 	//뭐뭐 초기화
-	if (nowScene == (int)Scene::Scene01) {
+	if (nowScene == (int)Scene::Scene01 || nowScene == (int)Scene::Scene02) {
 		blurLevel = 0;
 		mEnergy = 0.5f;
 		//카메라 초기화
@@ -349,7 +358,10 @@ void MyScene::GameSceneRender(const GameTimer& gt)
 	}
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Lever], (int)RenderLayer::Lever);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Item], (int)RenderLayer::Item);
-	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Grid], (int)RenderLayer::Grid);
+	if(nowScene == 1)
+		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene01_Map], (int)RenderLayer::Scene01_Map);
+	else if(nowScene == 2)
+		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene02_Map], (int)RenderLayer::Scene02_Map);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::MoveTile], (int)RenderLayer::MoveTile);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Opaque], (int)RenderLayer::Opaque);
 	//DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::CollBox], (int)RenderLayer::CollBox);
@@ -671,7 +683,7 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 			auto lever = mOpaqueRitems[(int)RenderLayer::Lever];
 			auto mt = mOpaqueRitems[(int)RenderLayer::MoveTile];
 			auto mfriend = mOpaqueRitems[(int)RenderLayer::Friend];
-			auto rand = mOpaqueRitems[(int)RenderLayer::Grid];
+			//auto rand = mOpaqueRitems[(int)RenderLayer::Scene01_Map];
 			auto cols = mOpaqueRitems[(int)RenderLayer::MapCollision];
 
 			//printf("전 %.2f %.2f %.2f\n", e->GetPosition().x, e->GetPosition().y, e->GetPosition().z);
@@ -689,29 +701,32 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 			else if (NetWork::getInstance()->getAniState(ePlayer) == 2)	mSkinnedModelInst->SetNowAni("die");
 
 			//정적인 맵과의 충돌에서 움직일 때만 처리
-			e->isOnGround = false;
-			for (int i = 0; i < cols.size(); i++) {
-				//온그라운드가 true일 경우 또 true인지 검사한다?
-				if (e->bounds.IsCollsionAABB(e->GetPosition(), &cols[i]->bounds, cols[i]->GetPosition()))
-				{
-					//충돌체 검사가 통과되면 보정 후, 온 그라운드를 활성화 시킨다.
-					//보정안함
-					e->isOnGround = true;
-					break;
+			if (nowScene == 1) {
+				e->isOnGround = false;
+				for (int i = 0; i < cols.size(); i++) {
+					//온그라운드가 true일 경우 또 true인지 검사한다?
+					if (e->bounds.IsCollsionAABB(e->GetPosition(), &cols[i]->bounds, cols[i]->GetPosition()))
+					{
+						//충돌체 검사가 통과되면 보정 후, 온 그라운드를 활성화 시킨다.
+						//보정안함
+						e->isOnGround = true;
+						break;
+					}
+					else {
+						mSkinnedModelInst->SetNowAni("idle");
+						e->isOnGround = false;
+					}
 				}
-				else {
-					mSkinnedModelInst->SetNowAni("idle");
-					e->isOnGround = false;
-				}
-			}
 
-			//그리드와의 충돌은 float끼리만 계산하면 된다 평면이니까
-			if (e->isOnGround == false)
-				if (e->GetPosition().y - e->bounds.GetMin().y < -250.0f) {
-					e->isOnGround = true;
-					mEnergy = 0.0f;
-					//printf("떨어져 죽음 \n");
-				}
+				//그리드와의 충돌은 float끼리만 계산하면 된다 평면이니까
+				if (e->isOnGround == false)
+					if (e->GetPosition().y - e->bounds.GetMin().y < -250.0f) {
+						e->isOnGround = true;
+						mEnergy = 0.0f;
+						//printf("떨어져 죽음 \n");
+					}
+			}
+			else e->isOnGround = true;
 
 			if (e->bounds.IsCollsionAABB(e->GetPosition(), &item[0]->bounds, item[0]->GetPosition())) {
 				//printf("아이템과 충돌 \n");
@@ -1084,7 +1099,11 @@ void MyScene::LoadTextures()
 		"handLightNomalTex",
 		"leverTex",
 		"statueTex",
-		"statueNomalTex"
+		"statueNomalTex",
+		"bricksTex",
+		"bricksNomalTex",
+		"woodTex",
+		"woodNomalTex"
 	};
 
 	std::vector<std::wstring> texFilenames =
@@ -1105,7 +1124,11 @@ void MyScene::LoadTextures()
 		L"Textures/handLightNomal.dds",
 		L"Textures/gu.dds", //레버
 		L"Textures/statue.dds",
-		L"Textures/statue_nomal.dds"
+		L"Textures/statue_nomal.dds",
+		L"Textures/bricks.dds",
+		L"Textures/bricksNomal.dds",
+		L"Textures/wood.dds",
+		L"Textures/woodNomal.dds"
 	};
 
 	for (int i = 0; i < (int)texNames.size(); ++i)
@@ -1256,7 +1279,7 @@ void MyScene::BuildDescriptorHeaps()
 {
 	int rtvOffset = SwapChainBufferCount;
 
-	const int textureDescriptorCount = 17;
+	const int textureDescriptorCount = 21;
 	const int blurDescriptorCount = 4;
 
 	int srvOffset = textureDescriptorCount;
@@ -1289,7 +1312,11 @@ void MyScene::BuildDescriptorHeaps()
 		mTextures["handLightNomalTex"]->Resource,
 		mTextures["leverTex"]->Resource,
 		mTextures["statueTex"]->Resource,
-		mTextures["statueNomalTex"]->Resource
+		mTextures["statueNomalTex"]->Resource,
+		mTextures["bricksTex"]->Resource,
+		mTextures["bricksNomalTex"]->Resource,
+		mTextures["woodTex"]->Resource,
+		mTextures["woodNomalTex"]->Resource
 	};
 	auto skyCubeMap = mTextures["skyCubeMap"]->Resource;
 
@@ -2196,6 +2223,23 @@ void MyScene::BuildMaterials()
 	statueNomal->MatCBIndex = matIndex;
 	statueNomal->DiffuseSrvHeapIndex = matIndex++;
 
+	auto bricks = std::make_unique<Material>();
+	bricks->Name = "bricks";
+	bricks->MatCBIndex = matIndex;
+	bricks->DiffuseSrvHeapIndex = matIndex++;
+	auto bricksNomal = std::make_unique<Material>();
+	bricksNomal->Name = "bricksNomal";
+	bricksNomal->MatCBIndex = matIndex;
+	bricksNomal->DiffuseSrvHeapIndex = matIndex++;
+
+	auto wood = std::make_unique<Material>();
+	wood->Name = "wood";
+	wood->MatCBIndex = matIndex;
+	wood->DiffuseSrvHeapIndex = matIndex++;
+	auto woodNomal = std::make_unique<Material>();
+	woodNomal->Name = "woodNomal";
+	woodNomal->MatCBIndex = matIndex;
+	woodNomal->DiffuseSrvHeapIndex = matIndex++;
 
 	auto sky = std::make_unique<Material>();
 	sky->Name = "sky";
@@ -2221,6 +2265,11 @@ void MyScene::BuildMaterials()
 
 	mMaterials["statue"] = std::move(statue);
 	mMaterials["statueNomal"] = std::move(statueNomal);
+
+	mMaterials["bricks"] = std::move(bricks);
+	mMaterials["bricksNomal"] = std::move(bricksNomal);
+	mMaterials["wood"] = std::move(wood);
+	mMaterials["woodNomal"] = std::move(woodNomal);
 
 	mMaterials["sky"] = std::move(sky);
 }
@@ -2325,67 +2374,100 @@ void MyScene::BuildGameObjects()
 	}
 	//-----------------------------------  Games  ------------------------------------//
 	{
-		auto skyRitem = std::make_unique<GameObject>();
-		XMStoreFloat4x4(&skyRitem->World, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
-		skyRitem->TexTransform = MathHelper::Identity4x4();
-		skyRitem->ObjCBIndex = objIndex++;
-		skyRitem->Mat = mMaterials["sky"].get();
-		skyRitem->Geo = mGeometries["shapeGeo"].get();
-		skyRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		skyRitem->IndexCount = skyRitem->Geo->DrawArgs["sphere"].IndexCount;
-		skyRitem->StartIndexLocation = skyRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
-		skyRitem->BaseVertexLocation = skyRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+		//지금쓸모없음
+		{
+			auto skyRitem = std::make_unique<GameObject>();
+			XMStoreFloat4x4(&skyRitem->World, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
+			skyRitem->TexTransform = MathHelper::Identity4x4();
+			skyRitem->ObjCBIndex = objIndex++;
+			skyRitem->Mat = mMaterials["sky"].get();
+			skyRitem->Geo = mGeometries["shapeGeo"].get();
+			skyRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			skyRitem->IndexCount = skyRitem->Geo->DrawArgs["sphere"].IndexCount;
+			skyRitem->StartIndexLocation = skyRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
+			skyRitem->BaseVertexLocation = skyRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
 
-		mOpaqueRitems[(int)RenderLayer::SkyBox].push_back(skyRitem.get());
-		mAllRitems.push_back(std::move(skyRitem));
+			mOpaqueRitems[(int)RenderLayer::SkyBox].push_back(skyRitem.get());
+			mAllRitems.push_back(std::move(skyRitem));
 
-		auto quadRitem = std::make_unique<GameObject>();
-		quadRitem->World = MathHelper::Identity4x4();
-		quadRitem->TexTransform = MathHelper::Identity4x4();
-		quadRitem->ObjCBIndex = objIndex++;
-		quadRitem->Mat = mMaterials["rand"].get();
-		quadRitem->Geo = mGeometries["shapeGeo"].get();
-		quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
-		quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
-		quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
+			auto quadRitem = std::make_unique<GameObject>();
+			quadRitem->World = MathHelper::Identity4x4();
+			quadRitem->TexTransform = MathHelper::Identity4x4();
+			quadRitem->ObjCBIndex = objIndex++;
+			quadRitem->Mat = mMaterials["rand"].get();
+			quadRitem->Geo = mGeometries["shapeGeo"].get();
+			quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
+			quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
+			quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
 
-		mOpaqueRitems[(int)RenderLayer::Debug].push_back(quadRitem.get());
-		mAllRitems.push_back(std::move(quadRitem));
+			mOpaqueRitems[(int)RenderLayer::Debug].push_back(quadRitem.get());
+			mAllRitems.push_back(std::move(quadRitem));
+		}
 
-		//////////////////////////////////////////////////////////////////////////////////////////////////////////
-		auto map00 = std::make_unique<GameObject>();
-		XMStoreFloat4x4(&map00->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, -100.0f, 0.0f));
-		XMStoreFloat4x4(&map00->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-		map00->ObjCBIndex = objIndex++;
-		map00->Mat = mMaterials["rand"].get();
-		map00->Geo = mGeometries["map00Geo"].get();
-		map00->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		map00->bounds = mBounds["map00"];
-		map00->IndexCount = map00->Geo->DrawArgs["map00"].IndexCount;
-		map00->StartIndexLocation = map00->Geo->DrawArgs["map00"].StartIndexLocation;
-		map00->BaseVertexLocation = map00->Geo->DrawArgs["map00"].BaseVertexLocation;
+		///////////////////////////////////////////  맵무새 /////////////////////////////////////////////////
+		{
+			auto map00 = std::make_unique<GameObject>();
+			XMStoreFloat4x4(&map00->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, -100.0f, 0.0f));
+			XMStoreFloat4x4(&map00->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+			map00->ObjCBIndex = objIndex++;
+			map00->Mat = mMaterials["rand"].get();
+			map00->Geo = mGeometries["map00Geo"].get();
+			map00->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			map00->bounds = mBounds["map00"];
+			map00->IndexCount = map00->Geo->DrawArgs["map00"].IndexCount;
+			map00->StartIndexLocation = map00->Geo->DrawArgs["map00"].StartIndexLocation;
+			map00->BaseVertexLocation = map00->Geo->DrawArgs["map00"].BaseVertexLocation;
 
-		mOpaqueRitems[(int)RenderLayer::Grid].push_back(map00.get());
-		mAllRitems.push_back(std::move(map00));
+			mOpaqueRitems[(int)RenderLayer::Scene01_Map].push_back(map00.get());
+			mAllRitems.push_back(std::move(map00));
 
-		auto gridRitem = std::make_unique<GameObject>();
-		XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(30.0f, 1.0f, 30.0f)*XMMatrixTranslation(0.0f, -250.0f, 0.0f));
-		XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
-		gridRitem->ObjCBIndex = objIndex++;
-		gridRitem->Mat = mMaterials["rand"].get();
-		gridRitem->Geo = mGeometries["shapeGeo"].get();
-		gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		gridRitem->bounds = mBounds["grid"];
-		gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
-		gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
-		gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
+			auto gridRitem = std::make_unique<GameObject>();
+			XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(30.0f, 1.0f, 30.0f)*XMMatrixTranslation(0.0f, -250.0f, 0.0f));
+			XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
+			gridRitem->ObjCBIndex = objIndex++;
+			gridRitem->Mat = mMaterials["rand"].get();
+			gridRitem->Geo = mGeometries["shapeGeo"].get();
+			gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			gridRitem->bounds = mBounds["grid"];
+			gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
+			gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
+			gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 
-		BuildCollBoxGeometry(gridRitem->bounds, "gridBoxGeo", "gridBox", false);
+			BuildCollBoxGeometry(gridRitem->bounds, "gridBoxGeo", "gridBox", false);
 
-		mOpaqueRitems[(int)RenderLayer::Grid].push_back(gridRitem.get());
-		mAllRitems.push_back(std::move(gridRitem));
+			mOpaqueRitems[(int)RenderLayer::Scene01_Map].push_back(gridRitem.get());
+			mAllRitems.push_back(std::move(gridRitem));
 
+			auto map02 = std::make_unique<GameObject>();
+			XMStoreFloat4x4(&map02->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, -100.0f, 0.0f));
+			XMStoreFloat4x4(&map02->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+			map02->ObjCBIndex = objIndex++;
+			map02->Mat = mMaterials["bricks"].get();
+			map02->Geo = mGeometries["map02Geo"].get();
+			map02->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			map02->bounds = mBounds["map02"];
+			map02->IndexCount = map02->Geo->DrawArgs["map02"].IndexCount;
+			map02->StartIndexLocation = map02->Geo->DrawArgs["map02"].StartIndexLocation;
+			map02->BaseVertexLocation = map02->Geo->DrawArgs["map02"].BaseVertexLocation;
+			mOpaqueRitems[(int)RenderLayer::Scene02_Map].push_back(map02.get());
+			mAllRitems.push_back(std::move(map02));
+
+			auto map02_00 = std::make_unique<GameObject>();
+			XMStoreFloat4x4(&map02_00->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, -100.0f, 0.0f));
+			XMStoreFloat4x4(&map02_00->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+			map02_00->ObjCBIndex = objIndex++;
+			map02_00->Mat = mMaterials["wood"].get();
+			map02_00->Geo = mGeometries["map02_00Geo"].get();
+			map02_00->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			map02_00->bounds = mBounds["map02_00"];
+			map02_00->IndexCount = map02_00->Geo->DrawArgs["map02_00"].IndexCount;
+			map02_00->StartIndexLocation = map02_00->Geo->DrawArgs["map02_00"].StartIndexLocation;
+			map02_00->BaseVertexLocation = map02_00->Geo->DrawArgs["map02_00"].BaseVertexLocation;
+			mOpaqueRitems[(int)RenderLayer::Scene02_Map].push_back(map02_00.get());
+			mAllRitems.push_back(std::move(map02_00));
+
+		}
 		///////////////////////////플레이어////////////////////////////////
 		//BuildHelicopterGeometry(*m_gunShip.get());
 
@@ -2446,7 +2528,7 @@ void MyScene::BuildGameObjects()
 				statue->StartIndexLocation = statue->Geo->DrawArgs["statue"].StartIndexLocation;
 				statue->BaseVertexLocation = statue->Geo->DrawArgs["statue"].BaseVertexLocation;
 
-				mOpaqueRitems[(int)RenderLayer::Opaque].push_back(statue.get());
+				mOpaqueRitems[(int)RenderLayer::Scene01_Map].push_back(statue.get());
 				mAllRitems.push_back(std::move(statue));
 			}
 			auto door = std::make_unique<GameObject>();
@@ -2458,7 +2540,7 @@ void MyScene::BuildGameObjects()
 			door->IndexCount = door->Geo->DrawArgs["door"].IndexCount;
 			door->StartIndexLocation = door->Geo->DrawArgs["door"].StartIndexLocation;
 			door->BaseVertexLocation = door->Geo->DrawArgs["door"].BaseVertexLocation;
-			mOpaqueRitems[(int)RenderLayer::Opaque].push_back(door.get());
+			mOpaqueRitems[(int)RenderLayer::Scene01_Map].push_back(door.get());
 			mAllRitems.push_back(std::move(door));
 
 			auto doorFrame = std::make_unique<GameObject>();
@@ -2470,7 +2552,7 @@ void MyScene::BuildGameObjects()
 			doorFrame->IndexCount = doorFrame->Geo->DrawArgs["doorFrame"].IndexCount;
 			doorFrame->StartIndexLocation = doorFrame->Geo->DrawArgs["doorFrame"].StartIndexLocation;
 			doorFrame->BaseVertexLocation = doorFrame->Geo->DrawArgs["doorFrame"].BaseVertexLocation;
-			mOpaqueRitems[(int)RenderLayer::Opaque].push_back(doorFrame.get());
+			mOpaqueRitems[(int)RenderLayer::Scene01_Map].push_back(doorFrame.get());
 			mAllRitems.push_back(std::move(doorFrame));
 		}
 
@@ -2633,7 +2715,7 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
 			cmdList->SetGraphicsRootConstantBufferView(4, skinnedCBAddress);
 			cmdList->SetGraphicsRootDescriptorTable(5, tex2);
 		}
-		else if ((int)RenderLayer::Grid == itemState) {
+		else if ((int)RenderLayer::Scene01_Map == itemState || (int)RenderLayer::Scene02_Map == itemState  || (int)RenderLayer::MoveTile == itemState) {
 			CD3DX12_GPU_DESCRIPTOR_HANDLE tex2(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 			tex2.Offset(ri->Mat->DiffuseSrvHeapIndex + 1, mCbvSrvUavDescriptorSize);
 
@@ -2680,7 +2762,10 @@ void MyScene::DrawSceneToShadowMap()
 
 	mCommandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Item], (int)RenderLayer::Item);
-	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Grid], (int)RenderLayer::Grid);
+	if(nowScene == 1)
+		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene01_Map], (int)RenderLayer::Scene01_Map);
+	else if( nowScene == 2)
+		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene02_Map], (int)RenderLayer::Scene02_Map);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::MoveTile], (int)RenderLayer::MoveTile);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Opaque], (int)RenderLayer::Opaque);
 
