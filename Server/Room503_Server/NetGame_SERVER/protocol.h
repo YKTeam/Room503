@@ -26,12 +26,11 @@
 
 #define CS_DIE			9
 
-#define CS_ITEM_ON		100
-#define CS_ITEM_OFF		101
-
-
+#define CS_POS			98
 #define CS_NONE			99
 
+#define CS_ITEM_ON		100
+#define CS_ITEM_OFF		101
 
 
 
@@ -88,6 +87,11 @@ struct sc_move_packet {
 	WORD player_state;
 };
 
+struct cs_keydown_packet {
+	BYTE size;
+	BYTE type;
+};
+
 struct cs_position_packet {
 	BYTE size;
 	BYTE type;
@@ -100,6 +104,7 @@ struct cs_item_packet {
 	BYTE type;
 	DirectX::XMFLOAT3 pos;
 	bool lever;
+	BYTE number;
 };
 
 

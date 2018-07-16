@@ -170,6 +170,21 @@ void NetWork::SendItemState(int type, DirectX::XMFLOAT3 pos)
 	}
 }
 
+void NetWork::SendKeyDown(int keydown)
+{
+	cs_keydown_packet* packet = reinterpret_cast<cs_keydown_packet*>(mSendBuf);
+	DWORD iobyte;
+	packet->type = keydown;
+	packet->size = sizeof(cs_keydown_packet);
+	mSendWsaBuf.len = sizeof(cs_keydown_packet);
+
+	int ret = WSASend(mMainSocket, &mSendWsaBuf, 1, &iobyte, 0, NULL, NULL);
+	if (ret) {
+		int error_code = WSAGetLastError();
+		printf("Error while sending packet [%d]", error_code);
+	}
+}
+
 NetWork::NetWork()
 {
 	m_Start = false;

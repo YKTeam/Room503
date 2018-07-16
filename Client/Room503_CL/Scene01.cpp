@@ -66,6 +66,7 @@ bool MyScene::Initialize()
 	//BuildFbxGeometry("Model/TestModel.fbx", "robot_freeGeo", "robot_free", 1.0f, false, true);
 	//튜토리얼 맵
 	BuildFbxGeometry("Model/tutorial.obj", "map00Geo", "map00", 1, true, false);
+
 	//스테이지 2
 	BuildFbxGeometry("Model/Map02.obj", "map02Geo", "map02", 1, true, false);
 	BuildFbxGeometry("Model/Map02_lope.obj", "map02_00Geo", "map02_00", 1, true, false); //다리
@@ -213,6 +214,10 @@ void MyScene::MenuSceneKeyboardInput(const GameTimer& gt)
 		nowScene = (int)Scene::Scene02;
 		InitGameScene();
 	}
+
+	auto player = mOpaqueRitems[(int)RenderLayer::Player];
+	NetWork::getInstance()->SendMsg(CS_POS, player[0]->GetPosition(), player[0]->World);
+
 }
 void MyScene::MenuSceneUpdate(const GameTimer& gt)
 {
@@ -261,7 +266,7 @@ void MyScene::InitGameScene()
 
 	//플레이어 초기화
 	//뭐뭐 초기화
-	if (nowScene == (int)Scene::Scene01 || nowScene == (int)Scene::Scene02) {
+	if (nowScene == (int)Scene::Scene01 ) {
 		blurLevel = 0;
 		mEnergy = 0.5f;
 		//카메라 초기화
@@ -269,13 +274,45 @@ void MyScene::InitGameScene()
 		mCamera.LookAt(mCamera.GetPosition3f(), player[0]->GetPosition(), XMFLOAT3(0, 1, 0));
 
 		player[0]->SetPosition(XMFLOAT3(-200, 300.0f, -1300));
+		
+		movetile[0]->SetPosition(XMFLOAT3(0.0f, -250.0f, 300.0f));
+		movetile[1]->SetPosition(XMFLOAT3(-10000.0f, -2000.0f, 0));
+		movetile[2]->SetPosition(XMFLOAT3(-10000.0f, -2000.0f, 0));
+
 		items[0]->SetPosition(XMFLOAT3(-1500, items[0]->GetPosition().y, -580));
 		lever[0]->SetPosition(XMFLOAT3(1500, lever[0]->GetPosition().y, -600));
 		lever[1]->SetPosition(XMFLOAT3(-300, lever[1]->GetPosition().y, 1500));
 		player[0]->isOnGround = false;
+
 		NetWork::getInstance()->setPlayerState(CS_NONE);
 		NetWork::getInstance()->SetItemPosition({ 0.0f, -250.0f, 300.0f });
-		NetWork::getInstance()->SendMsg(CS_NONE, XMFLOAT3(-200, 300.0f, -1300), player[0]->World);
+		NetWork::getInstance()->SendMsg(CS_POS, XMFLOAT3(-200, 300.0f, -1300), player[0]->World);
+		mSkinnedModelInst->SetNowAni("idle");
+
+	}
+	else if (nowScene == (int)Scene::Scene02) {
+		blurLevel = 0;
+		mEnergy = 0.5f;
+		//카메라 초기화
+		mCamera.SetPosition(player[0]->GetPosition().x, player[0]->GetPosition().y + 2000, player[0]->GetPosition().z - 500);
+		mCamera.LookAt(mCamera.GetPosition3f(), player[0]->GetPosition(), XMFLOAT3(0, 1, 0));
+
+		player[0]->SetPosition(XMFLOAT3(-1800, 300.0f, 1500)); //시작
+		//player[0]->SetPosition(XMFLOAT3(1700, 150, -1150)); //밑
+		//player[0]->SetPosition(XMFLOAT3(-300, 300.0f, 1500)); // 옆
+
+		movetile[0]->SetPosition(XMFLOAT3(-2100.0f, -250.0f, -300.0f));
+		movetile[1]->SetPosition(XMFLOAT3(-2100.0f, -250.0f, 300));
+		movetile[2]->SetPosition(XMFLOAT3(-10000.0f, -250.0f, 0));
+
+		items[0]->SetPosition(XMFLOAT3(-1500, items[0]->GetPosition().y, -580));
+		lever[0]->SetPosition(XMFLOAT3(1500, lever[0]->GetPosition().y, -600));
+		lever[1]->SetPosition(XMFLOAT3(1500, lever[1]->GetPosition().y, -600-900));
+		player[0]->isOnGround = false;
+
+		NetWork::getInstance()->setPlayerState(CS_NONE);
+		NetWork::getInstance()->SetItemPosition({ -2100.0f, -250.0f, -300.0f });
+		NetWork::getInstance()->SendMsg(CS_POS, XMFLOAT3(-1800, 300.0f, 1500), player[0]->World);
 		mSkinnedModelInst->SetNowAni("idle");
 
 	}
@@ -362,6 +399,7 @@ void MyScene::GameSceneRender(const GameTimer& gt)
 		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene01_Map], (int)RenderLayer::Scene01_Map);
 	else if(nowScene == 2)
 		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene02_Map], (int)RenderLayer::Scene02_Map);
+
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::MoveTile], (int)RenderLayer::MoveTile);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Opaque], (int)RenderLayer::Opaque);
 	//DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::CollBox], (int)RenderLayer::CollBox);
@@ -478,49 +516,58 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 				if ((GetAsyncKeyState(VK_UP) && GetAsyncKeyState(VK_RIGHT))) {
 					if (NetWork::getInstance()->getPlayerState() != CS_RIGHT_UP) {
 						NetWork::getInstance()->setPlayerState(CS_RIGHT_UP);
-						NetWork::getInstance()->SendMsg(CS_RIGHT_UP, eplayer[0]->GetPosition(), eplayer[0]->World);
+						//NetWork::getInstance()->SendMsg(CS_RIGHT_UP, eplayer[0]->GetPosition(), eplayer[0]->World);
+						NetWork::getInstance()->SendKeyDown(CS_RIGHT_UP);
 					}
 				}
 				else if ((GetAsyncKeyState(VK_DOWN) && GetAsyncKeyState(VK_RIGHT))) {
 					if (NetWork::getInstance()->getPlayerState() != CS_RIGHT_DOWN) {
 						NetWork::getInstance()->setPlayerState(CS_RIGHT_DOWN);
-						NetWork::getInstance()->SendMsg(CS_RIGHT_DOWN, eplayer[0]->GetPosition(), eplayer[0]->World);
+						//NetWork::getInstance()->SendMsg(CS_RIGHT_DOWN, eplayer[0]->GetPosition(), eplayer[0]->World);
+						NetWork::getInstance()->SendKeyDown(CS_RIGHT_DOWN);
 					}
 				}
 				else if ((GetAsyncKeyState(VK_UP) && GetAsyncKeyState(VK_LEFT))) {
 					if (NetWork::getInstance()->getPlayerState() != CS_LEFT_UP) {
 						NetWork::getInstance()->setPlayerState(CS_LEFT_UP);
-						NetWork::getInstance()->SendMsg(CS_LEFT_UP, eplayer[0]->GetPosition(), eplayer[0]->World);
+						//NetWork::getInstance()->SendMsg(CS_LEFT_UP, eplayer[0]->GetPosition(), eplayer[0]->World);
+						NetWork::getInstance()->SendKeyDown(CS_LEFT_UP);
+
 					}
 				}
 				else if ((GetAsyncKeyState(VK_DOWN) && GetAsyncKeyState(VK_LEFT))) {
 					if (NetWork::getInstance()->getPlayerState() != CS_LEFT_DOWN) {
 						NetWork::getInstance()->setPlayerState(CS_LEFT_DOWN);
-						NetWork::getInstance()->SendMsg(CS_LEFT_DOWN, eplayer[0]->GetPosition(), eplayer[0]->World);
+						//NetWork::getInstance()->SendMsg(CS_LEFT_DOWN, eplayer[0]->GetPosition(), eplayer[0]->World);
+						NetWork::getInstance()->SendKeyDown(CS_LEFT_DOWN);
 					}
 				}
 				else if (GetAsyncKeyState(VK_UP) & 0x8000) {
 					if (NetWork::getInstance()->getPlayerState() != CS_UP) {
 						NetWork::getInstance()->setPlayerState(CS_UP);
-						NetWork::getInstance()->SendMsg(CS_UP, eplayer[0]->GetPosition(), eplayer[0]->World);
+						//NetWork::getInstance()->SendMsg(CS_UP, eplayer[0]->GetPosition(), eplayer[0]->World);
+						NetWork::getInstance()->SendKeyDown(CS_UP);
 					}
 				}
 				else if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
 					if (NetWork::getInstance()->getPlayerState() != CS_DOWN) {
 						NetWork::getInstance()->setPlayerState(CS_DOWN);
-						NetWork::getInstance()->SendMsg(CS_DOWN, eplayer[0]->GetPosition(), eplayer[0]->World);
+					//	NetWork::getInstance()->SendMsg(CS_DOWN, eplayer[0]->GetPosition(), eplayer[0]->World);
+						NetWork::getInstance()->SendKeyDown(CS_DOWN);
 					}
 				}
 				else if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
 					if (NetWork::getInstance()->getPlayerState() != CS_LEFT) {
 						NetWork::getInstance()->setPlayerState(CS_LEFT);
-						NetWork::getInstance()->SendMsg(CS_LEFT, eplayer[0]->GetPosition(), eplayer[0]->World);
+						//NetWork::getInstance()->SendMsg(CS_LEFT, eplayer[0]->GetPosition(), eplayer[0]->World);
+						NetWork::getInstance()->SendKeyDown(CS_LEFT);
 					}
 				}
 				else if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
 					if (NetWork::getInstance()->getPlayerState() != CS_RIGHT) {
 						NetWork::getInstance()->setPlayerState(CS_RIGHT);
-						NetWork::getInstance()->SendMsg(CS_RIGHT, eplayer[0]->GetPosition(), eplayer[0]->World);
+						//NetWork::getInstance()->SendMsg(CS_RIGHT, eplayer[0]->GetPosition(), eplayer[0]->World);
+						NetWork::getInstance()->SendKeyDown(CS_RIGHT);
 					}
 				}
 			}
@@ -529,10 +576,12 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 			mSkinnedModelInst->SetNowAni("idle");
 			if (NetWork::getInstance()->getPlayerState() != CS_NONE) {
 				NetWork::getInstance()->setPlayerState(CS_NONE);
-				NetWork::getInstance()->SendMsg(CS_NONE, eplayer[0]->GetPosition(), eplayer[0]->World);
+				//NetWork::getInstance()->SendMsg(CS_POS, eplayer[0]->GetPosition(), eplayer[0]->World);
+				NetWork::getInstance()->SendKeyDown(CS_NONE);
 			}
 		}
 
+		printf("%.2f %.2f %.2f\n", eplayer[0]->GetPosition().x, eplayer[0]->GetPosition().y, eplayer[0]->GetPosition().z);
 		mCamera.UpdateViewMatrix();
 }
 
@@ -684,15 +733,15 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 			auto mt = mOpaqueRitems[(int)RenderLayer::MoveTile];
 			auto mfriend = mOpaqueRitems[(int)RenderLayer::Friend];
 			//auto rand = mOpaqueRitems[(int)RenderLayer::Scene01_Map];
-			auto cols = mOpaqueRitems[(int)RenderLayer::MapCollision];
+			auto cols = mOpaqueRitems[(int)RenderLayer::MapCollision01];
 
-			//printf("전 %.2f %.2f %.2f\n", e->GetPosition().x, e->GetPosition().y, e->GetPosition().z);
+			//printf("%.2f %.2f %.2f\n", e->GetPosition().x, e->GetPosition().y, e->GetPosition().z);
 
 			if (e->isOnGround == false) {
 				e->GravityUpdate(gt);
 				NetWork::getInstance()->SetWorldPotision(ePlayer, e->World);
 				NetWork::getInstance()->setPlayerState(CS_NONE);
-				NetWork::getInstance()->SendMsg(CS_NONE, { 0,0,0 }, NetWork::getInstance()->getWorldPos(ePlayer));
+				NetWork::getInstance()->SendMsg(CS_POS, { 0,0,0 }, NetWork::getInstance()->getWorldPos(ePlayer));
 			}
 			e->World = (NetWork::getInstance()->getWorldPos(ePlayer));
 
@@ -702,6 +751,12 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 
 			//정적인 맵과의 충돌에서 움직일 때만 처리
 			if (nowScene == 1) {
+				cols = mOpaqueRitems[(int)RenderLayer::MapCollision01];
+			}
+			else if (nowScene == 2) {
+				cols = mOpaqueRitems[(int)RenderLayer::MapCollision02];
+			}
+			{
 				e->isOnGround = false;
 				for (int i = 0; i < cols.size(); i++) {
 					//온그라운드가 true일 경우 또 true인지 검사한다?
@@ -726,7 +781,6 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 						//printf("떨어져 죽음 \n");
 					}
 			}
-			else e->isOnGround = true;
 
 			if (e->bounds.IsCollsionAABB(e->GetPosition(), &item[0]->bounds, item[0]->GetPosition())) {
 				//printf("아이템과 충돌 \n");
@@ -2589,38 +2643,68 @@ void MyScene::BuildGameObjects()
 		}
 
 		//움직이는 타일
-		auto tiles = std::make_unique<GameObject>();
-		XMStoreFloat4x4(&tiles->World, XMMatrixScaling(1, 1, 1)*XMMatrixTranslation(0.0f, -250.0f, 300.0f));
-		tiles->ObjCBIndex = objIndex++;
-		tiles->Mat = mMaterials["rand"].get();
-		tiles->Geo = mGeometries["tileGeo"].get();
-		tiles->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		tiles->bounds = mBounds["tile00"];
-		tiles->IndexCount = tiles->Geo->DrawArgs["tile00"].IndexCount;
-		tiles->StartIndexLocation = tiles->Geo->DrawArgs["tile00"].StartIndexLocation;
-		tiles->BaseVertexLocation = tiles->Geo->DrawArgs["tile00"].BaseVertexLocation;
-		BuildCollBoxGeometry(tiles->bounds, "tileBoxGeo", "tileBox", true);
-		mOpaqueRitems[(int)RenderLayer::MoveTile].push_back(tiles.get());
-		mAllRitems.push_back(std::move(tiles));
+		for (int i = 0; i < 3; ++i) {
+			auto tiles = std::make_unique<GameObject>();
+			XMStoreFloat4x4(&tiles->World, XMMatrixScaling(1, 1, 1)*XMMatrixTranslation(0.0f, -250.0f, 300.0f));
+			tiles->ObjCBIndex = objIndex++;
+			tiles->Mat = mMaterials["rand"].get();
+			tiles->Geo = mGeometries["tileGeo"].get();
+			tiles->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			tiles->bounds = mBounds["tile00"];
+			tiles->IndexCount = tiles->Geo->DrawArgs["tile00"].IndexCount;
+			tiles->StartIndexLocation = tiles->Geo->DrawArgs["tile00"].StartIndexLocation;
+			tiles->BaseVertexLocation = tiles->Geo->DrawArgs["tile00"].BaseVertexLocation;
+			BuildCollBoxGeometry(tiles->bounds, "tileBoxGeo", "tileBox", true);
+			mOpaqueRitems[(int)RenderLayer::MoveTile].push_back(tiles.get());
+			mAllRitems.push_back(std::move(tiles));
+		}
 
 		//정적 맵 충돌체
-		for (int i = 0; i < 10; i++) {
-			auto col00 = std::make_unique<GameObject>();
-			XMStoreFloat4x4(&col00->World, XMMatrixScaling(1, 1, 1)*XMMatrixTranslation(0.0f, -100.0f, 0.0f));
-			col00->ObjCBIndex = objIndex++;
-			//모델좌표계상의 충돌체를 만들어준다.
-			if (i == 0)col00->bounds.SetMaxMin(XMFLOAT3(150, 150, -150), XMFLOAT3(-150, -150, -1050));
-			else if (i == 1)col00->bounds.SetMaxMin(XMFLOAT3(450, 150, -1050), XMFLOAT3(-450, -150, -1650));
-			else if (i == 2)col00->bounds.SetMaxMin(XMFLOAT3(1050, 150, 150), XMFLOAT3(-1350, -150, -150));
-			else if (i == 3)col00->bounds.SetMaxMin(XMFLOAT3(-1350, 150, 450), XMFLOAT3(-1650, -150, -750));
-			else if (i == 4)col00->bounds.SetMaxMin(XMFLOAT3(1350, 150, 450), XMFLOAT3(1050, -150, -750));
-			else if (i == 5)col00->bounds.SetMaxMin(XMFLOAT3(1650, 150, -450), XMFLOAT3(1350, -150, -750));
-			else if (i == 6)col00->bounds.SetMaxMin(XMFLOAT3(150, 150, 1650), XMFLOAT3(-150, -150, 450));
-			else if (i == 7)col00->bounds.SetMaxMin(XMFLOAT3(750, 150, 1650), XMFLOAT3(150, -150, 1350));
-			else if (i == 8)col00->bounds.SetMaxMin(XMFLOAT3(-150, 150, 1650), XMFLOAT3(-450, -150, 1350));
-			else if (i == 9)col00->bounds.SetMaxMin(XMFLOAT3(750, 150, 1950), XMFLOAT3(450, -150, 1650));
-			mOpaqueRitems[(int)RenderLayer::MapCollision].push_back(col00.get());
-			mAllRitems.push_back(std::move(col00));
+		{
+			//튜토리얼
+			for (int i = 0; i < 10; i++) {
+				auto col00 = std::make_unique<GameObject>();
+				XMStoreFloat4x4(&col00->World, XMMatrixScaling(1, 1, 1)*XMMatrixTranslation(0.0f, -100.0f, 0.0f));
+				col00->ObjCBIndex = objIndex++;
+				//모델좌표계상의 충돌체를 만들어준다.
+				if (i == 0)col00->bounds.SetMaxMin(XMFLOAT3(150, 150, -150), XMFLOAT3(-150, -150, -1050));
+				else if (i == 1)col00->bounds.SetMaxMin(XMFLOAT3(450, 150, -1050), XMFLOAT3(-450, -150, -1650));
+				else if (i == 2)col00->bounds.SetMaxMin(XMFLOAT3(1050, 150, 150), XMFLOAT3(-1350, -150, -150));
+				else if (i == 3)col00->bounds.SetMaxMin(XMFLOAT3(-1350, 150, 450), XMFLOAT3(-1650, -150, -750));
+				else if (i == 4)col00->bounds.SetMaxMin(XMFLOAT3(1350, 150, 450), XMFLOAT3(1050, -150, -750));
+				else if (i == 5)col00->bounds.SetMaxMin(XMFLOAT3(1650, 150, -450), XMFLOAT3(1350, -150, -750));
+				else if (i == 6)col00->bounds.SetMaxMin(XMFLOAT3(150, 150, 1650), XMFLOAT3(-150, -150, 450));
+				else if (i == 7)col00->bounds.SetMaxMin(XMFLOAT3(750, 150, 1650), XMFLOAT3(150, -150, 1350));
+				else if (i == 8)col00->bounds.SetMaxMin(XMFLOAT3(-150, 150, 1650), XMFLOAT3(-450, -150, 1350));
+				else if (i == 9)col00->bounds.SetMaxMin(XMFLOAT3(750, 150, 1950), XMFLOAT3(450, -150, 1650));
+				mOpaqueRitems[(int)RenderLayer::MapCollision01].push_back(col00.get());
+				mAllRitems.push_back(std::move(col00));
+			}
+			//맵2
+			for (int i = 0; i < 16; i++) {
+				auto col02 = std::make_unique<GameObject>();
+				XMStoreFloat4x4(&col02->World, XMMatrixScaling(1, 1, 1)*XMMatrixTranslation(0.0f, -100.0f, 0.0f));
+				col02->ObjCBIndex = objIndex++;
+				//모델좌표계상의 충돌체를 만들어준다.
+				if (i == 0)col02->bounds.SetMaxMin(XMFLOAT3(-2250 + 900, 150, 1950), XMFLOAT3(-2250 , -150, 1950 - 900)); //스타트 3x3
+				if (i == 1)col02->bounds.SetMaxMin(XMFLOAT3( -600 + 750 , 150, 1416 + 150), XMFLOAT3(-600-750, -150, 1416 - 150)); //스타트 다리
+				if (i == 2)col02->bounds.SetMaxMin(XMFLOAT3(-2100 +150, 150, 900+150), XMFLOAT3(-2100-150, -150, -150)); //
+				if (i == 3)col02->bounds.SetMaxMin(XMFLOAT3(-2400+150, 150, -450 ), XMFLOAT3(-2400-150 , -150, -450-600  )); //
+				if (i == 4)col02->bounds.SetMaxMin(XMFLOAT3(-2100 + 150, 150, 900 + 150), XMFLOAT3(-2100 - 150, -150, -150)); //
+				if (i == 5)col02->bounds.SetMaxMin(XMFLOAT3(-2100 - 150 +1200, 150, -450 ), XMFLOAT3(-2100 - 150 , -150, -750)); //
+				if (i == 6)col02->bounds.SetMaxMin(XMFLOAT3( 150 , 150, -150 ), XMFLOAT3( -1050, -150, -1350 )); //
+				if (i == 7)col02->bounds.SetMaxMin(XMFLOAT3(150 + 1800, 150, -1050), XMFLOAT3(150, -150, -1350)); //
+				if (i == 8)col02->bounds.SetMaxMin(XMFLOAT3(1950+900, 150, -750), XMFLOAT3(1950, -150, -750-900)); //
+				if (i == 9)col02->bounds.SetMaxMin(XMFLOAT3(1950 + 600, 150, 150), XMFLOAT3(1950, -150, -450 )); //
+				if (i == 10)col02->bounds.SetMaxMin(XMFLOAT3(150 + 600, 150, 1500+450), XMFLOAT3(150, -150, 1500-450)); //위쪽 
+				if (i == 11)col02->bounds.SetMaxMin(XMFLOAT3(150 + 300, 150, 1050), XMFLOAT3(150, -150, 750));
+				if (i == 12)col02->bounds.SetMaxMin(XMFLOAT3(750 + 1200, 150, 1416 + 150), XMFLOAT3(750, -150, 1416 - 150));//사다리2
+				if (i == 13)col02->bounds.SetMaxMin(XMFLOAT3(1950 + 900, 150, 1650), XMFLOAT3(1950, -150, 1650-900));//오
+				if (i == 14)col02->bounds.SetMaxMin(XMFLOAT3(2250, 150, 750), XMFLOAT3(1950, -150, 450));
+				if (i == 15)col02->bounds.SetMaxMin(XMFLOAT3(2250+900, 150, 1050), XMFLOAT3(1950+900, -150, 750));
+				mOpaqueRitems[(int)RenderLayer::MapCollision02].push_back(col02.get());
+				mAllRitems.push_back(std::move(col02));
+			}
 		}
 
 		{

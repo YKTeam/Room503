@@ -73,15 +73,15 @@ void CMainServer::SendItemPacket(int cl, int obj, BYTE type)
 
 void CMainServer::Update_Thread()
 {
-	
+
 	timeBeginPeriod(1);
-	
+
 	while (1) {
 		//printf("%d\n", timeGetTime());
 
-		if (timeGetTime() - updateTime >= 32)
+		if (timeGetTime() - updateTime >= 16)
 		{
-			updateTime = timeGetTime() ;
+			updateTime = timeGetTime();
 			for (int i = 0; i < MAX_USER; ++i) {
 				if (m_tClient[i].m_bConnect) {
 					IoContextEx * Io = new IoContextEx;
@@ -186,10 +186,12 @@ void CMainServer::Player_Process(int id)
 	}
 
 
+	//cout << GetPosition(id).x << ", " << GetPosition(id).y << ", " << GetPosition(id).z << endl;
 
 
 
-	//cout << m_tClient[id].pos.x << ", " << m_tClient[id].pos.y << ", " << m_tClient[id].pos.z << endl;
+	cout << GetPosition(id).x << ", " << GetPosition(id).y << ", " << GetPosition(id).z << endl;
+
 	if (p.m_PlayerState < 100) {
 		SendMovePacket2(id, id);
 		for (int i = 0; i < MAX_USER; ++i) {
@@ -399,47 +401,53 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 	//	m_tClient[cur_id].anistate = 1;
 	switch (packet[1]) {
 	case CS_NONE:
+		m_tClient[cur_id].m_PlayerState = CS_NONE;
+		m_tClient[cur_id].anistate = 0;
+		break;
+
+	case CS_POS:
 		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].m_PlayerState = CS_NONE;
 		m_tClient[cur_id].anistate = 0;
 		break;
+
 	case CS_UP:
-		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		//m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_UP;
 		break;
 	case CS_DOWN:
-		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		//m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_DOWN;
 		break;
 	case CS_LEFT:
-		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		//m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_LEFT;
 		break;
 	case CS_RIGHT:
-		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		//	m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_RIGHT;
 		break;
 	case CS_RIGHT_UP:
-		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		//	m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_RIGHT_UP;
 		break;
 	case CS_RIGHT_DOWN:
-		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		//	m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_RIGHT_DOWN;
 		break;
 	case CS_LEFT_UP:
-		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		//	m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_LEFT_UP;
 		break;
 	case CS_LEFT_DOWN:
-		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
+		//	m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_LEFT_DOWN;
 		break;
@@ -460,30 +468,30 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 			m_tItem.m_PlayerState = CS_ITEM_ON;
 
 		}
-
 		break;
+
 	case CS_ITEM_OFF:
 		if (Item_Num == cur_id) {
 			m_tItem.pos = *(DirectX::XMFLOAT3*)&packet[2];
 			m_tItem.m_PlayerState = CS_ITEM_OFF;
 		}
-
 		//cout << "OFF" << endl;
 		break;
+
 	default:
 		cout << "UnKnown Packet Type Cur_ID : " << cur_id << endl;
 		while (true);
 	}
 
 
-		/*
-			0일때 서버킨애가 하니까 됨
+	/*
+		0일때 서버킨애가 하니까 됨
 
 
-		*/
+	*/
 	//cout << (int)Item_Num << ' ' << cur_id << endl;
 
-	if (packet[1] < 100) {
+	if (CS_POS == packet[1] || CS_DIE == packet[1]) {
 		m_tClient[cur_id].m_WorldPos = *(DirectX::XMFLOAT4X4*)&packet[2 + sizeof(DirectX::XMFLOAT3)];
 		SendMovePacket(cur_id, cur_id);
 		for (int i = 0; i < MAX_USER; ++i)

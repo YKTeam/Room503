@@ -88,6 +88,8 @@ public:
 	void SendMsg(int, DirectX::XMFLOAT3, DirectX::XMFLOAT4X4);
 	void SendItemState(int, DirectX::XMFLOAT3);
 
+	void SendKeyDown(int);
+
 private:
 	static NetWork* Instance;
 public:
