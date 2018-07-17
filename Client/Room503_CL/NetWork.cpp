@@ -151,7 +151,7 @@ void NetWork::SendMsg(int value, DirectX::XMFLOAT3 pos, DirectX::XMFLOAT4X4 mWor
 	}
 }
 
-void NetWork::SendItemState(int type, DirectX::XMFLOAT3 pos)
+void NetWork::SendItemState(int type,BYTE number, DirectX::XMFLOAT3 pos)
 {
 	cs_item_packet *packet = reinterpret_cast<cs_item_packet *>(mSendBuf);
 
@@ -159,6 +159,7 @@ void NetWork::SendItemState(int type, DirectX::XMFLOAT3 pos)
 	packet->pos = pos;
 	packet->type = type;
 	packet->lever = mItem.lever;
+	packet->number = number;
 
 	packet->size = sizeof(cs_item_packet);
 	mSendWsaBuf.len = sizeof(cs_item_packet);

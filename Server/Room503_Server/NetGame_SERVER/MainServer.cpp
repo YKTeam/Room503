@@ -17,15 +17,6 @@ void CMainServer::SendMovePacket2(int client, int object)
 	packet.world_pos = m_tClient[object].m_WorldPos;
 	packet.player_state = m_tClient[object].m_PlayerState;
 
-	////cout << "send ps - " << m_tClient[object].m_PlayerState << endl;
-	//cout << packet.world_pos._11 << packet.world_pos._12
-	//	<< packet.world_pos._13 << packet.world_pos._14 << endl;
-	//cout << packet.world_pos._21 << packet.world_pos._22
-	//	<< packet.world_pos._23 << packet.world_pos._24 << endl;
-	//cout << packet.world_pos._31 << packet.world_pos._32
-	//	<< packet.world_pos._33 << packet.world_pos._34 << endl;
-	//cout << packet.world_pos._41 <<' '<< packet.world_pos._42 << ' '
-	//	<< packet.world_pos._43 << ' '<< packet.world_pos._44 << endl;
 
 	SendPacket(client, &packet);
 	//cout << object << "가 " << client << " 에게 " << packet.pos.x << " " << packet.pos.y << " " << packet.pos.z << endl;
@@ -56,16 +47,17 @@ void CMainServer::SendPacket(int client, void* packet)
 
 }
 
-void CMainServer::SendItemPacket(int cl, int obj, BYTE type)
+void CMainServer::SendItemPacket(int cl, int obj, Item Items)
 {
 	sc_item_packet packet;
 	packet.id = obj;
 	packet.size = sizeof(sc_item_packet);
-	packet.type = type;
-	if (type == CS_ITEM_ON)
+	packet.type = Items.m_PlayerState;
+	if (Items.m_PlayerState == CS_ITEM_ON)
 		packet.lever = true;
 	else  packet.lever = false;
-	packet.pos = m_tItem.pos;
+
+	packet.pos = Items.pos;
 
 	SendPacket(cl, &packet);
 
@@ -101,30 +93,32 @@ void CMainServer::Item_Process(int id)
 {
 	auto& item = m_tItem;
 	const float dt = 0.016f;
-	if (item.m_PlayerState == CS_ITEM_OFF) {
-		if (item.pos.y > -250)
-			item.pos = { item.pos.x,item.pos.y - 80 * dt,item.pos.z };
-		else {
-			item.pos = { item.pos.x, -250,item.pos.z };
-			Item_Num = -1;
+	for (int i = ITEM_START; i < ITEM_START + ITEM_MAX; ++i) {
+		if (item[i].m_PlayerState == CS_ITEM_OFF) {
+			if (item[i].pos.y > -250)
+				item[i].pos = { item[i].pos.x,item[i].pos.y - 80 * dt,item[i].pos.z };
+			else {
+				item[i].pos = { item[i].pos.x, -250,item[i].pos.z };
+				Item_Num = -1;
+			}
 		}
-	}
-	else if (item.m_PlayerState == CS_ITEM_ON) {
-		if (item.pos.y < -100)
-			item.pos = { item.pos.x,item.pos.y + 80 * dt,item.pos.z };
-		else
-			item.pos = { item.pos.x, -100,item.pos.z };
-	}
+		else if (item[i].m_PlayerState == CS_ITEM_ON) {
+			if (item[i].pos.y < -100)
+				item[i].pos = { item[i].pos.x,item[i].pos.y + 80 * dt,item[i].pos.z };
+			else
+				item[i].pos = { item[i].pos.x, -100,item[i].pos.z };
+		}
 
-	if (item.m_PlayerState < 200) {
-		SendItemPacket(id, id, item.m_PlayerState);
-		for (int i = 0; i < MAX_USER; ++i) {
-			if (m_tClient[i].m_bConnect && i != id) {
-				SendItemPacket(i, id, item.m_PlayerState);
+		if (item[i].m_PlayerState < 200)
+		{
+			SendItemPacket(id, id, item[i]);
+			for (int i = 0; i < MAX_USER; ++i) {
+				if (m_tClient[i].m_bConnect && i != id) {
+					SendItemPacket(i, id, item[i]);
+				}
 			}
 		}
 	}
-
 }
 
 
@@ -188,11 +182,8 @@ void CMainServer::Player_Process(int id)
 
 	//cout << GetPosition(id).x << ", " << GetPosition(id).y << ", " << GetPosition(id).z << endl;
 
-
-
-	cout << GetPosition(id).x << ", " << GetPosition(id).y << ", " << GetPosition(id).z << endl;
-
-	if (p.m_PlayerState < 100) {
+	if (p.m_PlayerState < 100)
+	{
 		SendMovePacket2(id, id);
 		for (int i = 0; i < MAX_USER; ++i) {
 			if (m_tClient[i].m_bConnect && i != id) {
@@ -393,10 +384,14 @@ void CMainServer::Work_Process()
 //// 200 200 600 600
 void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 {
+
 	//cout << "ID [" << cur_id << "] Keyboard Input" << endl;
 
 	if (GetTickCount() - m_tClient[cur_id].m_Timer < FrameTime)
 		return;
+	int nb;
+	if (CS_ITEM_ON == packet[1] || CS_ITEM_OFF == packet[1])
+		nb = *(int*)&packet[3] + ITEM_START;
 
 	//	m_tClient[cur_id].anistate = 1;
 	switch (packet[1]) {
@@ -458,37 +453,40 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 		break;
 
 	case CS_ITEM_ON:
+	{
 		if (Item_Num == -1) {
 			Item_Num = cur_id;
 		}
 
 		if (Item_Num == cur_id)
 		{
-			m_tItem.pos = *(DirectX::XMFLOAT3*)&packet[2];
-			m_tItem.m_PlayerState = CS_ITEM_ON;
+			m_tItem[nb].pos = *(DirectX::XMFLOAT3*)&packet[3];
+			m_tItem[nb].m_PlayerState = CS_ITEM_ON;
 
 		}
+		cout << nb << endl;
+		cout << "ON" << endl;
 		break;
-
+	}
 	case CS_ITEM_OFF:
-		if (Item_Num == cur_id) {
-			m_tItem.pos = *(DirectX::XMFLOAT3*)&packet[2];
-			m_tItem.m_PlayerState = CS_ITEM_OFF;
+	{
+		if (Item_Num == cur_id)
+		{
+			m_tItem[nb].pos = *(DirectX::XMFLOAT3*)&packet[3];
+			m_tItem[nb].m_PlayerState = CS_ITEM_OFF;
 		}
-		//cout << "OFF" << endl;
+		cout << "OFF" << endl;
 		break;
-
+	}
 	default:
 		cout << "UnKnown Packet Type Cur_ID : " << cur_id << endl;
 		while (true);
 	}
 
-
 	/*
 		0일때 서버킨애가 하니까 됨
-
-
 	*/
+
 	//cout << (int)Item_Num << ' ' << cur_id << endl;
 
 	if (CS_POS == packet[1] || CS_DIE == packet[1]) {
@@ -504,26 +502,23 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 				}
 		}
 	}
-	else
+	if (CS_ITEM_ON == packet[1] || CS_ITEM_OFF == packet[1])
 	{
 		if (Item_Num == cur_id)
 		{
-
-			SendItemPacket(cur_id, cur_id, m_tItem.m_PlayerState);
+			SendItemPacket(cur_id, cur_id, m_tItem[nb]);
 			for (int i = 0; i < MAX_USER; ++i) {
 				if (m_tClient[i].m_bConnect && i != cur_id) {
-					SendItemPacket(i, cur_id, m_tItem.m_PlayerState);
-					SendItemPacket(cur_id, i, m_tItem.m_PlayerState);
-					SendItemPacket(i, i, m_tItem.m_PlayerState);
+					SendItemPacket(i, cur_id, m_tItem[nb]);
+					SendItemPacket(cur_id, i, m_tItem[nb]);
+					SendItemPacket(i, i, m_tItem[nb]);
+
 				}
 			}
 		}
+
 	}
-
 }
-
-
-
 
 void CMainServer::SendPositionPacket(int client, int object)
 {

@@ -72,7 +72,7 @@ bool MyScene::Initialize()
 	BuildFbxGeometry("Model/Map02_lope.obj", "map02_00Geo", "map02_00", 1, true, false); //다리
 
 	BuildAnimation("Model/robotFree3.fbx", "walk", 1.0f, false);//robotwalk
-	
+
 		//BuildAnimation("Model/TestIdle.fbx", "walk", 1.0f, false);
 	BuildMaterials();
 	BuildGameObjects();
@@ -266,7 +266,7 @@ void MyScene::InitGameScene()
 
 	//플레이어 초기화
 	//뭐뭐 초기화
-	if (nowScene == (int)Scene::Scene01 ) {
+	if (nowScene == (int)Scene::Scene01) {
 		blurLevel = 0;
 		mEnergy = 0.5f;
 		//카메라 초기화
@@ -274,7 +274,7 @@ void MyScene::InitGameScene()
 		mCamera.LookAt(mCamera.GetPosition3f(), player[0]->GetPosition(), XMFLOAT3(0, 1, 0));
 
 		player[0]->SetPosition(XMFLOAT3(-200, 300.0f, -1300));
-		
+
 		movetile[0]->SetPosition(XMFLOAT3(0.0f, -250.0f, 300.0f));
 		movetile[1]->SetPosition(XMFLOAT3(-10000.0f, -2000.0f, 0));
 		movetile[2]->SetPosition(XMFLOAT3(-10000.0f, -2000.0f, 0));
@@ -307,7 +307,7 @@ void MyScene::InitGameScene()
 
 		items[0]->SetPosition(XMFLOAT3(-1500, items[0]->GetPosition().y, -580));
 		lever[0]->SetPosition(XMFLOAT3(1500, lever[0]->GetPosition().y, -600));
-		lever[1]->SetPosition(XMFLOAT3(1500, lever[1]->GetPosition().y, -600-900));
+		lever[1]->SetPosition(XMFLOAT3(1500, lever[1]->GetPosition().y, -600 - 900));
 		player[0]->isOnGround = false;
 
 		NetWork::getInstance()->setPlayerState(CS_NONE);
@@ -395,9 +395,9 @@ void MyScene::GameSceneRender(const GameTimer& gt)
 	}
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Lever], (int)RenderLayer::Lever);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Item], (int)RenderLayer::Item);
-	if(nowScene == 1)
+	if (nowScene == 1)
 		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene01_Map], (int)RenderLayer::Scene01_Map);
-	else if(nowScene == 2)
+	else if (nowScene == 2)
 		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene02_Map], (int)RenderLayer::Scene02_Map);
 
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::MoveTile], (int)RenderLayer::MoveTile);
@@ -462,7 +462,7 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 	if (GetAsyncKeyState('4') & 0x8000) blurLevel = 2;
 	if (GetAsyncKeyState('5') & 0x8000) {
 		mEnergy -= 0.001f;
-	//	printf("%.2f\n", mEnergy);
+		//	printf("%.2f\n", mEnergy);
 	}
 	if (GetAsyncKeyState('6') & 0x8000) {
 		mEnergy += 0.001f;
@@ -552,7 +552,7 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 				else if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
 					if (NetWork::getInstance()->getPlayerState() != CS_DOWN) {
 						NetWork::getInstance()->setPlayerState(CS_DOWN);
-					//	NetWork::getInstance()->SendMsg(CS_DOWN, eplayer[0]->GetPosition(), eplayer[0]->World);
+						//	NetWork::getInstance()->SendMsg(CS_DOWN, eplayer[0]->GetPosition(), eplayer[0]->World);
 						NetWork::getInstance()->SendKeyDown(CS_DOWN);
 					}
 				}
@@ -798,7 +798,7 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 				isLeverOn = true; //임시변수임
 				NetWork::getInstance()->setLever(isLeverOn);
 				if (NetWork::getInstance()->getItemState() != CS_ITEM_ON)
-					NetWork::getInstance()->SendItemState(CS_ITEM_ON, mt[0]->GetPosition());
+					NetWork::getInstance()->SendItemState(CS_ITEM_ON, 0, mt[0]->GetPosition());
 			}
 			else if (e->bounds.IsCollsionAABB(e->GetPosition(), &lever[1]->bounds, lever[1]->GetPosition()))
 			{
@@ -806,15 +806,15 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 				isLeverOn = true; //임시변수임
 				NetWork::getInstance()->setLever(isLeverOn);
 				if (NetWork::getInstance()->getItemState() != CS_ITEM_ON)
-					NetWork::getInstance()->SendItemState(CS_ITEM_ON, mt[0]->GetPosition());
+					NetWork::getInstance()->SendItemState(CS_ITEM_ON, 0, mt[0]->GetPosition());
 			}
 			//비활성화일 경우
 			else
 			{
 				isLeverOn = false;
 				NetWork::getInstance()->setLever(isLeverOn);
-				if (NetWork::getInstance()->getItemState() == CS_ITEM_ON)
-					NetWork::getInstance()->SendItemState(CS_ITEM_OFF, mt[0]->GetPosition());
+				if (NetWork::getInstance()->getItemState() != CS_ITEM_OFF)
+					NetWork::getInstance()->SendItemState(CS_ITEM_OFF, 0, mt[0]->GetPosition());
 
 			}
 
@@ -870,11 +870,11 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 			if (isLeverOn == false)
 			{
 				if (NetWork::getInstance()->getItemState() != CS_ITEM_OFF)
-					NetWork::getInstance()->SendItemState(CS_ITEM_OFF, e->GetPosition());
+					NetWork::getInstance()->SendItemState(CS_ITEM_OFF, 0, e->GetPosition());
 			}
 			else {
 				if (NetWork::getInstance()->getItemState() != CS_ITEM_ON)
-					NetWork::getInstance()->SendItemState(CS_ITEM_ON, e->GetPosition());
+					NetWork::getInstance()->SendItemState(CS_ITEM_ON, 0, e->GetPosition());
 			}
 
 			//플레이어가 발판에 서있으면
@@ -2686,22 +2686,22 @@ void MyScene::BuildGameObjects()
 				XMStoreFloat4x4(&col02->World, XMMatrixScaling(1, 1, 1)*XMMatrixTranslation(0.0f, -100.0f, 0.0f));
 				col02->ObjCBIndex = objIndex++;
 				//모델좌표계상의 충돌체를 만들어준다.
-				if (i == 0)col02->bounds.SetMaxMin(XMFLOAT3(-2250 + 900, 150, 1950), XMFLOAT3(-2250 , -150, 1950 - 900)); //스타트 3x3
-				if (i == 1)col02->bounds.SetMaxMin(XMFLOAT3( -600 + 750 , 150, 1416 + 150), XMFLOAT3(-600-750, -150, 1416 - 150)); //스타트 다리
-				if (i == 2)col02->bounds.SetMaxMin(XMFLOAT3(-2100 +150, 150, 900+150), XMFLOAT3(-2100-150, -150, -150)); //
-				if (i == 3)col02->bounds.SetMaxMin(XMFLOAT3(-2400+150, 150, -450 ), XMFLOAT3(-2400-150 , -150, -450-600  )); //
+				if (i == 0)col02->bounds.SetMaxMin(XMFLOAT3(-2250 + 900, 150, 1950), XMFLOAT3(-2250, -150, 1950 - 900)); //스타트 3x3
+				if (i == 1)col02->bounds.SetMaxMin(XMFLOAT3(-600 + 750, 150, 1416 + 150), XMFLOAT3(-600 - 750, -150, 1416 - 150)); //스타트 다리
+				if (i == 2)col02->bounds.SetMaxMin(XMFLOAT3(-2100 + 150, 150, 900 + 150), XMFLOAT3(-2100 - 150, -150, -150)); //
+				if (i == 3)col02->bounds.SetMaxMin(XMFLOAT3(-2400 + 150, 150, -450), XMFLOAT3(-2400 - 150, -150, -450 - 600)); //
 				if (i == 4)col02->bounds.SetMaxMin(XMFLOAT3(-2100 + 150, 150, 900 + 150), XMFLOAT3(-2100 - 150, -150, -150)); //
-				if (i == 5)col02->bounds.SetMaxMin(XMFLOAT3(-2100 - 150 +1200, 150, -450 ), XMFLOAT3(-2100 - 150 , -150, -750)); //
-				if (i == 6)col02->bounds.SetMaxMin(XMFLOAT3( 150 , 150, -150 ), XMFLOAT3( -1050, -150, -1350 )); //
+				if (i == 5)col02->bounds.SetMaxMin(XMFLOAT3(-2100 - 150 + 1200, 150, -450), XMFLOAT3(-2100 - 150, -150, -750)); //
+				if (i == 6)col02->bounds.SetMaxMin(XMFLOAT3(150, 150, -150), XMFLOAT3(-1050, -150, -1350)); //
 				if (i == 7)col02->bounds.SetMaxMin(XMFLOAT3(150 + 1800, 150, -1050), XMFLOAT3(150, -150, -1350)); //
-				if (i == 8)col02->bounds.SetMaxMin(XMFLOAT3(1950+900, 150, -750), XMFLOAT3(1950, -150, -750-900)); //
-				if (i == 9)col02->bounds.SetMaxMin(XMFLOAT3(1950 + 600, 150, 150), XMFLOAT3(1950, -150, -450 )); //
-				if (i == 10)col02->bounds.SetMaxMin(XMFLOAT3(150 + 600, 150, 1500+450), XMFLOAT3(150, -150, 1500-450)); //위쪽 
+				if (i == 8)col02->bounds.SetMaxMin(XMFLOAT3(1950 + 900, 150, -750), XMFLOAT3(1950, -150, -750 - 900)); //
+				if (i == 9)col02->bounds.SetMaxMin(XMFLOAT3(1950 + 600, 150, 150), XMFLOAT3(1950, -150, -450)); //
+				if (i == 10)col02->bounds.SetMaxMin(XMFLOAT3(150 + 600, 150, 1500 + 450), XMFLOAT3(150, -150, 1500 - 450)); //위쪽 
 				if (i == 11)col02->bounds.SetMaxMin(XMFLOAT3(150 + 300, 150, 1050), XMFLOAT3(150, -150, 750));
 				if (i == 12)col02->bounds.SetMaxMin(XMFLOAT3(750 + 1200, 150, 1416 + 150), XMFLOAT3(750, -150, 1416 - 150));//사다리2
-				if (i == 13)col02->bounds.SetMaxMin(XMFLOAT3(1950 + 900, 150, 1650), XMFLOAT3(1950, -150, 1650-900));//오
+				if (i == 13)col02->bounds.SetMaxMin(XMFLOAT3(1950 + 900, 150, 1650), XMFLOAT3(1950, -150, 1650 - 900));//오
 				if (i == 14)col02->bounds.SetMaxMin(XMFLOAT3(2250, 150, 750), XMFLOAT3(1950, -150, 450));
-				if (i == 15)col02->bounds.SetMaxMin(XMFLOAT3(2250+900, 150, 1050), XMFLOAT3(1950+900, -150, 750));
+				if (i == 15)col02->bounds.SetMaxMin(XMFLOAT3(2250 + 900, 150, 1050), XMFLOAT3(1950 + 900, -150, 750));
 				mOpaqueRitems[(int)RenderLayer::MapCollision02].push_back(col02.get());
 				mAllRitems.push_back(std::move(col02));
 			}
@@ -2799,7 +2799,7 @@ void MyScene::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vec
 			cmdList->SetGraphicsRootConstantBufferView(4, skinnedCBAddress);
 			cmdList->SetGraphicsRootDescriptorTable(5, tex2);
 		}
-		else if ((int)RenderLayer::Scene01_Map == itemState || (int)RenderLayer::Scene02_Map == itemState  || (int)RenderLayer::MoveTile == itemState) {
+		else if ((int)RenderLayer::Scene01_Map == itemState || (int)RenderLayer::Scene02_Map == itemState || (int)RenderLayer::MoveTile == itemState) {
 			CD3DX12_GPU_DESCRIPTOR_HANDLE tex2(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 			tex2.Offset(ri->Mat->DiffuseSrvHeapIndex + 1, mCbvSrvUavDescriptorSize);
 
@@ -2846,9 +2846,9 @@ void MyScene::DrawSceneToShadowMap()
 
 	mCommandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Item], (int)RenderLayer::Item);
-	if(nowScene == 1)
+	if (nowScene == 1)
 		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene01_Map], (int)RenderLayer::Scene01_Map);
-	else if( nowScene == 2)
+	else if (nowScene == 2)
 		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene02_Map], (int)RenderLayer::Scene02_Map);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::MoveTile], (int)RenderLayer::MoveTile);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Opaque], (int)RenderLayer::Opaque);

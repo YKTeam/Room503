@@ -77,6 +77,7 @@ public:
 	};
 
 	int getItemState() const { return mItem.type; }
+	void setItemState(BYTE type) { mItem.type = type;}
 
 public:
 	void ReadPacket(SOCKET);
@@ -86,7 +87,7 @@ public:
 	void ProcessKeyDown();
 
 	void SendMsg(int, DirectX::XMFLOAT3, DirectX::XMFLOAT4X4);
-	void SendItemState(int, DirectX::XMFLOAT3);
+	void SendItemState(int, BYTE, DirectX::XMFLOAT3);
 
 	void SendKeyDown(int);
 

@@ -12,6 +12,9 @@
 #define MAX_USER		4
 #define MAX_NPC			1000
 
+#define ITEM_START	2000
+#define ITEM_MAX	3
+
 
 #define CS_UP			1
 #define CS_DOWN			2
@@ -102,9 +105,9 @@ struct cs_position_packet {
 struct cs_item_packet {
 	BYTE size;
 	BYTE type;
+	BYTE number;
 	DirectX::XMFLOAT3 pos;
 	bool lever;
-	BYTE number;
 };
 
 
