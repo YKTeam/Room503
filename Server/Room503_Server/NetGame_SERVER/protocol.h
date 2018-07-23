@@ -34,7 +34,7 @@
 
 #define CS_ITEM_ON		100
 #define CS_ITEM_OFF		101
-
+#define CS_ITEM_SET		102
 
 
 
@@ -105,7 +105,7 @@ struct cs_position_packet {
 struct cs_item_packet {
 	BYTE size;
 	BYTE type;
-	BYTE number;
+	int item_number;
 	DirectX::XMFLOAT3 pos;
 	bool lever;
 };
@@ -114,9 +114,10 @@ struct cs_item_packet {
 struct sc_item_packet {
 	BYTE size;
 	BYTE type;
-	WORD id;
+	int id;
 	bool lever;
 	DirectX::XMFLOAT3 pos;
+	int number;
 };
 
 #pragma pack (pop)

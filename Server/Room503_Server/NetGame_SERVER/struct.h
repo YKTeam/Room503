@@ -10,6 +10,16 @@ struct IoContextEx
 	int m_itarget;
 };
 
+struct Item 
+{
+	DirectX::XMFLOAT3 pos;
+	DirectX::XMFLOAT4X4 m_WorldPos;
+	WORD m_PlayerState;
+	int m_number;				// 이게 몇번째 아이템인지.
+	bool is_cli_connect;		// 클라가 건드렸냐?
+	int connected_number;		// 어떤 클라와 연결되었는지.
+};
+
 
 struct Client
 {
