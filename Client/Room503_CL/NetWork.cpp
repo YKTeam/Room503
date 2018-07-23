@@ -64,6 +64,8 @@ void NetWork::Initialize(HWND& hwnd)
 	mRecvWsaBuf.buf = mRecvBuf;
 	mRecvWsaBuf.len = BUF_SIZE;
 
+	for (int i = 0; i < 3; ++i)
+		mItem[i].type = CS_ITEM_OFF;
 }
 
 void NetWork::ProcessPacket(char *ptr)
@@ -112,12 +114,16 @@ void NetWork::ProcessPacket(char *ptr)
 	case SC_ITEM_ON:
 	case SC_ITEM_OFF:
 		sc_item_packet * packet = reinterpret_cast<sc_item_packet*>(ptr);
-		mItem.pos = packet->pos;
-		mItem.type = packet->type;
-		mItem.lever = packet->lever;
+		int n = packet->number - ITEM_START;
+		mItem[n].pos = packet->pos;
+		mItem[n].type = packet->type;
+		mItem[n].lever = packet->lever;
+		setItemState(ptr[1], n);
+		
 
-		if (mItem.pos.y > -150)
-			setLever(true);
+
+		if (mItem[n].pos.y > -250)
+			setLever(true, n);
 		break;
 	}
 
@@ -151,18 +157,22 @@ void NetWork::SendMsg(int value, DirectX::XMFLOAT3 pos, DirectX::XMFLOAT4X4 mWor
 	}
 }
 
-void NetWork::SendItemState(int type,BYTE number, DirectX::XMFLOAT3 pos)
+void NetWork::SendItemState(int type, int item_number, DirectX::XMFLOAT3 pos)
 {
 	cs_item_packet *packet = reinterpret_cast<cs_item_packet *>(mSendBuf);
 
 	DWORD iobyte;
 	packet->pos = pos;
 	packet->type = type;
-	packet->lever = mItem.lever;
-	packet->number = number;
+	packet->lever = mItem[item_number].lever;
+	packet->item_number = item_number;
 
 	packet->size = sizeof(cs_item_packet);
 	mSendWsaBuf.len = sizeof(cs_item_packet);
+
+	if (type == CS_ITEM_OFF)
+		std::cout << "´ë±â" << std::endl;
+	 
 
 	int ret = WSASend(mMainSocket, &mSendWsaBuf, 1, &iobyte, 0, NULL, NULL);
 	if (ret) {
@@ -196,7 +206,6 @@ NetWork::NetWork()
 		mPlayer[i].pos.z = 0;
 	}
 
-	mItem.pos = { 0,0,0 };
 
 }
 

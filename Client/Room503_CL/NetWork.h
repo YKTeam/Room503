@@ -30,7 +30,7 @@ class NetWork
 private:
 
 	PlayerInfo mPlayer[eEnd];
-	ItemInfo   mItem;
+	ItemInfo   mItem[3];
 
 private:
 	SOCKET mMainSocket;
@@ -60,8 +60,8 @@ public:
 	int getAniState(eObj type) const { return mPlayer[type].ani_state; }
 	DirectX::XMFLOAT4X4 getWorldPos(eObj type) const { return mPlayer[type].world; }
 
-	bool getLever() { return mItem.lever; }
-	void setLever(bool value) { mItem.lever = value; }
+	bool getLever(int n) { return mItem[n].lever; }
+	void setLever(bool value, int n) { mItem[n].lever = value; }
 	int getFriendState() const { return mPlayer[eFriend].player_state; }
 	void setFriendState(int n) { mPlayer[eFriend].player_state = n; }
 
@@ -71,14 +71,14 @@ public:
 
 	void SetWorldPotision(eObj type, XMFLOAT4X4 world) { mPlayer[type].world = world; }
 
-	DirectX::XMFLOAT3 GetItemPosition() { return mItem.pos; }
-	void SetItemPosition(DirectX::XMFLOAT3 pos) {
-		mItem.pos = pos;
+	DirectX::XMFLOAT3 GetItemPosition(int n) const { return mItem[n].pos; }
+	void SetItemPosition(DirectX::XMFLOAT3 pos, int n) {
+		mItem[n].pos = pos;
 	};
 
-	int getItemState() const { return mItem.type; }
-	void setItemState(BYTE type) { mItem.type = type;}
-
+	int getItemState(int n) const { return mItem[n].type; }
+	void setItemState(BYTE type,int n) { mItem[n].type = type;}
+	
 public:
 	void ReadPacket(SOCKET);
 	void Initialize(HWND&);
@@ -87,8 +87,7 @@ public:
 	void ProcessKeyDown();
 
 	void SendMsg(int, DirectX::XMFLOAT3, DirectX::XMFLOAT4X4);
-	void SendItemState(int, BYTE, DirectX::XMFLOAT3);
-
+	void SendItemState(int, int, DirectX::XMFLOAT3);
 	void SendKeyDown(int);
 
 private:

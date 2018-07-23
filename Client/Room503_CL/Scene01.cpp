@@ -282,11 +282,21 @@ void MyScene::InitGameScene()
 		items[0]->SetPosition(XMFLOAT3(-1500, items[0]->GetPosition().y, -580));
 		lever[0]->SetPosition(XMFLOAT3(1500, lever[0]->GetPosition().y, -600));
 		lever[1]->SetPosition(XMFLOAT3(-300, lever[1]->GetPosition().y, 1500));
+		lever[2]->SetPosition(XMFLOAT3(-10000, lever[2]->GetPosition().y, 0));
 		player[0]->isOnGround = false;
 
 		NetWork::getInstance()->setPlayerState(CS_NONE);
-		NetWork::getInstance()->SetItemPosition({ 0.0f, -250.0f, 300.0f });
+		
+		//NetWork::getInstance()->SetItemPosition({ movetile[0]->GetPosition() }, 0);
+		//NetWork::getInstance()->SetItemPosition({ movetile[1]->GetPosition() }, 1);
+		//NetWork::getInstance()->SetItemPosition({ movetile[2]->GetPosition() }, 2);
+
+		NetWork::getInstance()->SendItemState(CS_ITEM_SET, 0, movetile[0]->GetPosition());
+		NetWork::getInstance()->SendItemState(CS_ITEM_SET, 1, movetile[1]->GetPosition());
+		NetWork::getInstance()->SendItemState(CS_ITEM_SET, 2, movetile[2]->GetPosition());
+
 		NetWork::getInstance()->SendMsg(CS_POS, XMFLOAT3(-200, 300.0f, -1300), player[0]->World);
+		
 		mSkinnedModelInst->SetNowAni("idle");
 
 	}
@@ -302,17 +312,27 @@ void MyScene::InitGameScene()
 		//player[0]->SetPosition(XMFLOAT3(-300, 300.0f, 1500)); // 옆
 
 		movetile[0]->SetPosition(XMFLOAT3(-2100.0f, -250.0f, -300.0f));
-		movetile[1]->SetPosition(XMFLOAT3(-2100.0f, -250.0f, 300));
-		movetile[2]->SetPosition(XMFLOAT3(-10000.0f, -250.0f, 0));
+		movetile[1]->SetPosition(XMFLOAT3(2100.0f, -250.0f, 300));
+		movetile[2]->SetPosition(XMFLOAT3(2100.0f, -250.0f, -600));
 
-		items[0]->SetPosition(XMFLOAT3(-1500, items[0]->GetPosition().y, -580));
-		lever[0]->SetPosition(XMFLOAT3(1500, lever[0]->GetPosition().y, -600));
-		lever[1]->SetPosition(XMFLOAT3(1500, lever[1]->GetPosition().y, -600 - 900));
+		items[0]->SetPosition(XMFLOAT3(-2100, items[0]->GetPosition().y, 1800));
+		lever[0]->SetPosition(XMFLOAT3(300, lever[0]->GetPosition().y, 900)); // 0 -> 레버 0
+		lever[1]->SetPosition(XMFLOAT3(-2400, lever[1]->GetPosition().y, -900)); // 1 -> 레버 1
+		lever[2]->SetPosition(XMFLOAT3(0, lever[2]->GetPosition().y, -300)); // 2 -> 레버 2작동
 		player[0]->isOnGround = false;
 
 		NetWork::getInstance()->setPlayerState(CS_NONE);
-		NetWork::getInstance()->SetItemPosition({ -2100.0f, -250.0f, -300.0f });
+		//NetWork::getInstance()->SetItemPosition({ -2100.0f, -250.0f, -300.0f });
+
+		NetWork::getInstance()->SetItemPosition({ movetile[0]->GetPosition() }, 0);
+		NetWork::getInstance()->SetItemPosition({ movetile[1]->GetPosition() }, 1);
+		NetWork::getInstance()->SetItemPosition({ movetile[2]->GetPosition() }, 2);
+
 		NetWork::getInstance()->SendMsg(CS_POS, XMFLOAT3(-1800, 300.0f, 1500), player[0]->World);
+		NetWork::getInstance()->SendItemState(CS_ITEM_SET, 0, movetile[0]->GetPosition());
+		NetWork::getInstance()->SendItemState(CS_ITEM_SET, 1, movetile[1]->GetPosition());
+		NetWork::getInstance()->SendItemState(CS_ITEM_SET, 2, movetile[2]->GetPosition());
+		
 		mSkinnedModelInst->SetNowAni("idle");
 
 	}
@@ -479,6 +499,8 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 		mTimer.Start();
 	}
 	if (GetAsyncKeyState('Q') & 0x8000) {
+		auto& player = mOpaqueRitems[(int)RenderLayer::Player];
+		player[0]->SetPosition(XMFLOAT3(-1800, 300.0f, 0));
 	}
 
 
@@ -581,7 +603,7 @@ void MyScene::GameSceneKeyboardInput(const GameTimer& gt)
 			}
 		}
 
-		printf("%.2f %.2f %.2f\n", eplayer[0]->GetPosition().x, eplayer[0]->GetPosition().y, eplayer[0]->GetPosition().z);
+		//printf("%.2f %.2f %.2f\n", eplayer[0]->GetPosition().x, eplayer[0]->GetPosition().y, eplayer[0]->GetPosition().z);
 		mCamera.UpdateViewMatrix();
 }
 
@@ -791,31 +813,85 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 			//if (e->bounds.IsCollsionAABB(e->GetPosition(), &mfriend[0]->bounds, mfriend[0]->GetPosition()))
 				//printf("플레이어간 충돌 \n");
 
-			//레버와 충돌시
-			if (e->bounds.IsCollsionAABB(e->GetPosition(), &lever[0]->bounds, lever[0]->GetPosition()))
-			{
-				lever[0]->RotateY(gt.DeltaTime() * 25);
-				isLeverOn = true; //임시변수임
-				NetWork::getInstance()->setLever(isLeverOn);
-				if (NetWork::getInstance()->getItemState() != CS_ITEM_ON)
-					NetWork::getInstance()->SendItemState(CS_ITEM_ON, 0, mt[0]->GetPosition());
-			}
-			else if (e->bounds.IsCollsionAABB(e->GetPosition(), &lever[1]->bounds, lever[1]->GetPosition()))
-			{
-				lever[1]->RotateY(gt.DeltaTime() * 25);
-				isLeverOn = true; //임시변수임
-				NetWork::getInstance()->setLever(isLeverOn);
-				if (NetWork::getInstance()->getItemState() != CS_ITEM_ON)
-					NetWork::getInstance()->SendItemState(CS_ITEM_ON, 0, mt[0]->GetPosition());
-			}
-			//비활성화일 경우
-			else
-			{
-				isLeverOn = false;
-				NetWork::getInstance()->setLever(isLeverOn);
-				if (NetWork::getInstance()->getItemState() != CS_ITEM_OFF)
-					NetWork::getInstance()->SendItemState(CS_ITEM_OFF, 0, mt[0]->GetPosition());
 
+			//레버와 충돌시 스테이지 1
+			{
+				if (nowScene == (int)Scene::Scene01) {
+					if (e->bounds.IsCollsionAABB(e->GetPosition(), &lever[0]->bounds, lever[0]->GetPosition()))
+					{
+						lever[0]->RotateY(gt.DeltaTime() * 25);
+						isLeverOn = true; //임시변수임
+						NetWork::getInstance()->setLever(isLeverOn, 0);
+						if (NetWork::getInstance()->getItemState(0) != CS_ITEM_ON)
+							NetWork::getInstance()->SendItemState(CS_ITEM_ON, 0, mt[0]->GetPosition());
+					}
+					else if (e->bounds.IsCollsionAABB(e->GetPosition(), &lever[1]->bounds, lever[1]->GetPosition()))
+					{
+						lever[1]->RotateY(gt.DeltaTime() * 25);
+						isLeverOn = true; //임시변수임
+						NetWork::getInstance()->setLever(isLeverOn, 0);
+						if (NetWork::getInstance()->getItemState(0) != CS_ITEM_ON)
+							NetWork::getInstance()->SendItemState(CS_ITEM_ON, 0, mt[0]->GetPosition());
+					}
+					//비활성화일 경우
+					else
+					{
+						isLeverOn = false;
+						NetWork::getInstance()->setLever(isLeverOn, 0);
+						if (NetWork::getInstance()->getItemState(0) != CS_ITEM_OFF)
+							NetWork::getInstance()->SendItemState(CS_ITEM_OFF, 0, mt[0]->GetPosition());
+
+					}
+				}
+				else if (nowScene == (int)Scene::Scene02) {
+					if (e->bounds.IsCollsionAABB(e->GetPosition(), &lever[0]->bounds, lever[0]->GetPosition()))
+					{
+						lever[0]->RotateY(gt.DeltaTime() * 25);
+						isLeverOn = true; //임시변수임
+						NetWork::getInstance()->setLever(isLeverOn, 0);
+						if (NetWork::getInstance()->getItemState(0) != CS_ITEM_ON)
+							NetWork::getInstance()->SendItemState(CS_ITEM_ON, 0, mt[0]->GetPosition());
+					}
+					else
+					{
+						isLeverOn = false;
+						NetWork::getInstance()->setLever(isLeverOn, 0);
+						if (NetWork::getInstance()->getItemState(0) != CS_ITEM_OFF)
+							NetWork::getInstance()->SendItemState(CS_ITEM_OFF, 0, mt[0]->GetPosition());
+
+					}
+					/////////////////////////
+					if (e->bounds.IsCollsionAABB(e->GetPosition(), &lever[1]->bounds, lever[1]->GetPosition()))
+					{
+						lever[1]->RotateY(gt.DeltaTime() * 25);
+						isLeverOn = true; //임시변수임
+						NetWork::getInstance()->setLever(isLeverOn, 1);
+						if (NetWork::getInstance()->getItemState(1) != CS_ITEM_ON)
+							NetWork::getInstance()->SendItemState(CS_ITEM_ON, 1, mt[1]->GetPosition());
+					}
+					else
+					{
+						isLeverOn = false;
+						NetWork::getInstance()->setLever(isLeverOn, 1);
+						if (NetWork::getInstance()->getItemState(1) != CS_ITEM_OFF)
+							NetWork::getInstance()->SendItemState(CS_ITEM_OFF, 1, mt[1]->GetPosition());
+					}
+					if (e->bounds.IsCollsionAABB(e->GetPosition(), &lever[2]->bounds, lever[2]->GetPosition()))
+					{
+						lever[2]->RotateY(gt.DeltaTime() * 25);
+						isLeverOn = true;
+						NetWork::getInstance()->setLever(isLeverOn, 2);
+						if (NetWork::getInstance()->getItemState(2) != CS_ITEM_ON)
+							NetWork::getInstance()->SendItemState(CS_ITEM_ON, 2, mt[2]->GetPosition());
+					}
+					else
+					{
+						isLeverOn = false;
+						NetWork::getInstance()->setLever(isLeverOn, 2);
+						if (NetWork::getInstance()->getItemState(2) != CS_ITEM_OFF)
+							NetWork::getInstance()->SendItemState(CS_ITEM_OFF, 2, mt[2]->GetPosition());
+					}
+				}
 			}
 
 			//플레이어 갱신
@@ -839,43 +915,31 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		}
 
 		//움직이는 발판 
+		int tileIndex = 0;
 		for (auto& e : mOpaqueRitems[(int)RenderLayer::MoveTile])
 		{
+			if (nowScene == (int)Scene::Scene01)
+			{
+				if (tileIndex >= 1) {
+					++tileIndex;
+					e->NumFramesDirty = gNumFrameResources;
+					continue;
+				}
+			}
+
 			auto& eplayer = mOpaqueRitems[(int)RenderLayer::Player];
 
-			e->SetPosition(XMFLOAT3(NetWork::getInstance()->GetItemPosition()));
+			e->SetPosition(XMFLOAT3(NetWork::getInstance()->GetItemPosition(tileIndex)));
 
-			//cout << e->GetPosition().x << ' ' << e->GetPosition().y << e->GetPosition().z << endl;
-			//cout << NetWork::getInstance()->GetItemPosition().x << ' ' << NetWork::getInstance()->GetItemPosition().y << NetWork::getInstance()->GetItemPosition().z << endl;
+			if (tileIndex == 1)
+				printf("%d번 %d %.2f \n", tileIndex, isLeverOn, e->GetPosition().y);
 
-			/*if (isLeverOn == false) {
-				if (e->GetPosition().y > -250) {
-					e->SetPosition(XMFLOAT3(e->GetPosition().x, e->GetPosition().y - 80 * gt.DeltaTime(), e->GetPosition().z));
-					NetWork::getInstance()->SendItemState(CS_ITEM_ON, e->GetPosition());
-				}
-				else e->SetPosition(XMFLOAT3(e->GetPosition().x, -250, e->GetPosition().z));
-			}
-			else {
-				if (e->GetPosition().y < -100) {
-					e->SetPosition(XMFLOAT3(e->GetPosition().x, e->GetPosition().y + 80 * gt.DeltaTime(), e->GetPosition().z));
-					NetWork::getInstance()->SendItemState(CS_ITEM_OFF, e->GetPosition());
-				}
-				else e->SetPosition(XMFLOAT3(e->GetPosition().x, -100, e->GetPosition().z));
-			}*/
+			if (NetWork::getInstance()->GetItemPosition(tileIndex).y > -250)
+				NetWork::getInstance()->setLever(true, tileIndex);
 
-			if (NetWork::getInstance()->GetItemPosition().y > -150)
-				NetWork::getInstance()->setLever(true);			//레버에 한명 서있으면..움직이는데 상수로 때려박음 (속도 20)
-
-			isLeverOn = NetWork::getInstance()->getLever();
-			if (isLeverOn == false)
-			{
-				if (NetWork::getInstance()->getItemState() != CS_ITEM_OFF)
-					NetWork::getInstance()->SendItemState(CS_ITEM_OFF, 0, e->GetPosition());
-			}
-			else {
-				if (NetWork::getInstance()->getItemState() != CS_ITEM_ON)
-					NetWork::getInstance()->SendItemState(CS_ITEM_ON, 0, e->GetPosition());
-			}
+			isLeverOn = NetWork::getInstance()->getLever(tileIndex);
+			
+			
 
 			//플레이어가 발판에 서있으면
 			if (e->bounds.IsCollsionAABB(e->GetPosition(), &eplayer[0]->bounds, eplayer[0]->GetPosition()))
@@ -887,11 +951,11 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 				}
 				else if (isLeverOn == true) {
 					//플레이어도 같이 움직임
-					eplayer[0]->SetPosition(XMFLOAT3(eplayer[0]->GetPosition().x, eplayer[0]->GetPosition().y + 20 * gt.DeltaTime(), eplayer[0]->GetPosition().z));
+					eplayer[0]->SetPosition(XMFLOAT3(eplayer[0]->GetPosition().x, eplayer[0]->GetPosition().y + 80 * gt.DeltaTime(), eplayer[0]->GetPosition().z));
 				}
 			}
 
-
+			++ tileIndex;
 			e->NumFramesDirty = gNumFrameResources;
 		}
 		//아이템
@@ -2626,7 +2690,7 @@ void MyScene::BuildGameObjects()
 		mOpaqueRitems[(int)RenderLayer::Item].push_back(items.get());
 		mAllRitems.push_back(std::move(items));
 
-		for (int i = 0; i < 2; i++) {
+		for (int i = 0; i < 3; i++) {
 			auto lever = std::make_unique<GameObject>();
 			XMStoreFloat4x4(&lever->World, XMMatrixScaling(30, 30, 30)*XMMatrixTranslation(0.0f, 200.0f, 0.0f));
 			lever->ObjCBIndex = objIndex++;
