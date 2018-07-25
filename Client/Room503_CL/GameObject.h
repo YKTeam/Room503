@@ -239,6 +239,9 @@ public:
 public:
 	TCHAR	m_pstrFrameName[256];
 	bool	m_bActive = true;
+	UINT    m_texAniIndex = 0;
+	float   m_texAniStartTime = 0.0f;
+	float   m_texAniTime = 0.015f;
 
 	GeometryGenerator::MeshData *meshData;
 	GeometryGenerator::SkinnedMeshData *skinMeshData;

@@ -175,5 +175,8 @@
     <FxCompile Include="Shaders\Ui.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\flareSprite.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

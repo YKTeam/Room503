@@ -68,6 +68,7 @@ private:
 	void BuildShadersAndInputLayout();
 
 	void BuildShapeGeometry();
+	void BuildFlareSpritesGeometry();
 	void BuildCollBoxGeometry(Aabb colbox, const std::string geoName, const std::string meshName, bool isTile);
 	void BuildFbxGeometry(const std::string fileName, const std::string geoName, const std::string meshName, float loadScale, bool isMap, bool hasAniBone); //º»°¹¼ö¸®ÅÏ
 	void BuildAnimation(const std::string fileName, const std::string clipName, float loadScale, bool isMap);

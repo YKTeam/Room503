@@ -50,6 +50,8 @@ enum class RenderLayer : int
 	Enemy,//적
 	MoveTile,
 	Item,
+	Spear, //장애물
+	Flare, //장애물 이펙트
 	Lever,  //무빙 레버
 	MapCollision01, //정적인 맵 콜리젼박스 (노가다)
 	MapCollision02,

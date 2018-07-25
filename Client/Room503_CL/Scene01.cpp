@@ -56,12 +56,14 @@ bool MyScene::Initialize()
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
 	BuildShapeGeometry();
+	BuildFlareSpritesGeometry();
 	BuildFbxGeometry("Model/HandLight.fbx", "handLightGeo", "handLight", 1.0f, false, false);
 	BuildFbxGeometry("Model/SplitMetalBall.fbx", "leverGeo", "lever", 1.0f, false, false);
 	BuildFbxGeometry("Model/Statue.fbx", "statueGeo", "statue", 1.0f, false, false);
 	BuildFbxGeometry("Model/doorFrame.obj", "doorFrameGeo", "doorFrame", 1.0f, false, false);
 	BuildFbxGeometry("Model/door.obj", "doorGeo", "door", 1.0f, false, false);
 	BuildFbxGeometry("Model/moveingTile.obj", "tileGeo", "tile00", 1, true, false);
+	BuildFbxGeometry("Model/Spear.fbx", "spearGeo", "spear", 1, false, false);//장애물(창)
 	BuildFbxGeometry("Model/robotFree3.fbx", "robot_freeGeo", "robot_free", 1.0f, false, true);//angle  robotModel  robotIdle
 	//BuildFbxGeometry("Model/TestModel.fbx", "robot_freeGeo", "robot_free", 1.0f, false, true);
 	//튜토리얼 맵
@@ -261,6 +263,8 @@ void MyScene::InitGameScene()
 	auto player = mOpaqueRitems[(int)RenderLayer::Player];
 	auto items = mOpaqueRitems[(int)RenderLayer::Item];
 	auto lever = mOpaqueRitems[(int)RenderLayer::Lever];
+	auto spear = mOpaqueRitems[(int)RenderLayer::Spear];
+	auto flare = mOpaqueRitems[(int)RenderLayer::Flare];
 
 	auto movetile = mOpaqueRitems[(int)RenderLayer::MoveTile];
 
@@ -283,13 +287,15 @@ void MyScene::InitGameScene()
 		lever[0]->SetPosition(XMFLOAT3(1500, lever[0]->GetPosition().y, -600));
 		lever[1]->SetPosition(XMFLOAT3(-300, lever[1]->GetPosition().y, 1500));
 		lever[2]->SetPosition(XMFLOAT3(-10000, lever[2]->GetPosition().y, 0));
+
+		for(int i = 0; i<flare.size(); ++i)
+			flare[i]->SetPosition(XMFLOAT3(-10000, 3000, 0));
+		for (int i = 0; i<spear.size(); ++i)
+			spear[i]->SetPosition(XMFLOAT3(-10000, 3000, 0));
+
 		player[0]->isOnGround = false;
 
 		NetWork::getInstance()->setPlayerState(CS_NONE);
-		
-		//NetWork::getInstance()->SetItemPosition({ movetile[0]->GetPosition() }, 0);
-		//NetWork::getInstance()->SetItemPosition({ movetile[1]->GetPosition() }, 1);
-		//NetWork::getInstance()->SetItemPosition({ movetile[2]->GetPosition() }, 2);
 
 		NetWork::getInstance()->SendItemState(CS_ITEM_SET, 0, movetile[0]->GetPosition());
 		NetWork::getInstance()->SendItemState(CS_ITEM_SET, 1, movetile[1]->GetPosition());
@@ -308,7 +314,7 @@ void MyScene::InitGameScene()
 		mCamera.LookAt(mCamera.GetPosition3f(), player[0]->GetPosition(), XMFLOAT3(0, 1, 0));
 
 		player[0]->SetPosition(XMFLOAT3(-1800, 300.0f, 1500)); //시작
-		//player[0]->SetPosition(XMFLOAT3(1700, 150, -1150)); //밑
+		//player[0]->SetPosition(XMFLOAT3(300, 150, -1150)); //밑
 		//player[0]->SetPosition(XMFLOAT3(-300, 300.0f, 1500)); // 옆
 
 		movetile[0]->SetPosition(XMFLOAT3(-2100.0f, -250.0f, -300.0f));
@@ -316,6 +322,23 @@ void MyScene::InitGameScene()
 		movetile[2]->SetPosition(XMFLOAT3(2100.0f, -250.0f, -600));
 
 		items[0]->SetPosition(XMFLOAT3(-2100, items[0]->GetPosition().y, 1800));
+
+		for (int i = 0; i<flare.size(); ++i)
+			flare[i]->SetPosition(XMFLOAT3(-10000, 3000, 0));
+
+		int index = 0;
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				if ( (i + j) % 2 == 0) {
+					spear[index]->SetPosition(XMFLOAT3(-900 + 300 * i, 3000, -300 - 300 * j));
+					++index;
+				}
+				else {
+					continue;
+				}
+			}
+		}
+
 		lever[0]->SetPosition(XMFLOAT3(300, lever[0]->GetPosition().y, 900)); // 0 -> 레버 0
 		lever[1]->SetPosition(XMFLOAT3(-2400, lever[1]->GetPosition().y, -900)); // 1 -> 레버 1
 		lever[2]->SetPosition(XMFLOAT3(0, lever[2]->GetPosition().y, -300)); // 2 -> 레버 2작동
@@ -417,8 +440,10 @@ void MyScene::GameSceneRender(const GameTimer& gt)
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Item], (int)RenderLayer::Item);
 	if (nowScene == 1)
 		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene01_Map], (int)RenderLayer::Scene01_Map);
-	else if (nowScene == 2)
+	else if (nowScene == 2) {
 		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene02_Map], (int)RenderLayer::Scene02_Map);
+		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Spear], (int)RenderLayer::Spear);
+	}
 
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::MoveTile], (int)RenderLayer::MoveTile);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Opaque], (int)RenderLayer::Opaque);
@@ -431,6 +456,9 @@ void MyScene::GameSceneRender(const GameTimer& gt)
 
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Player], (int)RenderLayer::Player);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Friend], (int)RenderLayer::Friend);
+
+	mCommandList->SetPipelineState(mPSOs["flareSprites"].Get());
+	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Flare], (int)RenderLayer::Flare);
 
 	mCommandList->SetPipelineState(mPSOs["uiMove"].Get());
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::MoveUI], (int)RenderLayer::MoveUI);
@@ -756,8 +784,9 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 			auto mfriend = mOpaqueRitems[(int)RenderLayer::Friend];
 			//auto rand = mOpaqueRitems[(int)RenderLayer::Scene01_Map];
 			auto cols = mOpaqueRitems[(int)RenderLayer::MapCollision01];
+			auto spear = mOpaqueRitems[(int)RenderLayer::Spear];
 
-			//printf("%.2f %.2f %.2f\n", e->GetPosition().x, e->GetPosition().y, e->GetPosition().z);
+			printf("%.2f %.2f %.2f\n", e->GetPosition().x, e->GetPosition().y, e->GetPosition().z);
 
 			if (e->isOnGround == false) {
 				e->GravityUpdate(gt);
@@ -808,6 +837,15 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 				//printf("아이템과 충돌 \n");
 				mEnergy += gt.DeltaTime() * 0.9f;
 				if (mEnergy >= 1.0f) mEnergy = 1.0f;
+			}
+
+			//장애물과 충돌
+			for (int i = 0; i < spear.size(); i++) {
+				if (e->bounds.IsCollsionAABB(e->GetPosition(), &spear[i]->bounds, spear[i]->GetPosition()))
+				{
+					mEnergy = 0;
+					break;
+				}
 			}
 
 			//if (e->bounds.IsCollsionAABB(e->GetPosition(), &mfriend[0]->bounds, mfriend[0]->GetPosition()))
@@ -931,8 +969,8 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 
 			e->SetPosition(XMFLOAT3(NetWork::getInstance()->GetItemPosition(tileIndex)));
 
-			if (tileIndex == 1)
-				printf("%d번 %d %.2f \n", tileIndex, isLeverOn, e->GetPosition().y);
+			//if (tileIndex == 1)
+			//	printf("%d번 %d %.2f \n", tileIndex, isLeverOn, e->GetPosition().y);
 
 			if (NetWork::getInstance()->GetItemPosition(tileIndex).y > -250)
 				NetWork::getInstance()->setLever(true, tileIndex);
@@ -963,6 +1001,53 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 		{
 			//회전
 			e->RotateY(gt.DeltaTime() * 1);
+			e->NumFramesDirty = gNumFrameResources;
+		}
+		//장애물
+		for (auto& e : mOpaqueRitems[(int)RenderLayer::Spear])
+		{
+			if (nowScene == (int)Scene::Scene01) break;
+			auto cols = mOpaqueRitems[(int)RenderLayer::MapCollision02];
+			for (int i = 0; i < cols.size(); i++) {
+				if (e->bounds.IsCollsionAABB(e->GetPosition(), &cols[i]->bounds, cols[i]->GetPosition()))
+				{
+					//이펙트 생성
+					for (auto& fl : mOpaqueRitems[(int)RenderLayer::Flare])
+					{
+						fl->m_texAniStartTime = mMainPassCB.TotalTime;
+						if (!fl->m_bActive) {
+							fl->m_bActive = true;
+							fl->SetPosition(e->GetPosition().x, e->GetPosition().y -250, e->GetPosition().z );
+							break;
+						}
+					}
+					
+					if (e->GetPosition().x == -900)e->SetPosition(e->GetPosition().x + 300, e->GetPosition().y, e->GetPosition().z);
+					else if (e->GetPosition().x == -600)e->SetPosition(e->GetPosition().x - 300, e->GetPosition().y, e->GetPosition().z);
+					else if (e->GetPosition().x == -300)e->SetPosition(e->GetPosition().x + 300, e->GetPosition().y, e->GetPosition().z);
+					else if (e->GetPosition().x == 0)e->SetPosition(e->GetPosition().x - 300, e->GetPosition().y, e->GetPosition().z);
+					e->SetPosition(e->GetPosition().x, 3000, e->GetPosition().z);
+				}
+			}
+			//회전
+			e->RotateY(gt.DeltaTime() * 20);
+			e->SetPosition(e->GetPosition().x, e->GetPosition().y - gt.DeltaTime() * 2000, e->GetPosition().z);
+			e->NumFramesDirty = gNumFrameResources;
+		}
+		//이펙트
+		for (auto& e : mOpaqueRitems[(int)RenderLayer::Flare])
+		{
+			if (e->m_bActive) {
+				if (e->m_texAniStartTime + e->m_texAniTime < gt.TotalTime()) {
+					e->m_texAniIndex++;
+					if (e->m_texAniIndex >= 25) {//25개프레임
+						e->m_texAniIndex = 0;
+						e->m_bActive = false;
+						e->SetPosition(-10000, 3000, 0);
+					}
+					e->m_texAniStartTime = gt.TotalTime();
+				}
+			}
 			e->NumFramesDirty = gNumFrameResources;
 		}
 		//상수오브젝트
@@ -1032,6 +1117,7 @@ void MyScene::UpdateObjectCBs(const GameTimer& gt)
 			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
 			XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
 
+			objConstants.TextureAniIndex = e->m_texAniIndex;
 			currObjectCB->CopyData(e->ObjCBIndex, objConstants);
 			e->NumFramesDirty--;
 		}
@@ -1221,7 +1307,8 @@ void MyScene::LoadTextures()
 		"bricksTex",
 		"bricksNomalTex",
 		"woodTex",
-		"woodNomalTex"
+		"woodNomalTex",
+		"flareArrayTex"
 	};
 
 	std::vector<std::wstring> texFilenames =
@@ -1246,7 +1333,8 @@ void MyScene::LoadTextures()
 		L"Textures/bricks.dds",
 		L"Textures/bricksNomal.dds",
 		L"Textures/wood.dds",
-		L"Textures/woodNomal.dds"
+		L"Textures/woodNomal.dds",
+		L"Textures/explosion.dds"
 	};
 
 	for (int i = 0; i < (int)texNames.size(); ++i)
@@ -1397,7 +1485,7 @@ void MyScene::BuildDescriptorHeaps()
 {
 	int rtvOffset = SwapChainBufferCount;
 
-	const int textureDescriptorCount = 21;
+	const int textureDescriptorCount = 22;
 	const int blurDescriptorCount = 4;
 
 	int srvOffset = textureDescriptorCount;
@@ -1434,7 +1522,8 @@ void MyScene::BuildDescriptorHeaps()
 		mTextures["bricksTex"]->Resource,
 		mTextures["bricksNomalTex"]->Resource,
 		mTextures["woodTex"]->Resource,
-		mTextures["woodNomalTex"]->Resource
+		mTextures["woodNomalTex"]->Resource,
+		mTextures["flareArrayTex"]->Resource
 	};
 	auto skyCubeMap = mTextures["skyCubeMap"]->Resource;
 
@@ -1562,9 +1651,9 @@ void MyScene::BuildShadersAndInputLayout()
 	mShaders["treeSpriteGS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", nullptr, "GS", "gs_5_0");
 	mShaders["treeSpritePS"] = d3dUtil::CompileShader(L"Shaders\\TreeSprite.hlsl", alphaTestDefines, "PS", "ps_5_0");
 
-	/*mShaders["flareSpriteVS"] = d3dUtil::CompileShader(L"Shaders\\flareSprite.hlsl", nullptr, "VS", "vs_5_0");
+	mShaders["flareSpriteVS"] = d3dUtil::CompileShader(L"Shaders\\flareSprite.hlsl", nullptr, "VS", "vs_5_0");
 	mShaders["flareSpriteGS"] = d3dUtil::CompileShader(L"Shaders\\flareSprite.hlsl", nullptr, "GS", "gs_5_0");
-	mShaders["flareSpritePS"] = d3dUtil::CompileShader(L"Shaders\\flareSprite.hlsl", alphaTestDefines, "PS", "ps_5_0");*/
+	mShaders["flareSpritePS"] = d3dUtil::CompileShader(L"Shaders\\flareSprite.hlsl", alphaTestDefines, "PS", "ps_5_0");
 
 	mShaders["SkyBoxVS"] = d3dUtil::CompileShader(L"Shaders\\SkyBox.hlsl", nullptr, "VS", "vs_5_0");
 	mShaders["SkyBoxPS"] = d3dUtil::CompileShader(L"Shaders\\SkyBox.hlsl", nullptr, "PS", "ps_5_0");
@@ -1584,6 +1673,7 @@ void MyScene::BuildShadersAndInputLayout()
 		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
+	//폭발이펙트도 이거씀
 	mTreeSpriteInputLayout =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -1777,6 +1867,60 @@ void MyScene::BuildShapeGeometry()
 	geo->DrawArgs["quad"] = quadSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
+}
+
+void MyScene::BuildFlareSpritesGeometry()
+{
+	struct FlareSpriteVertex
+	{
+		XMFLOAT3 Pos;
+		XMFLOAT2 Size;
+	};
+
+	static const int treeCount = 1;
+	std::array<FlareSpriteVertex, treeCount> vertices;
+	for (int i = 0; i < treeCount; ++i) {
+		vertices[i].Pos = XMFLOAT3(0, 0, 0);
+		vertices[i].Size = XMFLOAT2(300.0f, 300.0f);
+	}
+	const int indicesSize = 1;
+	int count = 0;
+	std::array<std::uint16_t, indicesSize> indices;
+
+	for (int i = 0; i < indicesSize; ++i)
+		indices[i] = i;
+
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(FlareSpriteVertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "flareSpritesGeo";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStride = sizeof(FlareSpriteVertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	SubmeshGeometry submesh;
+	submesh.IndexCount = (UINT)indices.size();
+	submesh.StartIndexLocation = 0;
+	submesh.BaseVertexLocation = 0;
+
+	geo->DrawArgs["point"] = submesh;
+
+	mGeometries["flareSpritesGeo"] = std::move(geo);
 }
 
 void MyScene::BuildCollBoxGeometry(Aabb colbox, const std::string geoName, const std::string meshName, bool isTile)
@@ -2122,7 +2266,7 @@ void MyScene::BuildPSOs()
 	//
 	// PSO for flare sprites
 	//
-	/*D3D12_GRAPHICS_PIPELINE_STATE_DESC flareSpritePsoDesc = opaquePsoDesc;
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC flareSpritePsoDesc = opaquePsoDesc;
 	flareSpritePsoDesc.VS =
 	{
 		reinterpret_cast<BYTE*>(mShaders["flareSpriteVS"]->GetBufferPointer()),
@@ -2142,7 +2286,7 @@ void MyScene::BuildPSOs()
 	flareSpritePsoDesc.InputLayout = { mTreeSpriteInputLayout.data(), (UINT)mTreeSpriteInputLayout.size() };
 	flareSpritePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&flareSpritePsoDesc, IID_PPV_ARGS(&mPSOs["flareSprites"])));*/
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&flareSpritePsoDesc, IID_PPV_ARGS(&mPSOs["flareSprites"])));
 
 	//
 	// PSO for horizontal blur
@@ -2359,6 +2503,14 @@ void MyScene::BuildMaterials()
 	woodNomal->MatCBIndex = matIndex;
 	woodNomal->DiffuseSrvHeapIndex = matIndex++;
 
+	auto flareSprites = std::make_unique<Material>();
+	flareSprites->Name = "flareSprites";
+	flareSprites->MatCBIndex = matIndex;
+	flareSprites->DiffuseSrvHeapIndex = matIndex++;
+	flareSprites->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	flareSprites->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
+	flareSprites->Roughness = 0.125f;
+
 	auto sky = std::make_unique<Material>();
 	sky->Name = "sky";
 	sky->MatCBIndex = matIndex;
@@ -2388,6 +2540,8 @@ void MyScene::BuildMaterials()
 	mMaterials["bricksNomal"] = std::move(bricksNomal);
 	mMaterials["wood"] = std::move(wood);
 	mMaterials["woodNomal"] = std::move(woodNomal);
+
+	mMaterials["flareSprites"] = std::move(flareSprites);
 
 	mMaterials["sky"] = std::move(sky);
 }
@@ -2690,6 +2844,39 @@ void MyScene::BuildGameObjects()
 		mOpaqueRitems[(int)RenderLayer::Item].push_back(items.get());
 		mAllRitems.push_back(std::move(items));
 
+		//장애물(창)
+		for (int i = 0; i < 8; ++i) {
+			auto spear = std::make_unique<GameObject>();
+			XMStoreFloat4x4(&spear->World, XMMatrixScaling(5, 5, 10)*XMMatrixTranslation(0.0f + i*10, 200.0f, 0.0f) * XMMatrixRotationRollPitchYaw(-1.57, 0, 0));
+			spear->ObjCBIndex = objIndex++;
+			spear->Mat = mMaterials["lever"].get();
+			spear->Geo = mGeometries["spearGeo"].get();
+			spear->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			spear->IndexCount = spear->Geo->DrawArgs["spear"].IndexCount;
+			spear->StartIndexLocation = spear->Geo->DrawArgs["spear"].StartIndexLocation;
+			spear->BaseVertexLocation = spear->Geo->DrawArgs["spear"].BaseVertexLocation;
+
+			spear->bounds.SetMaxMin(XMFLOAT3(100, 400, 100), XMFLOAT3(-100, -400, -100));
+			mOpaqueRitems[(int)RenderLayer::Spear].push_back(spear.get());
+			mAllRitems.push_back(std::move(spear));
+		}
+		for (int i = 0; i < 8; ++i) {
+			auto flareSpritesRitem = std::make_unique<GameObject>();
+			flareSpritesRitem->World = MathHelper::Identity4x4();
+			flareSpritesRitem->m_bActive = false;
+			flareSpritesRitem->ObjCBIndex = objIndex++;
+			flareSpritesRitem->Mat = mMaterials["flareSprites"].get();//treeSprites
+			flareSpritesRitem->Geo = mGeometries["flareSpritesGeo"].get();
+			flareSpritesRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
+			flareSpritesRitem->IndexCount = flareSpritesRitem->Geo->DrawArgs["point"].IndexCount;
+			flareSpritesRitem->StartIndexLocation = flareSpritesRitem->Geo->DrawArgs["point"].StartIndexLocation;
+			flareSpritesRitem->BaseVertexLocation = flareSpritesRitem->Geo->DrawArgs["point"].BaseVertexLocation;
+
+			mOpaqueRitems[(int)RenderLayer::Flare].push_back(flareSpritesRitem.get());
+			mAllRitems.push_back(std::move(flareSpritesRitem));
+		}
+
+
 		for (int i = 0; i < 3; i++) {
 			auto lever = std::make_unique<GameObject>();
 			XMStoreFloat4x4(&lever->World, XMMatrixScaling(30, 30, 30)*XMMatrixTranslation(0.0f, 200.0f, 0.0f));
@@ -2912,8 +3099,10 @@ void MyScene::DrawSceneToShadowMap()
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Item], (int)RenderLayer::Item);
 	if (nowScene == 1)
 		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene01_Map], (int)RenderLayer::Scene01_Map);
-	else if (nowScene == 2)
+	else if (nowScene == 2) {
 		DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Scene02_Map], (int)RenderLayer::Scene02_Map);
+		//DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Spear], (int)RenderLayer::Spear);
+	}
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::MoveTile], (int)RenderLayer::MoveTile);
 	DrawGameObjects(mCommandList.Get(), mOpaqueRitems[(int)RenderLayer::Opaque], (int)RenderLayer::Opaque);
 
