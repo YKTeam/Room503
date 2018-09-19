@@ -255,7 +255,7 @@ void CMainServer::Initi()
 	m_time.Tick();
 }
 
-
+/////////////////////
 void CMainServer::Accept_Process()
 {
 	while (1)
@@ -396,7 +396,6 @@ void CMainServer::Work_Process()
 			delete IoEx;
 		}
 		else if (e_UPDATE == IoEx->m_eType) {
-			//cout << "ID : " << cur_id << endl;
 			Player_Process(cur_id);
 			Item_Process(cur_id);
 			delete IoEx;
@@ -413,9 +412,6 @@ void CMainServer::Work_Process()
 //// 200 200 600 600
 void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 {
-
-	//cout << "ID [" << cur_id << "] Keyboard Input" << endl;
-
 	if (GetTickCount() - m_tClient[cur_id].m_Timer < FrameTime)
 		return;
 	int nb;
@@ -438,37 +434,30 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 		break;
 
 	case CS_UP:
-		//m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_UP;
 		break;
 	case CS_DOWN:
-		//m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_DOWN;
 		break;
 	case CS_LEFT:
-		//m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_LEFT;
 		break;
 	case CS_RIGHT:
-		//	m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_RIGHT;
 		break;
 	case CS_RIGHT_UP:
-		//	m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_RIGHT_UP;
 		break;
 	case CS_RIGHT_DOWN:
-		//	m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_RIGHT_DOWN;
 		break;
 	case CS_LEFT_UP:
-		//	m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_LEFT_UP;
 		break;

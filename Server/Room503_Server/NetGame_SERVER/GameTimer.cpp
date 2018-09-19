@@ -21,8 +21,8 @@ float GameTimer::TotalTime()const
 	// 일시 정지 누적 시간이 포함되어 있는데, 그 누적 시간은 전체 시간에 포함하지
 	// 말아야 한다. 이를 바로잡기 위해, stop에서 일시 정지 누적 시간을 뺀다
 	//
-	//                     |<--paused time-->|
-	// ----*---------------*-----------------*------------*------------*------> time
+	//                     |<--paused time-.|
+	// ----*---------------*-----------------*------------*------------*-----. time
 	//  mBaseTime       mStopTime        startTime     mStopTime    mCurrTime
 
 	if( mStopped )
@@ -35,8 +35,8 @@ float GameTimer::TotalTime()const
 	//
 	//  (mCurrTime - mPausedTime) - mBaseTime 
 	//
-	//                     |<--paused time-->|
-	// ----*---------------*-----------------*------------*------> time
+	//                     |<--paused time-.|
+	// ----*---------------*-----------------*------------*-----. time
 	//  mBaseTime       mStopTime        startTime     mCurrTime
 	
 	else
@@ -69,8 +69,8 @@ void GameTimer::Start()
 
 	// 정지와 시작 사이에 흐른 시간을 누적
 	//
-	//                     |<-------d------->|
-	// ----*---------------*-----------------*------------> time
+	//                     |<-------d------.|
+	// ----*---------------*-----------------*-----------. time
 	//  mBaseTime       mStopTime        startTime     
 
 	if( mStopped )
