@@ -4,22 +4,19 @@
 
 
 int updateTime = timeGetTime();
+int updateItem = timeGetTime();
 
 void CMainServer::SendMovePacket2(int client, int object)
 {
-
 	sc_move_packet packet;
 	packet.id = object;
 	packet.size = sizeof(packet);
 	packet.type = SC_MOVE;
-	packet.pos = m_tClient[object].pos;
 	packet.anistate = m_tClient[object].anistate;
-	packet.world_pos = m_tClient[object].m_WorldPos;
 	packet.player_state = m_tClient[object].m_PlayerState;
 
 
 	SendPacket(client, &packet);
-	//cout << object << "가 " << client << " 에게 " << packet.pos.x << " " << packet.pos.y << " " << packet.pos.z << endl;
 }
 
 void CMainServer::SendPacket(int client, void* packet)
@@ -41,9 +38,20 @@ void CMainServer::SendPacket(int client, void* packet)
 		if (WSA_IO_PENDING != err_no)
 			error_display("Error in SendPacket : ", err_no);
 	}
-	//std::cout << "Send Packet [" << output_type << "] To Client : " << client << std::endl;
-	//cout << "Send Packet : " << output_type << ", To Client : " << client << endl;
 
+
+}
+
+void CMainServer::SendEscapePacket(int client, int obj, bool state)
+{
+	sc_door_packet packet;
+	packet.id = obj;
+	packet.size = sizeof(sc_door_packet);
+
+	packet.type = SC_SCENE_SET;
+	packet.is_door = state;
+
+	SendPacket(client, &packet);
 
 }
 
@@ -60,10 +68,6 @@ void CMainServer::SendItemPacket(int cl, int obj, Item Items)
 	packet.pos = Items.pos;
 	packet.number = Items.m_number;
 
-	/*std::cout <<n << "번 : " <<
-		m_tItem[n].pos.x << ' ' << m_tItem[n].pos.y << ' ' << m_tItem[n].pos.z
-		<< std::endl;
-*/
 	SendPacket(cl, &packet);
 
 }
@@ -74,9 +78,7 @@ void CMainServer::Update_Thread()
 	timeBeginPeriod(1);
 
 	while (1) {
-		//printf("%d\n", timeGetTime());
-
-		if (timeGetTime() - updateTime >= 16)
+		if (timeGetTime() - updateTime >= 10)
 		{
 			updateTime = timeGetTime();
 			for (int i = 0; i < MAX_USER; ++i) {
@@ -94,53 +96,57 @@ void CMainServer::Update_Thread()
 	timeEndPeriod(1);
 }
 
+void CMainServer::Item_Thread()
+{
+	timeBeginPeriod(1);
+	while (1) {
+		if (timeGetTime() - updateItem >= 16)
+		{
+			updateItem = timeGetTime();
+			for (int i = 0; i < ITEM_MAX; ++i) {
+				if (m_tClient[i].m_bConnect) {
+					IoContextEx * Io = new IoContextEx;
+					Io->m_itarget = i;
+					Io->m_eType = e_ITEM;
+					m_hiocp.PostQCompleteState(i, Io);
+				}
+
+			}
+		}
+	}
+
+
+	timeEndPeriod(1);
+}
+
 void CMainServer::Item_Process(int id)
 {
 	auto& item = m_tItem;
 	const float dt = 0.016f;
 	for (int i = ITEM_START; i < ITEM_START + ITEM_MAX; ++i) {
-		if (item[i].m_PlayerState == CS_ITEM_ON) {
-			if (m_tItem[i].is_cli_connect)
-			{
-				//m_lock.lock();
-				//if (m_tItem[i].connected_number == -1) {
-				//	cout << "바꾸기 전 : " << m_tItem[i].connected_number << endl;
-				//	m_tItem[i].connected_number = id;
-				//	cout << "바꾸기 후 : " << m_tItem[i].connected_number << endl;
-				//}
-				//m_lock.unlock();s
-
-				if (m_tItem[i].connected_number == id) {
-					if (item[i].pos.y < -100)
-						item[i].pos = { item[i].pos.x,item[i].pos.y + 80 * dt,item[i].pos.z };
-					else
-						item[i].pos = { item[i].pos.x, -100,item[i].pos.z };
-					cout <<"ON : "<< item[i].pos.y << endl;
-				}
-			}
-		}
-		else if (item[i].m_PlayerState == CS_ITEM_OFF) {
-			if (m_tItem[i].is_cli_connect)
-			{
-				if (m_tItem[i].connected_number == id)
-				{
-					if (item[i].pos.y > -250)
-						item[i].pos = { item[i].pos.x,item[i].pos.y - 80 * dt,item[i].pos.z };
-					else {
-						item[i].pos = { item[i].pos.x, -250,item[i].pos.z };
-						m_tItem[i].is_cli_connect = false;
-						m_tItem[i].connected_number = -1;
+		if (m_tItem[i].is_cli_connect && m_tItem[i].connected_number == id) {
+			if (item[i].m_PlayerState == CS_ITEM_ON) {
+				if (item[i].pos.y < -100) item[i].pos = { item[i].pos.x,item[i].pos.y + 80 * dt,item[i].pos.z };
+				else item[i].pos = { item[i].pos.x, -100,item[i].pos.z };
+				SendItemPacket(id, id, item[i]);
+				for (int j = 0; j < MAX_USER; ++j) {
+					if (m_tClient[j].m_bConnect && j != id) {
+						SendItemPacket(j, id, item[i]);
 					}
-					cout << "OFF : " << item[i].pos.y << endl;
 				}
 			}
-		}
-
-		{
-			SendItemPacket(id, id, item[i]);
-			for (int j = 0; j < MAX_USER; ++j) {
-				if (m_tClient[j].m_bConnect && j != id) {
-					SendItemPacket(j, id, item[i]);
+			else if (item[i].m_PlayerState == CS_ITEM_OFF) {
+				if (item[i].pos.y > -250) item[i].pos = { item[i].pos.x,item[i].pos.y - 80 * dt,item[i].pos.z };
+				else {
+					item[i].pos = { item[i].pos.x, -250,item[i].pos.z };
+					m_tItem[i].is_cli_connect = false;
+					m_tItem[i].connected_number = -1;
+				}
+				SendItemPacket(id, id, item[i]);
+				for (int j = 0; j < MAX_USER; ++j) {
+					if (m_tClient[j].m_bConnect && j != id) {
+						SendItemPacket(j, id, item[i]);
+					}
 				}
 			}
 		}
@@ -151,10 +157,13 @@ void CMainServer::Item_Process(int id)
 void CMainServer::Player_Process(int id)
 {
 	const float dt = 0.016f;
-	//cout << dt << endl;
-	//const float dt = gt.DeltaTime();
-	float walkSpeed = -300;
+	float walkSpeed = -200;
 	auto& p = m_tClient[id];
+
+	if (p.m_PlayerState == CS_NONE) {
+		if (p.anistate == 0) return;
+		else p.anistate = 0;
+	}
 
 	if (p.m_PlayerState == CS_RIGHT_UP) {
 		DirectX::XMFLOAT3 look = Vector3::Normalize(XMFLOAT3(-1, 0, -1));
@@ -205,19 +214,42 @@ void CMainServer::Player_Process(int id)
 		SetPosition(Vector3::Add(GetPosition(id), Vector3::ScalarProduct(getLook3f(id), walkSpeed * dt, false)), id);
 	}
 
+	int temp_cnt = 0;
 
-	//cout << GetPosition(id).x << ", " << GetPosition(id).y << ", " << GetPosition(id).z << endl;
-
-	if (p.m_PlayerState < 100)
+	for (int j = 0; j < MAX_USER; ++j)
 	{
-		SendMovePacket2(id, id);
-		for (int i = 0; i < MAX_USER; ++i) {
-			if (m_tClient[i].m_bConnect && i != id) {
-				SendMovePacket2(i, id);
-			}
+		if (m_tClient[j].m_escape) {
+			temp_cnt++;
 		}
 	}
 
+	if (p.m_PlayerState < 100)
+	{
+		for (int i = 0; i < MAX_USER; ++i)
+		{
+			if (m_tClient[i].m_bConnect) {
+				SendMovePacket2(i, i);
+				SendMovePacket2(i, id);
+				SendMovePacket2(id, i);
+
+			}
+
+		}
+	}
+
+	if (temp_cnt == 2) {
+		for (int i = 0; i < MAX_USER; ++i)
+		{
+			if (m_tClient[i].m_bConnect && m_tClient[i].m_escape) {
+				m_lock.lock();
+				SendEscapePacket(i, id, true);
+				SendEscapePacket(id, i, true);
+				m_tClient[i].m_escape = false;
+				m_tClient[id].m_escape = false;
+				m_lock.unlock();
+			}
+		}
+	}
 
 }
 
@@ -242,12 +274,15 @@ void CMainServer::Initi()
 	////IO INITI()
 	m_hiocp.Initi();
 
-	for (int i = 0; i < MAX_USER; ++i)
+	for (int i = 0; i < MAX_USER; ++i) {
 		m_tClient[i].m_bConnect = false;
+		m_tClient[i].m_escape = false;
+	}
 
 	for (int j = ITEM_START; j < ITEM_START + ITEM_MAX; ++j) {
 		m_tItem[j].is_cli_connect = false;
 		m_tItem[j].connected_number = -1;
+		m_tItem[j].pos = { -10000, 3000, 0 };
 	}
 
 	m_time.Reset();
@@ -255,7 +290,7 @@ void CMainServer::Initi()
 	m_time.Tick();
 }
 
-/////////////////////
+
 void CMainServer::Accept_Process()
 {
 	while (1)
@@ -298,6 +333,7 @@ void CMainServer::Accept_Process()
 		m_tClient[log_id].pos.y = 300;
 		m_tClient[log_id].pos.z = -1300;
 		m_tClient[log_id].anistate = 0;
+		m_tClient[log_id].m_escape = false;
 		m_tClient[log_id].m_WorldPos = {
 			1.0f, 0.0f, 0.0f, 0.0f,
 			0.0f, 1.0f, 0.0f, 0.0f,
@@ -340,23 +376,17 @@ void CMainServer::Work_Process()
 		BOOL ret = m_hiocp.GetQCompleteState(&dwSize, &cur_id,
 			reinterpret_cast<LPWSAOVERLAPPED*> (&IoEx), &err_no);
 
-		//cout << endl << "GQCS KEY : " << cur_id << endl;
-
 		if (FALSE == ret) {
 			if (64 == err_no)
-				//DisconnectClient(cur_id);
 				error_display("GQCS : ", WSAGetLastError());
 		}
 
 		if (0 == dwSize) {
-			//DisconnectClient(cur_id);
 			continue;
 		}
 
 		if (e_RECV == IoEx->m_eType)
 		{
-			//cout << "RECV frome Client : " << cur_id;
-			//cout << " DATA_SIZE : " << dwSize << endl;
 			unsigned char* buf = m_tClient[cur_id].m_IoEx.m_szIoBuf;
 			unsigned cur_size = m_tClient[cur_id].m_iCursize;
 			unsigned pre_size = m_tClient[cur_id].m_iPredata;
@@ -397,6 +427,9 @@ void CMainServer::Work_Process()
 		}
 		else if (e_UPDATE == IoEx->m_eType) {
 			Player_Process(cur_id);
+			delete IoEx;
+		}
+		else if (e_ITEM == IoEx->m_eType) {
 			Item_Process(cur_id);
 			delete IoEx;
 		}
@@ -415,22 +448,17 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 	if (GetTickCount() - m_tClient[cur_id].m_Timer < FrameTime)
 		return;
 	int nb;
-	if (CS_ITEM_ON == packet[1] || CS_ITEM_OFF == packet[1]) {
+	if (CS_ITEM_ON == packet[1] || CS_ITEM_OFF == packet[1])
 		nb = *(int*)&packet[2] + ITEM_START;
-	}
-	cout << "----" << endl;
-
-	//	m_tClient[cur_id].anistate = 1;
 	switch (packet[1]) {
 	case CS_NONE:
 		m_tClient[cur_id].m_PlayerState = CS_NONE;
-		m_tClient[cur_id].anistate = 0;
 		break;
-
 	case CS_POS:
 		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].m_PlayerState = CS_NONE;
 		m_tClient[cur_id].anistate = 0;
+		m_tClient[cur_id].m_WorldPos = *(DirectX::XMFLOAT4X4*)&packet[2 + sizeof(DirectX::XMFLOAT3)];
 		break;
 
 	case CS_UP:
@@ -462,10 +490,10 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 		m_tClient[cur_id].m_PlayerState = CS_LEFT_UP;
 		break;
 	case CS_LEFT_DOWN:
-		//	m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 1;
 		m_tClient[cur_id].m_PlayerState = CS_LEFT_DOWN;
 		break;
+
 	case CS_DIE:
 		m_tClient[cur_id].pos = *(DirectX::XMFLOAT3*)&packet[2];
 		m_tClient[cur_id].anistate = 2;
@@ -481,7 +509,6 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 			m_tItem[nb].is_cli_connect = true;
 			if (m_tItem[nb].connected_number == -1)
 				m_tItem[nb].connected_number = cur_id;
-			//cout << "On ->" << cur_id << endl;
 		}
 		break;
 	}
@@ -491,10 +518,10 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 		{
 			m_tItem[nb].pos = *(DirectX::XMFLOAT3*)&packet[6];
 			m_tItem[nb].m_PlayerState = CS_ITEM_OFF;
-			//cout << "Off ->" << nb << endl;
 		}
 		break;
 	}
+
 	case CS_ITEM_SET:
 	{
 		int number = *(int*)&packet[2] + ITEM_START;
@@ -504,20 +531,34 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 		m_tItem[number].m_PlayerState = CS_ITEM_OFF;
 		break;
 	}
+
+	case CS_SCENE_SET:
+	{
+		m_tClient[cur_id].m_escape = *(bool*)&packet[2];
+		break;
+
+	}
 	default:
 		cout << "UnKnown Packet Type Cur_ID : " << cur_id << endl;
 		while (true);
 	}
 
-	/*
-		0일때 서버킨애가 하니까 됨
-	*/
+	if (CS_POS == packet[1]) {
+		SendPositionPacket(cur_id, cur_id);//필요
+		for (int i = 0; i < MAX_USER; ++i)
+		{
+			if (i != cur_id) {
+				if (m_tClient[i].m_bConnect)
+				{
+					SendPositionPacket(cur_id, i);
+					SendPositionPacket(i, cur_id);
+				}
+			}
+		}
+	}
 
-	//cout << (int)Item_Num << ' ' << cur_id << endl;
-
-	if (CS_POS == packet[1] || CS_DIE == packet[1]) {
-		m_tClient[cur_id].m_WorldPos = *(DirectX::XMFLOAT4X4*)&packet[2 + sizeof(DirectX::XMFLOAT3)];
-		SendMovePacket(cur_id, cur_id);
+	if (CS_DIE == packet[1]) {
+		//SendMovePacket(cur_id, cur_id);
 		for (int i = 0; i < MAX_USER; ++i)
 		{
 			if (i != cur_id)
@@ -528,6 +569,7 @@ void CMainServer::Packet_Process(int cur_id, UCHAR packet[])
 				}
 		}
 	}
+
 	if (CS_ITEM_ON == packet[1] || CS_ITEM_OFF == packet[1])
 	{
 		if (Item_Num == cur_id)
@@ -557,8 +599,6 @@ void CMainServer::SendPositionPacket(int client, int object)
 	packet.world_pos = m_tClient[object].m_WorldPos;
 	SendPacket(client, &packet);
 
-	//cout << object << "가 " << client << " 에게 " << packet.pos.x << " " << packet.pos.y << " " << packet.pos.z << endl;
-	//cout << m_tClient[object].pos.x << ", " << m_tClient[object].pos.y << ", " << m_tClient[object].pos.z << endl;
 
 }
 
@@ -569,15 +609,12 @@ void CMainServer::SendMovePacket(int client, int object)
 	packet.id = object;
 	packet.size = sizeof(packet);
 	packet.type = SC_MOVE;
-	packet.pos = m_tClient[object].pos;
 	packet.anistate = m_tClient[object].anistate;
-	packet.world_pos = m_tClient[object].m_WorldPos;
 	packet.player_state = m_tClient[object].m_PlayerState;
 
 
 
 	SendPacket(client, &packet);
-	//cout << object << "가 " << client << " 에게 " << packet.pos.x << " " << packet.pos.y << " " << packet.pos.z << endl;
 }
 
 void CMainServer::error_display(char * msg, int err_no)
